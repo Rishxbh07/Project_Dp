@@ -1,3 +1,10 @@
+:root {
+  /* Primary Colors */
+  --primary-purple: #a855f7;
+  --primary-blue: #3b82f6;
+  --primary-cyan: #06b6d4;
+}
+
 .hamburger-btn {
   display: inline-flex;
   flex-direction: column;

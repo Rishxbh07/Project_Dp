@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import MarketplacePage from './pages/MarketplacePage';
+import BottomNavBar from "./components/BottomNavBar";
 import { supabase } from './lib/supabaseClient';
 
 function App() {
@@ -21,10 +22,13 @@ function App() {
   }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<HomePage session={session} />} />
-      <Route path="/marketplace/:serviceName" element={<MarketplacePage />} />
-    </Routes>
+    <div>
+      <Routes>
+        <Route path="/" element={<HomePage session={session} />} />
+        <Route path="/marketplace/:serviceName" element={<MarketplacePage />} />
+      </Routes>
+      <BottomNavBar />
+    </div>
   );
 }
 
