@@ -1,0 +1,159 @@
+/* Combined Header & Navigation Styles */
+/* Merging best features from both CSS files for optimal hamburger menu and dropdown */
+
+/* Header container */
+.header {
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  backdrop-filter: blur(2px);
+}
+
+/* Enhanced hamburger button container */
+.hamburger-btn {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  width: 32px;
+  height: 26px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Hamburger bars with gradient and animation */
+.hamburger-bar {
+  display: block;
+  width: 22px;
+  height: 3px;
+  background: linear-gradient(90deg, #A855F7, #7C3AED);
+  border-radius: 6px;
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), opacity 180ms, width 180ms;
+  transform-origin: center;
+}
+
+/* Fallback hamburger spans for simple implementation */
+.hamburger {
+  width: 32px;
+  height: 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.hamburger span {
+  display: block;
+  height: 3px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 6px;
+  transition: transform .25s ease, opacity .25s ease;
+}
+
+/* Animation into "X" - enhanced transforms */
+.hamburger-btn .hamburger-bar.open:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+.hamburger-btn .hamburger-bar.open:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0.8);
+}
+.hamburger-btn .hamburger-bar.open:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+/* Drawer overlay with enhanced blur */
+.drawer-overlay {
+  background: rgba(2,6,23,0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* Side drawer with improved gradient */
+.side-drawer {
+  background: linear-gradient(180deg, rgba(10,14,25,0.98), rgba(6,10,18,0.98));
+  color: #E6E9F2;
+  box-shadow: 8px 0 40px rgba(2,6,23,0.7);
+  padding-bottom: 24px;
+  transform: translateX(0);
+}
+
+/* Enhanced dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  left: 0;
+  top: 56px;
+  width: 18rem; /* 288px ~ w-72 */
+  max-width: 90vw;
+  background: rgba(12,16,30,0.62);
+  backdrop-filter: blur(8px);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.04);
+  box-shadow: 0 10px 30px rgba(4,6,20,0.6);
+  padding: 0.5rem;
+  z-index: 40;
+  overflow: hidden;
+}
+
+/* Dropdown sections */
+.dropdown-section {
+  padding: 0.25rem;
+}
+
+/* Enhanced menu items with better hover effects */
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  color: #E6E9F2;
+  background: transparent;
+  margin-bottom: 0.35rem;
+  transition: background 160ms ease, color 160ms ease, box-shadow 180ms ease;
+}
+
+.menu-item:hover {
+  background: rgba(255,255,255,0.03);
+  box-shadow: inset 4px 0 0 rgba(124,58,237,0.9);
+}
+
+.menu-item .menu-arrow {
+  color: rgba(255,255,255,0.45);
+}
+
+/* Drawer header and body */
+.drawer-header {
+  background: transparent;
+}
+
+.drawer-body {
+  padding-bottom: 32px;
+}
+
+/* Settings item styling */
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  color: #C9D0E8;
+}
+
+/* Logo wrapper utility */
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Profile avatar utility */
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}

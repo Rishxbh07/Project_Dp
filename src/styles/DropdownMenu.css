@@ -1,0 +1,138 @@
+.hamburger-btn {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.hamburger-bar {
+  display: block;
+  width: 22px;
+  height: 3px;
+  background: linear-gradient(90deg, #A855F7, #7C3AED);
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.dropdown-menu {
+  position: absolute;
+  left: 0;
+  top: 60px;
+  width: 350px;
+  max-width: 90vw;
+  background: rgba(12, 16, 30, 0.75);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 60px rgba(4, 6, 20, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.dropdown-section {
+  padding: 0.5rem;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  color: #E6E9F2;
+  background: transparent;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
+}
+
+.highlighted-item {
+  background: rgba(124, 58, 237, 0.1);
+  border-left: 3px solid #7C3AED;
+}
+
+.highlighted-item:hover {
+  background: rgba(124, 58, 237, 0.15);
+}
+
+.menu-arrow {
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.2s ease;
+}
+
+.menu-item:hover .menu-arrow {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  color: #C9D0E8;
+}
+
+.toggle-switch {
+  width: 48px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.toggle-switch.active {
+  background: linear-gradient(90deg, #A855F7, #7C3AED);
+}
+
+.toggle-thumb {
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch.active .toggle-thumb {
+  transform: translateX(24px);
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-top-2 {
+  from { transform: translateY(-8px); }
+  to { transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fade-in 0.2s ease-out, slide-in-from-top-2 0.2s ease-out;
+}
