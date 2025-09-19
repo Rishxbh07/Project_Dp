@@ -7,12 +7,40 @@
     <title>dapBuddy</title>
 
     <!-- Google Font used by the wordmark -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CDN for quick dev (leave in place if you're already using it) -->
+    <!-- Tailwind CDN for quick dev -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom CSS for enhanced styling -->
+    <link rel="stylesheet" href="/src/styles/custom.css">
+    
+    <!-- Tailwind config for custom utilities -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              'poppins': ['Poppins', 'sans-serif'],
+            },
+            colors: {
+              'dap-purple-1': '#A855F7',
+              'dap-purple-2': '#7C3AED',
+            },
+            backdropBlur: {
+              xs: '2px',
+              '3xl': '64px',
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s ease-in-out infinite',
+              'bounce-subtle': 'bounce 2s infinite',
+            }
+          }
+        }
+      }
+    </script>
   </head>
-  <body class="bg-[#0b1220]">
+  <body class="bg-[#0b1220] font-poppins">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
