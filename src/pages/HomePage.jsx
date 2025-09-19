@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PlanCard from '../components/PlanCard';
-import SearchBar from '../components/SearchBar';
-import CategoryFilters from '../components/CategoryFilters';
 import HostPlanCTA from '../components/HostPlanCTA';
 import { supabase } from '../lib/supabaseClient';
 import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
@@ -73,9 +71,6 @@ const HomePage = ({ session }) => {
               ))}
             </div>
           </div>
-
-          <SearchBar />
-          <CategoryFilters />
 
           {/* Enhanced Popular Plans section */}
           <section className="mt-10">

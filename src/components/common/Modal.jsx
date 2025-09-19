@@ -6,23 +6,23 @@ const Modal = ({ isOpen, onClose, children }) => {
   }
 
   return (
-    // Main overlay that covers the screen
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-
-      {/* The actual modal pop-up content */}
-      <div className="bg-[#1e2947] p-8 rounded-2xl shadow-xl w-full max-w-sm relative border border-slate-700">
-
-        {/* The 'X' button to close the modal */}
+    // Fixed positioning overlay that covers the entire screen
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {/* Centered modal content with responsive sizing */}
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 p-6 rounded-3xl shadow-2xl w-full max-w-sm mx-auto relative animate-in fade-in duration-300">
+        
+        {/* Enhanced close button */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl"
+          className="absolute top-4 right-4 text-slate-400 hover:text-white text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800/50 transition-all duration-200"
         >
-          &times;
+          ×
         </button>
 
-        {/* This is where the content (like the Auth form) will be displayed */}
-        {children}
-
+        {/* Modal content */}
+        <div className="pt-2">
+          {children}
+        </div>
       </div>
     </div>
   );

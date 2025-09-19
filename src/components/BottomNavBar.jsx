@@ -54,24 +54,13 @@ export default function BottomNavBar() {
   const location = useLocation();
 
   return (
-    <nav className="fixed left-1/2 bottom-5 transform -translate-x-1/2 z-50">
-      {/* Enhanced nav container with better glassmorphism */}
-      <div className="relative">
-        
-        {/* Glowing background effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-purple-500/20 rounded-3xl blur-xl"></div>
-        
-        {/* Main navigation container */}
-        <div
-          className="relative bg-white/20 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-2xl px-6 py-3"
-          style={{
-            width: '90vw',
-            maxWidth: '420px',
-            height: '70px',
-          }}
-        >
+    <nav className="fixed bottom-0 left-0 right-0 z-40">
+      {/* Main navigation container - integrated design */}
+      <div className="bg-slate-900/80 backdrop-blur-xl border-t border-slate-700/50 px-4 py-2">
+        <div className="max-w-md mx-auto">
+          
           {/* Navigation items */}
-          <div className="flex justify-between items-center h-full">
+          <div className="flex justify-between items-center">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path || (item.path === "/" && location.pathname === "/");
               
@@ -79,23 +68,23 @@ export default function BottomNavBar() {
                 <Link
                   key={item.label}
                   to={item.path}
-                  className="group relative flex flex-col items-center justify-center flex-1 h-full"
+                  className="group relative flex flex-col items-center justify-center flex-1 py-3 px-2"
                 >
-                  {/* Active background with smooth animation */}
+                  {/* Enhanced active background that covers entire icon area */}
                   {isActive && (
-                    <div className="absolute inset-2 bg-gradient-to-br from-purple-500/30 to-blue-500/30 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg animate-in fade-in duration-300"></div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg animate-in fade-in duration-300"></div>
                   )}
                   
                   {/* Icon and label container */}
                   <div className={`relative z-10 flex flex-col items-center justify-center space-y-1 transition-all duration-300 ${
-                    isActive ? 'scale-105' : 'group-hover:scale-110'
+                    isActive ? 'scale-110' : 'group-hover:scale-105'
                   }`}>
                     
                     {/* Enhanced icon with better visual feedback */}
                     <div className={`transition-all duration-300 ${
                       isActive 
                         ? 'text-white drop-shadow-sm' 
-                        : 'text-gray-400 group-hover:text-gray-200'
+                        : 'text-slate-400 group-hover:text-slate-200'
                     }`}>
                       {item.icon(isActive)}
                     </div>
@@ -104,7 +93,7 @@ export default function BottomNavBar() {
                     <span className={`text-xs font-medium transition-all duration-300 ${
                       isActive 
                         ? 'text-white font-semibold' 
-                        : 'text-gray-400 group-hover:text-gray-200'
+                        : 'text-slate-400 group-hover:text-slate-200'
                     }`}>
                       {item.label}
                     </span>
@@ -112,17 +101,20 @@ export default function BottomNavBar() {
                   
                   {/* Active indicator dot */}
                   {isActive && (
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-sm"></div>
+                    <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse shadow-sm"></div>
                   )}
                   
                   {/* Hover ripple effect */}
-                  <div className="absolute inset-2 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 scale-95 group-hover:scale-100 transform transition-transform duration-200"></div>
+                  <div className="absolute inset-1 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 scale-95 group-hover:scale-100 transform transition-transform duration-200"></div>
                 </Link>
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* Safe area padding for devices with home indicators */}
+      <div className="bg-slate-900/80 h-safe-area-inset-bottom"></div>
     </nav>
   );
 }
