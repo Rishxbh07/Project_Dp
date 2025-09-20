@@ -60,9 +60,11 @@ const SubscriptionPage = ({ session }) => {
               ) : (
                 <div className="text-center py-16 px-4 bg-white/5 rounded-2xl border border-dashed border-white/20">
                   <p className="text-slate-400 mb-4">No plans Hosted yet</p>
-                  <button className="bg-purple-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-purple-700 transition-all">
-                    Host a Plan
-                  </button>
+                  <Link to="/host-plan">
+                    <button className="bg-purple-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-purple-700 transition-all">
+                      Host a Plan
+                    </button>
+                  </Link>
                 </div>
               )}
             </div>

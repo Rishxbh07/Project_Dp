@@ -7,6 +7,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionDetailPage from './pages/SubscriptionDetailPage'; // Make sure this is imported
 import BottomNavBar from "./components/BottomNavBar";
 import { supabase } from './lib/supabaseClient';
+import HostPlanPage from './pages/HostPlanPage';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -33,6 +34,7 @@ function App() {
         {/* --- CORRECTED ROUTE ORDER --- */}
         <Route path="/subscription/:subscriptionId" element={<SubscriptionDetailPage session={session} />} />
         <Route path="/subscription" element={<SubscriptionPage session={session} />} />
+        <Route path="/host-plan" element={<HostPlanPage session={session} />} />
         
       </Routes>
       <BottomNavBar />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PlanCard from '../components/PlanCard';
 import HostPlanCTA from '../components/HostPlanCTA';
 import { supabase } from '../lib/supabaseClient';
+import { Link } from 'react-router-dom';
 import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
 
 const HomePage = ({ session }) => {
