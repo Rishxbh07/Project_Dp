@@ -6,7 +6,7 @@ const Auth = ({ onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [referralCode, setReferralCode] = useState(''); // New state for referral code
+  const [referralCode, setReferralCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [usernameMessage, setUsernameMessage] = useState('');
@@ -33,45 +33,48 @@ const Auth = ({ onSuccess }) => {
     setLoading(false);
   };
 
-  // Main handler for both login and sign up
+  /**
+   * Main handler for both login and sign up.
+   * This function has been updated to use the recommended Supabase pattern.
+   */
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     if (isLogin) {
+      // Login logic remains the same
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMessage(error.message);
-      else if (onSuccess) onSuccess();
+      if (error) {
+        setMessage(error.message);
+      } else if (onSuccess) {
+        onSuccess();
+      }
     } else {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // --- CORRECTED SIGN-UP LOGIC ---
+      // We now pass the username and referral code in the 'options.data' object.
+      // Your new database trigger will use this data to create the profile correctly.
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username: username,
+            referral_code: referralCode, // Pass the referral code as well
+          },
+        },
       });
 
-      if (authError) {
-        setMessage(authError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (authData.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: authData.user.id,
-          username: username,
-          referral_code: referralCode, // Save referral code to the database
-        });
-
-        if (profileError) {
-          setMessage(`Account created, but profile setup failed: ${profileError.message}`);
-        } else {
-          setMessage('Account created! Check your email for the confirmation link.');
-          if (onSuccess) setTimeout(() => onSuccess(), 1500);
-        }
+      if (error) {
+        setMessage(error.message);
+      } else {
+        // We no longer need a separate insert call. The database trigger handles it.
+        setMessage('Account created! Check your email for the confirmation link.');
       }
     }
     setLoading(false);
   };
+
 
   // Google OAuth handler
   const handleGoogleAuth = async () => {
@@ -107,7 +110,6 @@ const Auth = ({ onSuccess }) => {
         </p>
       </div>
 
-      {/* --- Google Sign-in Button (Restored) --- */}
       <button
         onClick={handleGoogleAuth}
         disabled={loading}
@@ -122,7 +124,6 @@ const Auth = ({ onSuccess }) => {
         <span>{isLogin ? 'Continue with Google' : 'Sign up with Google'}</span>
       </button>
 
-      {/* --- Divider --- */}
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-700"></div>
@@ -132,7 +133,6 @@ const Auth = ({ onSuccess }) => {
         </div>
       </div>
 
-      {/* --- Email/Password Form --- */}
       <form onSubmit={handleAuth} className="space-y-4">
         {!isLogin && (
           <>
@@ -171,7 +171,6 @@ const Auth = ({ onSuccess }) => {
           className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           required
         />
-        {/* --- Referral Code Field (Restored) --- */}
         {!isLogin && (
           <input
             type="text"
