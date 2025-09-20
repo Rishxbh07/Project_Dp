@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "tailwind-init": "node_modules/.bin/tailwindcss init -p",
+    "tailwind-init": "tailwindcss init -p",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -23,5 +23,18 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "vite": "^4.0.0"
-  }
+  },
+  "description": "",
+  "main": "postcss.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rishxbh07/dapbuddy-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Rishxbh07/dapbuddy-app/issues"
+  },
+  "homepage": "https://github.com/Rishxbh07/dapbuddy-app#readme"
 }
