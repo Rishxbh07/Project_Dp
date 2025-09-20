@@ -1,8 +1,8 @@
-// This file should already be set up to pass the 'session' prop
 import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import MarketplacePage from './pages/MarketplacePage';
+import WalletPage from './pages/WalletPage'; // <-- 1. IMPORT
 import BottomNavBar from "./components/BottomNavBar";
 import { supabase } from './lib/supabaseClient';
 
@@ -26,6 +26,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage session={session} />} />
         <Route path="/marketplace/:serviceName" element={<MarketplacePage />} />
+        <Route path="/wallet" element={<WalletPage session={session} />} /> {/* <-- 2. ADD ROUTE */}
       </Routes>
       <BottomNavBar />
     </div>

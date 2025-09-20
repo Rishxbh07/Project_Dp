@@ -1,51 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const Auth = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [referralCode, setReferralCode] = useState(''); // New state for referral code
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [usernameMessage, setUsernameMessage] = useState('');
 
+  // Check username availability
+  const checkUsername = async (currentUsername) => {
+    if (!currentUsername || currentUsername.length < 3) {
+      setUsernameMessage('');
+      return;
+    }
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', currentUsername);
+
+    if (error) {
+      setUsernameMessage('Error checking username');
+    } else if (data.length > 0) {
+      setUsernameMessage('Username is already taken.');
+    } else {
+      setUsernameMessage('Username is available!');
+    }
+    setLoading(false);
+  };
+
+  // Main handler for both login and sign up
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
-    const { error } = isLogin
-      ? await supabase.auth.signInWithPassword({ email, password })
-      : await supabase.auth.signUp({ email, password });
-
-    if (error) {
-      setMessage(error.message);
+    if (isLogin) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setMessage(error.message);
+      else if (onSuccess) onSuccess();
     } else {
-      setMessage(isLogin ? 'Logged in successfully!' : 'Check your email for the confirmation link!');
-      if (onSuccess) {
-        setTimeout(() => {
-          onSuccess();
-        }, 1500);
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setMessage(authError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (authData.user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: authData.user.id,
+          username: username,
+          referral_code: referralCode, // Save referral code to the database
+        });
+
+        if (profileError) {
+          setMessage(`Account created, but profile setup failed: ${profileError.message}`);
+        } else {
+          setMessage('Account created! Check your email for the confirmation link.');
+          if (onSuccess) setTimeout(() => onSuccess(), 1500);
+        }
       }
     }
     setLoading(false);
   };
 
+  // Google OAuth handler
   const handleGoogleAuth = async () => {
     setLoading(true);
     setMessage('');
-    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
-      }
+        redirectTo: window.location.origin,
+      },
     });
-
-    if (error) {
-      setMessage(error.message);
-    }
+    if (error) setMessage(error.message);
     setLoading(false);
   };
+
+  // Effect to auto-fill referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+    }
+  }, []);
 
   return (
     <div className="w-full">
@@ -58,7 +107,7 @@ const Auth = ({ onSuccess }) => {
         </p>
       </div>
 
-      {/* Google Sign-in Button */}
+      {/* --- Google Sign-in Button (Restored) --- */}
       <button
         onClick={handleGoogleAuth}
         disabled={loading}
@@ -73,7 +122,7 @@ const Auth = ({ onSuccess }) => {
         <span>{isLogin ? 'Continue with Google' : 'Sign up with Google'}</span>
       </button>
 
-      {/* Divider */}
+      {/* --- Divider --- */}
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-slate-700"></div>
@@ -83,14 +132,35 @@ const Auth = ({ onSuccess }) => {
         </div>
       </div>
 
-      {/* Email/Password Form */}
+      {/* --- Email/Password Form --- */}
       <form onSubmit={handleAuth} className="space-y-4">
+        {!isLogin && (
+          <>
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => {
+                const newUsername = e.target.value.toLowerCase().replace(/[^a-z0-9_@]/g, '').slice(0, 12);
+                setUsername(newUsername);
+                checkUsername(newUsername);
+              }}
+              className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+              required
+            />
+            {usernameMessage && (
+              <p className={`text-center text-xs ${usernameMessage.includes('available') ? 'text-green-400' : 'text-red-400'}`}>
+                {usernameMessage}
+              </p>
+            )}
+          </>
+        )}
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email Address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           required
         />
         <input
@@ -98,20 +168,30 @@ const Auth = ({ onSuccess }) => {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           required
         />
+        {/* --- Referral Code Field (Restored) --- */}
+        {!isLogin && (
+          <input
+            type="text"
+            placeholder="Referral Code (Optional)"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value)}
+            className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+          />
+        )}
         <button
           type="submit"
           disabled={loading}
           className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100"
         >
-          {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
+          {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Create Account')}
         </button>
       </form>
 
       {message && (
-        <p className={`text-center text-sm mt-4 ${message.includes('error') || message.includes('Error') ? 'text-red-400' : 'text-green-400'}`}>
+        <p className={`text-center text-sm mt-4 ${message.includes('error') || message.includes('failed') ? 'text-red-400' : 'text-green-400'}`}>
           {message}
         </p>
       )}
@@ -121,7 +201,11 @@ const Auth = ({ onSuccess }) => {
           {isLogin ? "Don't have an account?" : "Already have an account?"}
         </p>
         <button 
-          onClick={() => setIsLogin(!isLogin)} 
+          onClick={() => {
+            setIsLogin(!isLogin);
+            setMessage('');
+            setUsernameMessage('');
+          }} 
           className="text-purple-400 font-semibold hover:text-purple-300 transition-colors duration-200 mt-1"
         >
           {isLogin ? 'Create Account' : 'Log In'}
