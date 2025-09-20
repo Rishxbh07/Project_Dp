@@ -1,12 +1,14 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) {
     return null;
   }
 
-  return (
-    // Fixed positioning overlay that covers the entire screen
+  // createPortal takes the JSX to render and a DOM element to render it into.
+  // We use document.body to ensure it's at the top level.
+  return createPortal(
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       {/* Centered modal content with responsive sizing */}
       <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 p-6 rounded-3xl shadow-2xl w-full max-w-sm mx-auto relative animate-in fade-in duration-300">
@@ -24,7 +26,8 @@ const Modal = ({ isOpen, onClose, children }) => {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

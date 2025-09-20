@@ -36,7 +36,7 @@ const HomePage = ({ session }) => {
         <div className="max-w-md mx-auto px-4">
           
           {/* Enhanced header with glassmorphism effect */}
-          <div className="backdrop-blur-xl bg-white/5 rounded-b-3xl border border-white/10 shadow-2xl mb-8 -mx-4 px-4">
+          <div className="backdrop-blur-xl bg-white/5 rounded-full border border-white/10 shadow-2xl my-6 px-4 py-2">
             <DapBuddyDropdownMenu session={session} />
           </div>
 
