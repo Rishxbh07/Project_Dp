@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import logo from '/assets/icons/Logo.png'; 
 
 const Auth = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -33,17 +34,12 @@ const Auth = ({ onSuccess }) => {
     setLoading(false);
   };
 
-  /**
-   * Main handler for both login and sign up.
-   * This function has been updated to use the recommended Supabase pattern.
-   */
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     if (isLogin) {
-      // Login logic remains the same
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setMessage(error.message);
@@ -51,16 +47,13 @@ const Auth = ({ onSuccess }) => {
         onSuccess();
       }
     } else {
-      // --- CORRECTED SIGN-UP LOGIC ---
-      // We now pass the username and referral code in the 'options.data' object.
-      // Your new database trigger will use this data to create the profile correctly.
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             username: username,
-            referral_code: referralCode, // Pass the referral code as well
+            referral_code: referralCode,
           },
         },
       });
@@ -68,15 +61,12 @@ const Auth = ({ onSuccess }) => {
       if (error) {
         setMessage(error.message);
       } else {
-        // We no longer need a separate insert call. The database trigger handles it.
         setMessage('Account created! Check your email for the confirmation link.');
       }
     }
     setLoading(false);
   };
 
-
-  // Google OAuth handler
   const handleGoogleAuth = async () => {
     setLoading(true);
     setMessage('');
@@ -90,7 +80,6 @@ const Auth = ({ onSuccess }) => {
     setLoading(false);
   };
 
-  // Effect to auto-fill referral code from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get('ref');
@@ -102,6 +91,7 @@ const Auth = ({ onSuccess }) => {
   return (
     <div className="w-full">
       <div className="text-center mb-6">
+        <img src={logo} alt="DapBuddy Logo" className="mx-auto h-16 w-auto mb-4" />
         <h2 className="text-gray-900 dark:text-white text-2xl font-bold mb-2">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h2>

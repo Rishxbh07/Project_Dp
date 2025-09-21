@@ -31,11 +31,13 @@ const navItems = [
       )
     },
     {
-      label: "Profile", // Changed from Friends to Profile to match your routes
-      path: "/profile",
+      label: "Marketplace",
+      path: "/explore",
       icon: (isActive) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
         </svg>
       )
     },
@@ -60,7 +62,7 @@ export default function BottomNavBar() {
           <div className="flex justify-between items-center">
             {navItems.map((item) => {
               const isActive = location.pathname.startsWith(item.path) && (item.path !== "/" || location.pathname === "/");
-              
+
               return (
                 <Link
                   key={item.label}
