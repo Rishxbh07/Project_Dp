@@ -1,0 +1,18 @@
+[33mf1f8ee7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m HEAD@{0}: commit: new logs
+[33m40ac364[m HEAD@{1}: reset: moving to HEAD
+[33m40ac364[m HEAD@{2}: commit (amend): almost finished dark/light mode code
+[33md2cf6e2[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{3}: commit: almost finished dark/light mode code
+[33m580bfe0[m HEAD@{4}: commit: popup bugs fixed and partially created a light theme
+[33m4929dd9[m HEAD@{5}: commit: updated ui added new icons new sections (notification and profile page update)
+[33mb38bb0e[m HEAD@{6}: commit: fixed log/sign in bug
+[33mc9db72f[m HEAD@{7}: commit: no
+[33mb03870f[m HEAD@{8}: commit: host a plan element update
+[33m1489255[m HEAD@{9}: commit: added my subscriptions and detail section
+[33mcb7933e[m HEAD@{10}: commit: added wallet
+[33m718189f[m HEAD@{11}: commit: betterment
+[33ma4a02cf[m HEAD@{12}: commit: what
+[33ma454429[m HEAD@{13}: commit: better updated ui
+[33m9060b81[m HEAD@{14}: commit: new fevicon
+[33m85716b1[m HEAD@{15}: commit: update
+[33m69019db[m HEAD@{16}: commit: aesthetic
+[33m98efda9[m HEAD@{17}: commit (initial): first commit
