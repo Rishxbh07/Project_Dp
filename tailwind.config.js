@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class', // <-- This line is essential
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,11 +8,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // make a semantic name so we can use `font-poppins` in components
         poppins: ['Poppins', 'sans-serif'],
       },
       colors: {
-        // optional: make sure purple shades exist for consistent gradient
         'dap-purple-1': '#A855F7',
         'dap-purple-2': '#7C3AED',
       }

@@ -1,14 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import { BrowserRouter } from 'react-router-dom'; // <-- 1. IMPORT
-
-// import './styles/index.css'; // This should still be commented out for the CDN fix
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext'; // <-- IMPORT
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter> {/* <-- 2. WRAP APP */}
-      <App />
+    <BrowserRouter>
+      <ThemeProvider> {/* <-- WRAP APP */}
+        <App />
+      </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
