@@ -102,10 +102,10 @@ const Auth = ({ onSuccess }) => {
   return (
     <div className="w-full">
       <div className="text-center mb-6">
-        <h2 className="text-white text-2xl font-bold mb-2">
+        <h2 className="text-gray-900 dark:text-white text-2xl font-bold mb-2">
           {isLogin ? 'Welcome Back' : 'Create Account'}
         </h2>
-        <p className="text-slate-400 text-sm">
+        <p className="text-gray-500 dark:text-slate-400 text-sm">
           {isLogin ? 'Log in to continue your journey' : 'Join DapBuddy and start saving today'}
         </p>
       </div>
@@ -113,7 +113,7 @@ const Auth = ({ onSuccess }) => {
       <button
         onClick={handleGoogleAuth}
         disabled={loading}
-        className="w-full mb-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold py-3 px-4 rounded-xl border border-gray-200 transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-70"
+        className="w-full mb-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold py-3 px-4 rounded-xl border border-gray-200 dark:bg-white dark:hover:bg-gray-50 dark:text-gray-900 dark:border-gray-200 transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-70"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -126,10 +126,10 @@ const Auth = ({ onSuccess }) => {
 
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-700"></div>
+          <div className="w-full border-t border-gray-300 dark:border-slate-700"></div>
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-slate-900 px-3 text-slate-400 font-medium">Or</span>
+          <span className="bg-white dark:bg-slate-900 px-3 text-gray-500 dark:text-slate-400 font-medium">Or</span>
         </div>
       </div>
 
@@ -145,11 +145,11 @@ const Auth = ({ onSuccess }) => {
                 setUsername(newUsername);
                 checkUsername(newUsername);
               }}
-              className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+              className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-xl border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
               required
             />
             {usernameMessage && (
-              <p className={`text-center text-xs ${usernameMessage.includes('available') ? 'text-green-400' : 'text-red-400'}`}>
+              <p className={`text-center text-xs ${usernameMessage.includes('available') ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                 {usernameMessage}
               </p>
             )}
@@ -160,7 +160,7 @@ const Auth = ({ onSuccess }) => {
           placeholder="Email Address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+          className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-xl border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           required
         />
         <input
@@ -168,7 +168,7 @@ const Auth = ({ onSuccess }) => {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+          className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-xl border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           required
         />
         {!isLogin && (
@@ -177,7 +177,7 @@ const Auth = ({ onSuccess }) => {
             placeholder="Referral Code (Optional)"
             value={referralCode}
             onChange={(e) => setReferralCode(e.target.value)}
-            className="w-full p-3 bg-slate-800/50 text-white rounded-xl border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+            className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-xl border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
           />
         )}
         <button
@@ -190,22 +190,22 @@ const Auth = ({ onSuccess }) => {
       </form>
 
       {message && (
-        <p className={`text-center text-sm mt-4 ${message.includes('error') || message.includes('failed') ? 'text-red-400' : 'text-green-400'}`}>
+        <p className={`text-center text-sm mt-4 ${message.includes('error') || message.includes('failed') ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}`}>
           {message}
         </p>
       )}
 
       <div className="text-center mt-6">
-        <p className="text-slate-400 text-sm">
+        <p className="text-gray-500 dark:text-slate-400 text-sm">
           {isLogin ? "Don't have an account?" : "Already have an account?"}
         </p>
-        <button 
+        <button
           onClick={() => {
             setIsLogin(!isLogin);
             setMessage('');
             setUsernameMessage('');
-          }} 
-          className="text-purple-400 font-semibold hover:text-purple-300 transition-colors duration-200 mt-1"
+          }}
+          className="text-purple-500 dark:text-purple-400 font-semibold hover:text-purple-600 dark:hover:text-purple-300 transition-colors duration-200 mt-1"
         >
           {isLogin ? 'Create Account' : 'Log In'}
         </button>

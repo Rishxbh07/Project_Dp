@@ -14,11 +14,11 @@ const BottomSheetModal = ({ isOpen, onClose, children }) => {
     >
       {/* Modal Content */}
       <div
-        className="bg-slate-800/95 w-full max-w-md mx-auto rounded-t-3xl p-4 animate-in slide-in-from-bottom-25"
+        className="bg-white dark:bg-slate-800/95 w-full max-w-md mx-auto rounded-t-3xl p-4 animate-in slide-in-from-bottom-25"
         onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
       >
         {/* Handle */}
-        <div className="w-12 h-1.5 bg-slate-600 rounded-full mx-auto mb-4"></div>
+        <div className="w-12 h-1.5 bg-gray-300 dark:bg-slate-600 rounded-full mx-auto mb-4"></div>
         {children}
       </div>
     </div>,

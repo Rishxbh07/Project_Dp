@@ -30,11 +30,18 @@ const PlanCard = ({ service }) => {
       to={`/marketplace/${name.toLowerCase()}`} 
       className="group flex-shrink-0 w-[240px] h-[320px] relative overflow-hidden"
     >
-      {/* Main card with enhanced glassmorphism */}
-      <div className="w-full h-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 flex flex-col items-center text-center text-white shadow-2xl transform transition-all duration-500 group-hover:scale-105 group-hover:shadow-3xl group-hover:shadow-purple-500/20 group-hover:bg-white/15 relative overflow-hidden">
+      {/* Card container with different styles for light and dark modes */}
+      <div className="w-full h-full p-6 flex flex-col items-center text-center rounded-3xl transform transition-all duration-500 group-hover:scale-105
         
-        {/* Subtle hover glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"></div>
+        // --- LIGHT MODE STYLES ---
+        bg-white border border-gray-200 shadow-lg group-hover:shadow-xl
+        
+        // --- DARK MODE STYLES ---
+        dark:bg-white/10 dark:backdrop-blur-xl dark:border-white/20 dark:shadow-2xl dark:group-hover:shadow-3xl dark:group-hover:shadow-purple-500/20 dark:group-hover:bg-white/15
+      ">
+        
+        {/* Subtle hover glow effect for dark mode */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl hidden dark:block"></div>
         
         {/* Enhanced service icon with dynamic gradient */}
         <div className={`relative z-10 w-24 h-24 bg-gradient-to-br ${gradientClass} rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-3`}>
@@ -47,16 +54,16 @@ const PlanCard = ({ service }) => {
         </div>
         
         {/* Service name with enhanced typography */}
-        <h3 className="relative z-10 text-2xl font-bold mb-2 group-hover:text-purple-200 transition-colors duration-300">
+        <h3 className="relative z-10 text-2xl font-bold mb-2 text-gray-900 dark:text-white group-hover:text-purple-500 dark:group-hover:text-purple-200 transition-colors duration-300">
           {name}
         </h3>
         
         {/* Enhanced pricing with better visual hierarchy */}
         <div className="relative z-10 mb-3">
-          <p className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-300 to-blue-300 group-hover:from-purple-200 group-hover:to-blue-200 transition-all duration-300">
+          <p className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-blue-500 dark:from-purple-300 dark:to-blue-300 group-hover:from-purple-600 group-hover:to-blue-600 dark:group-hover:from-purple-200 dark:group-hover:to-blue-200 transition-all duration-300">
             from ₹{minPrice}
           </p>
-          <p className="text-sm text-slate-400 font-medium">/month</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">/month</p>
         </div>
         
         {/* Enhanced status badge */}
@@ -68,7 +75,7 @@ const PlanCard = ({ service }) => {
         </div>
         
         {/* Enhanced description */}
-        <p className="relative z-10 text-slate-300 text-sm leading-relaxed font-light group-hover:text-slate-200 transition-colors duration-300">
+        <p className="relative z-10 text-gray-600 dark:text-slate-300 text-sm leading-relaxed font-light group-hover:text-gray-700 dark:group-hover:text-slate-200 transition-colors duration-300">
           {description}
         </p>
         

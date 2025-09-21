@@ -3,29 +3,53 @@ import React, { createContext, useState, useEffect } from 'react';
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  // Initialize state from localStorage, defaulting to 'dark'
+  // Initialize state from localStorage or system preference, defaulting to 'light'
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
-    return savedTheme || 'dark'; // Default to dark if nothing is saved
+    if (savedTheme) {
+      return savedTheme;
+    }
+    // Check system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light'; // Default to light theme
   });
 
-  // This effect applies the 'dark' class to the <html> element
+  // This effect applies the 'dark' class and listens for system theme changes
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // If the theme is dark, add the 'dark' class. Otherwise, remove it.
+
+    // Apply the current theme
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
-    
-    // Save the current theme choice to localStorage
+
+    // Save the user's explicit choice to localStorage
     localStorage.setItem('theme', theme);
+    
+    // Listen for changes in the system's color scheme
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => {
+        // Only change the theme if the user hasn't made an explicit choice
+        if (!localStorage.getItem('theme')) {
+            setTheme(e.matches ? 'dark' : 'light');
+        }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+
+    // Cleanup listener on component unmount
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    // When the user manually toggles, we save their preference
+    localStorage.setItem('theme', newTheme);
   };
 
   return (

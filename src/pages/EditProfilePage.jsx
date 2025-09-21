@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Image as ImageIcon, Trash2 } from 'lucide-react';
-import BottomSheetModal from '../components/common/BottomSheetModal'; // <-- IMPORT
+import BottomSheetModal from '../components/common/BottomSheetModal';
 
 const EditProfilePage = ({ session }) => {
   const user = session?.user;
@@ -37,10 +37,10 @@ const EditProfilePage = ({ session }) => {
 
   return (
     <>
-      <div className="bg-gradient-to-br from-slate-900 to-slate-900 min-h-screen font-sans text-white">
-        <header className="sticky top-0 z-20 backdrop-blur-xl bg-slate-900/80 border-b border-white/10">
+      <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
+        <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
           <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-            <Link to="/profile" className="text-purple-400 hover:text-purple-300 transition-colors">
+            <Link to="/profile" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors">
               &larr; Back
             </Link>
             <h1 className="text-xl font-bold">Edit Profile</h1>
@@ -56,38 +56,37 @@ const EditProfilePage = ({ session }) => {
               </div>
               <button 
                 onClick={() => setIsSheetOpen(true)}
-                className="absolute bottom-0 right-0 w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center border-2 border-slate-900 hover:bg-slate-600"
+                className="absolute bottom-0 right-0 w-8 h-8 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 hover:bg-gray-300 dark:hover:bg-slate-600"
               >
-                <Camera className="w-4 h-4 text-white" />
+                <Camera className="w-4 h-4 text-gray-800 dark:text-white" />
               </button>
             </div>
           </section>
 
           <form className="space-y-6 pb-12">
-            {/* Form inputs remain the same... */}
             <div>
-              <label className="text-sm font-medium text-slate-400">Username</label>
-              <input type="text" value={profile.username} disabled className="w-full p-3 mt-1 bg-slate-800/50 text-slate-300 rounded-lg border border-slate-700 cursor-not-allowed" />
+              <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Username</label>
+              <input type="text" value={profile.username} disabled className="w-full p-3 mt-1 bg-gray-200 dark:bg-slate-800/50 text-gray-500 dark:text-slate-300 rounded-lg border border-gray-300 dark:border-slate-700 cursor-not-allowed" />
             </div>
             <div>
-              <label htmlFor="fullName" className="text-sm font-medium text-slate-400">Fullname</label>
-              <input id="fullName" type="text" defaultValue={profile.fullName} className="w-full p-3 mt-1 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <label htmlFor="fullName" className="text-sm font-medium text-gray-500 dark:text-slate-400">Fullname</label>
+              <input id="fullName" type="text" defaultValue={profile.fullName} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
             <div>
-              <label htmlFor="phone" className="text-sm font-medium text-slate-400">Phone Number</label>
-              <input id="phone" type="tel" defaultValue={profile.phone} className="w-full p-3 mt-1 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <label htmlFor="phone" className="text-sm font-medium text-gray-500 dark:text-slate-400">Phone Number</label>
+              <input id="phone" type="tel" defaultValue={profile.phone} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
             <div>
-              <label htmlFor="email" className="text-sm font-medium text-slate-400">Email Address</label>
-              <input id="email" type="email" defaultValue={profile.email} className="w-full p-3 mt-1 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <label htmlFor="email" className="text-sm font-medium text-gray-500 dark:text-slate-400">Email Address</label>
+              <input id="email" type="email" defaultValue={profile.email} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
             <div>
-              <label htmlFor="dob" className="text-sm font-medium text-slate-400">Date of Birth</label>
-              <input id="dob" type="date" defaultValue={profile.dob} className="w-full p-3 mt-1 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+              <label htmlFor="dob" className="text-sm font-medium text-gray-500 dark:text-slate-400">Date of Birth</label>
+              <input id="dob" type="date" defaultValue={profile.dob} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
             </div>
             <div>
-              <label htmlFor="address" className="text-sm font-medium text-slate-400">Address</label>
-              <textarea id="address" rows="3" defaultValue={profile.address} className="w-full p-3 mt-1 bg-slate-800/50 text-white rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+              <label htmlFor="address" className="text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
+              <textarea id="address" rows="3" defaultValue={profile.address} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
             </div>
             
             <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 rounded-2xl hover:scale-105 transition-transform">
@@ -100,20 +99,20 @@ const EditProfilePage = ({ session }) => {
       {/* --- BOTTOM SHEET FOR PHOTO OPTIONS --- */}
       <BottomSheetModal isOpen={isSheetOpen} onClose={() => setIsSheetOpen(false)}>
         <div className="p-2 space-y-2">
-          <h3 className="text-lg font-bold text-center text-white mb-4">Profile Photo</h3>
+          <h3 className="text-lg font-bold text-center text-gray-900 dark:text-white mb-4">Profile Photo</h3>
           <button 
             onClick={handleChangePhoto}
-            className="w-full flex items-center gap-4 text-left p-4 rounded-xl hover:bg-slate-700 transition-colors"
+            className="w-full flex items-center gap-4 text-left p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <ImageIcon className="w-5 h-5 text-purple-400" />
-            <span className="font-semibold text-slate-200">Change Photo</span>
+            <ImageIcon className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+            <span className="font-semibold text-gray-800 dark:text-slate-200">Change Photo</span>
           </button>
           <button
             onClick={handleRemovePhoto}
-            className="w-full flex items-center gap-4 text-left p-4 rounded-xl hover:bg-slate-700 transition-colors"
+            className="w-full flex items-center gap-4 text-left p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
           >
-            <Trash2 className="w-5 h-5 text-red-400" />
-            <span className="font-semibold text-red-400">Remove Photo</span>
+            <Trash2 className="w-5 h-5 text-red-500 dark:text-red-400" />
+            <span className="font-semibold text-red-500 dark:text-red-400">Remove Photo</span>
           </button>
           <input 
             type="file" 

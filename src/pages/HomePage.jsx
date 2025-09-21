@@ -37,7 +37,7 @@ const HomePage = ({ session }) => {
         <div className="max-w-md mx-auto px-4">
           
           {/* --- THIS IS THE FIX for the layering issue --- */}
-          <div className="relative z-20 backdrop-blur-xl bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-lg dark:shadow-2xl my-6 px-4 py-2 rounded-full">
+          <div className="relative z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 shadow-lg my-6 px-4 py-2 rounded-full">
             <DapBuddyDropdownMenu session={session} />
           </div>
 
@@ -89,12 +89,12 @@ const HomePage = ({ session }) => {
               {loading ? (
                 // Enhanced loading skeletons
                 [...Array(3)].map((_, i) => (
-                  <div key={i} className="flex-shrink-0 w-[240px] h-[320px] bg-slate-200 dark:bg-white/5 backdrop-blur-sm border border-slate-300 dark:border-white/10 rounded-3xl p-6 animate-pulse">
-                    <div className="w-24 h-24 bg-slate-300 dark:bg-white/10 rounded-2xl mb-4 mx-auto"></div>
-                    <div className="h-6 bg-slate-300 dark:bg-white/10 rounded mb-2"></div>
-                    <div className="h-8 bg-slate-300 dark:bg-white/10 rounded mb-3"></div>
-                    <div className="h-6 bg-slate-300 dark:bg-white/10 rounded mb-3"></div>
-                    <div className="h-4 bg-slate-300 dark:bg-white/10 rounded"></div>
+                  <div key={i} className="flex-shrink-0 w-[240px] h-[320px] bg-gray-200 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-3xl p-6 animate-pulse">
+                    <div className="w-24 h-24 bg-gray-300 dark:bg-white/10 rounded-2xl mb-4 mx-auto"></div>
+                    <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-2"></div>
+                    <div className="h-8 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
+                    <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
+                    <div className="h-4 bg-gray-300 dark:bg-white/10 rounded"></div>
                   </div>
                 ))
               ) : (

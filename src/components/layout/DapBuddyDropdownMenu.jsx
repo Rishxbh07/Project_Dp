@@ -4,7 +4,6 @@ import { ChevronRight, X, Search, Sun, Moon } from 'lucide-react';
 import Modal from '../common/Modal';
 import Auth from '../Auth';
 import { ThemeContext } from '../../context/ThemeContext';
-import '../../styles/DropdownMenu.css';
 
 const DapBuddyDropdownMenu = ({ session }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +13,7 @@ const DapBuddyDropdownMenu = ({ session }) => {
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
 
+  // 1. We get the theme and toggleTheme function from our context
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   useEffect(() => {
@@ -42,14 +42,15 @@ const DapBuddyDropdownMenu = ({ session }) => {
   };
 
   const menuItems = [
-    { title: "Your Subscriptions", hasArrow: true },
-    { title: "Payment Methods", hasArrow: true },
-    { title: "Invite & Earn", hasArrow: true }
+    { title: "Your Subscriptions", hasArrow: true, path: "/subscription" },
+    { title: "Payment Methods", hasArrow: true, path: "/wallet" },
+    { title: "Invite & Earn", hasArrow: true, path: "/invite" }
   ];
 
   return (
     <>
       <div className={`relative ${isOpen ? 'z-50' : ''}`} ref={dropdownRef}>
+        {/* ... (rest of the component's JSX for search, logo, etc. remains the same) ... */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -74,7 +75,7 @@ const DapBuddyDropdownMenu = ({ session }) => {
             {!showSearch ? (
               <>
                 <div className="logo-wrapper">
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
                     DapBuddy
                   </h1>
                 </div>
@@ -124,30 +125,31 @@ const DapBuddyDropdownMenu = ({ session }) => {
             )}
           </div>
         </div>
-
         {isOpen && (
-          <div className="dropdown-menu animate-in bg-white dark:bg-slate-900/80 dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 shadow-2xl">
+           <div className="absolute left-0 top-14 w-[350px] max-w-[90vw] p-4 bg-white dark:bg-slate-900/80 dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl z-40 animate-in fade-in slide-in-from-top-2">
             {session ? (
-              <div className="dropdown-section">
+              <div>
                 {menuItems.map((item, index) => (
-                  <div key={index} className="menu-item text-slate-700 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5">
+                   <Link to={item.path} key={index} className="flex items-center justify-between p-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                     <span className="text-sm font-medium">{item.title}</span>
-                    {item.hasArrow && <ChevronRight className="w-4 h-4 menu-arrow text-slate-400 dark:text-slate-500" />}
-                  </div>
+                    {item.hasArrow && <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
+                   </Link>
                 ))}
                 
-                <div className="setting-item mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/5 flex items-center justify-between p-3">
                   <div className="flex items-center gap-3">
                     {theme === 'dark' ? <Moon className="w-5 h-5 text-purple-400" /> : <Sun className="w-5 h-5 text-yellow-500" />}
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                       {theme === 'dark' ? 'Dark' : 'Light'} Mode
                     </span>
                   </div>
+
+                  {/* 2. The onClick event calls the toggleTheme function */}
                   <button
                     onClick={toggleTheme}
-                    className={`toggle-switch ${theme === 'dark' ? 'active bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-slate-300'}`}
+                    className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gray-300'}`}
                   >
-                    <div className="toggle-thumb"></div>
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0'}`}></span>
                   </button>
                 </div>
               </div>

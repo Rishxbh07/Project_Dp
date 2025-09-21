@@ -15,7 +15,7 @@ const SubscriptionCard = ({ subscription }) => {
   return (
     <Link
       to={`/subscription/${id}`} // Link to the new detail page
-      className="group block bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-purple-400/50"
+      className="group block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-purple-400/50"
     >
       {/* Large Icon Area */}
       <div className={`w-full h-28 flex items-center justify-center bg-gradient-to-br ${getServiceColor(serviceName)}`}>
@@ -24,21 +24,21 @@ const SubscriptionCard = ({ subscription }) => {
 
       {/* Details Section */}
       <div className="p-4">
-        <h4 className="font-bold text-white text-lg">{serviceName}</h4>
-        <p className="text-sm text-slate-400 mb-2">Hosted by {hostName}</p>
+        <h4 className="font-bold text-gray-900 dark:text-white text-lg">{serviceName}</h4>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">Hosted by {hostName}</p>
         
         <div className="flex justify-between items-center mb-2">
-          <p className="text-xl font-bold text-purple-300">₹{rate}<span className="text-sm font-medium text-slate-400">/mo</span></p>
-          <p className="text-xs font-medium bg-green-500/20 text-green-300 px-2 py-1 rounded-full">{slotsFilled}/{slotsTotal} filled</p>
+          <p className="text-xl font-bold text-purple-600 dark:text-purple-300">₹{rate}<span className="text-sm font-medium text-gray-500 dark:text-slate-400">/mo</span></p>
+          <p className="text-xs font-medium bg-green-500/20 text-green-600 dark:text-green-300 px-2 py-1 rounded-full">{slotsFilled}/{slotsTotal} filled</p>
         </div>
 
         {/* Renewal Progress Bar */}
         <div>
-          <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mb-1">
             <span>Renews on {renewalDate}</span>
             <span>3 days left</span>
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-1.5">
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1.5">
             <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: '90%' }}></div>
           </div>
         </div>
