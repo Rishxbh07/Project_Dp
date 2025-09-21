@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // <-- IMPORT LINK
 import { ChevronRight, X, Search } from 'lucide-react';
 import Modal from '../common/Modal';
 import Auth from '../Auth';
@@ -139,15 +140,16 @@ const DapBuddyDropdownMenu = ({ session }) => {
             )}
           </div>
 
-          {/* Auth Section */}
+          {/* --- MODIFIED AUTH SECTION --- */}
           <div className="flex items-center">
             {session ? (
-              <button
-                onClick={() => setIsOpen(true)}
-                className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center hover:scale-105 transition-transform"
-              >
-                {session.user.email.charAt(0).toUpperCase()}
-              </button>
+              <Link to="/profile"> {/* <-- WRAPPED IN LINK */}
+                <div /* <-- CHANGED button to div */
+                  className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center hover:scale-105 transition-transform"
+                >
+                  {session.user.email.charAt(0).toUpperCase()}
+                </div>
+              </Link>
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
@@ -159,7 +161,6 @@ const DapBuddyDropdownMenu = ({ session }) => {
           </div>
         </div>
 
-        {/* Dropdown Menu */}
         {/* Dropdown Menu */}
         {isOpen && (
           <div className="dropdown-menu animate-in">

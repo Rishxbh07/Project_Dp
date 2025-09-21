@@ -1,52 +1,56 @@
 import React from "react";
 import { useLocation, Link } from "react-router-dom";
 
+// You can customize the icons here. These are simple SVG components.
+// I've used modern, line-based icons for a cleaner look.
+// To use your own icons (e.g., from Flaticon), you would replace the <svg>...</svg>
+// with an <img src="/path/to/your/icon.svg" /> or a custom icon component.
+
 const navItems = [
   {
-    label: "Wallet",
-    icon: (isActive) => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2} width="24" height="24">
-        <rect x="2" y="7" width="20" height="13" rx="4" />
-        <path d="M2 7V6a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v1" />
-        <circle cx="18" cy="15" r="1.5" fill={isActive ? "currentColor" : "none"} />
-      </svg>
-    ),
-    path: "/wallet"
-  },
-  {
-    label: "Friends",
-    icon: (isActive) => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2} width="24" height="24">
-        <circle cx="8" cy="8" r="3" />
-        <circle cx="16" cy="8" r="3" />
-        <path d="M3 20c0-4 10-4 10 0" />
-        <path d="M14 19c0-2 4-2 4 0" />
-      </svg>
-    ),
-    path: "/friends"
-  },
-  {
     label: "Home",
+    path: "/",
     icon: (isActive) => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2} width="24" height="24">
-        <path d="M3 10L12 3l9 7" />
-        <rect x="5" y="10" width="14" height="9" rx="2" />
-        <path d="M9 21V13h6v8" />
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       </svg>
-    ),
-    path: "/"
+    )
   },
   {
     label: "Subscription",
+    path: "/subscription",
     icon: (isActive) => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2} width="24" height="24">
-        <rect x="3" y="7" width="18" height="13" rx="4" />
-        <path d="M3 7V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v1" />
-        <path d="M8 13h8" />
-        <path d="M8 17h8" />
+       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>
       </svg>
-    ),
-    path: "/subscription"
+    )
+  },
+  {
+    label: "Wallet",
+    path: "/wallet",
+    icon: (isActive) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+      </svg>
+    )
+  },
+  {
+    label: "Friends",
+    path: "/friends",
+    icon: (isActive) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    )
+  },
+  { // -- NEW ITEM --
+    label: "Notifications",
+    path: "/notifications",
+    icon: (isActive) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+      </svg>
+    )
   },
 ];
 
@@ -55,14 +59,11 @@ export default function BottomNavBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40">
-      {/* Main navigation container - integrated design */}
       <div className="bg-slate-900/80 backdrop-blur-xl border-t border-slate-700/50 px-4 py-2">
         <div className="max-w-md mx-auto">
-          
-          {/* Navigation items */}
           <div className="flex justify-between items-center">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path || (item.path === "/" && location.pathname === "/");
+              const isActive = location.pathname.startsWith(item.path) && (item.path !== "/" || location.pathname === "/");
               
               return (
                 <Link
@@ -70,41 +71,20 @@ export default function BottomNavBar() {
                   to={item.path}
                   className="group relative flex flex-col items-center justify-center flex-1 py-3 px-2"
                 >
-                  {/* Enhanced active background that covers entire icon area */}
                   {isActive && (
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-blue-500/20 backdrop-blur-sm rounded-2xl border border-white/10 shadow-lg animate-in fade-in duration-300"></div>
                   )}
-                  
-                  {/* Icon and label container */}
-                  <div className={`relative z-10 flex flex-col items-center justify-center space-y-1 transition-all duration-300 ${
-                    isActive ? 'scale-110' : 'group-hover:scale-105'
-                  }`}>
-                    
-                    {/* Enhanced icon with better visual feedback */}
-                    <div className={`transition-all duration-300 ${
-                      isActive 
-                        ? 'text-white drop-shadow-sm' 
-                        : 'text-slate-400 group-hover:text-slate-200'
-                    }`}>
+                  <div className={`relative z-10 flex flex-col items-center justify-center space-y-1 transition-all duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>
+                    <div className={`transition-all duration-300 ${isActive ? 'text-white drop-shadow-sm' : 'text-slate-400 group-hover:text-slate-200'}`}>
                       {item.icon(isActive)}
                     </div>
-                    
-                    {/* Label with better typography */}
-                    <span className={`text-xs font-medium transition-all duration-300 ${
-                      isActive 
-                        ? 'text-white font-semibold' 
-                        : 'text-slate-400 group-hover:text-slate-200'
-                    }`}>
+                    <span className={`text-xs font-medium transition-all duration-300 ${isActive ? 'text-white font-semibold' : 'text-slate-400 group-hover:text-slate-200'}`}>
                       {item.label}
                     </span>
                   </div>
-                  
-                  {/* Active indicator dot */}
                   {isActive && (
                     <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse shadow-sm"></div>
                   )}
-                  
-                  {/* Hover ripple effect */}
                   <div className="absolute inset-1 rounded-xl bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 scale-95 group-hover:scale-100 transform transition-transform duration-200"></div>
                 </Link>
               );
@@ -112,8 +92,6 @@ export default function BottomNavBar() {
           </div>
         </div>
       </div>
-
-      {/* Safe area padding for devices with home indicators */}
       <div className="bg-slate-900/80 h-safe-area-inset-bottom"></div>
     </nav>
   );
