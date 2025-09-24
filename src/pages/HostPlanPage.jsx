@@ -1,166 +1,307 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Info } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { Info, LogIn, Plus, Minus } from 'lucide-react';
 
-// Mock data for services. In a real app, this would come from your backend.
-const services = [
-  { id: 'spotify', name: 'Spotify', totalCost: 199, maxSlots: 2, credentialType: 'link' },
-  { id: 'netflix', name: 'Netflix', totalCost: 799, maxSlots: 4, credentialType: 'credentials' },
-  { id: 'disney', name: 'Disney+', totalCost: 299, maxSlots: 4, credentialType: 'credentials' },
-];
+const HostPlanPage = ({ session }) => {
+    const navigate = useNavigate();
+    const [services, setServices] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedService, setSelectedService] = useState(null);
+    const [availableSlots, setAvailableSlots] = useState(1);
+    const [pricePerSlot, setPricePerSlot] = useState(0);
+    const [hostPayout, setHostPayout] = useState(0);
+    const [shareLater, setShareLater] = useState(false);
+    const [agreeToTerms, setAgreeToTerms] = useState(false);
+    const [loginEmail, setLoginEmail] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [inviteLink, setInviteLink] = useState('');
+    const [hostAddress, setHostAddress] = useState('');
+    const [planPurchaseDate, setPlanPurchaseDate] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    
+    // --- States for the dynamic warning ---
+    const [showDateWarning, setShowDateWarning] = useState(false);
+    const [understandsDateWarning, setUnderstandsDateWarning] = useState(false);
+    const [serviceEndDate, setServiceEndDate] = useState('');
+    const [payoutDate, setPayoutDate] = useState('');
 
-const HostPlanPage = () => {
-  const navigate = useNavigate();
-  const [selectedService, setSelectedService] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState(1);
-  const [pricePerSlot, setPricePerSlot] = useState(0);
-  const [shareLater, setShareLater] = useState(false);
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
-  const [inviteLink, setInviteLink] = useState('');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+    useEffect(() => {
+        const fetchServicesAndCategories = async () => {
+            setLoading(true);
+            const { data, error } = await supabase.from('services').select('*');
+            if (error) {
+                setError('Could not fetch services.');
+                console.error(error);
+            } else {
+                setServices(data);
+                const uniqueCategories = ['All', ...new Set(data.map(s => s.category).filter(Boolean))];
+                setCategories(uniqueCategories);
+            }
+            setLoading(false);
+        };
+        fetchServicesAndCategories();
+    }, []);
 
-  // Effect to calculate price per slot
-  useEffect(() => {
-    if (selectedService) {
-      const serviceData = services.find(s => s.id === selectedService);
-      if (serviceData && availableSlots > 0) {
-        const calculatedPrice = Math.ceil(serviceData.totalCost / (availableSlots + 1)); // +1 for the host
-        setPricePerSlot(calculatedPrice);
-      }
-    } else {
-      setPricePerSlot(0);
-    }
-  }, [selectedService, availableSlots]);
+    const selectedServiceData = services.find(s => s.id === selectedService);
 
-  const handleServiceSelect = (serviceId) => {
-    setSelectedService(serviceId);
-    setAvailableSlots(1); // Reset slots when service changes
-  };
-  
-  const isFormValid = () => {
-      if (!selectedService || !agreeToTerms) return false;
-      if (shareLater) return true;
-      if (selectedService === 'spotify' && inviteLink.startsWith('http')) return true;
-      if ((selectedService === 'netflix' || selectedService === 'disney') && loginEmail && loginPassword) return true;
-      return false;
-  }
+    useEffect(() => {
+        if (selectedServiceData) {
+            const pricePerSeat = selectedServiceData.Full_price / selectedServiceData.max_seats_allowed;
+            const totalRevenue = pricePerSeat * availableSlots;
+            const platformFee = totalRevenue * (selectedServiceData.platform_commission_rate / 100);
+            const finalPayout = totalRevenue - platformFee;
+            setPricePerSlot(Math.ceil(pricePerSeat));
+            setHostPayout(finalPayout.toFixed(2));
+        } else {
+            setPricePerSlot(0);
+            setHostPayout(0);
+        }
+    }, [selectedServiceData, availableSlots]);
 
-  return (
-    <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
-      {/* --- MODIFIED: Header --- */}
-      <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
-        <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
-            ←
-          </Link>
-          <h1 className="text-xl font-bold text-center">Host a New Plan</h1>
-          <div className="w-10"></div> {/* Spacer for alignment */}
-        </div>
-      </header>
+    // --- Final logic for the dynamic date warning ---
+    useEffect(() => {
+        if (planPurchaseDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-      <div className="max-w-md mx-auto px-4 py-6 space-y-8">
-        {/* Step 1: Select Service */}
-        <section>
-          <label className="font-semibold text-lg mb-4 block">1. Select a service</label>
-          <div className="grid grid-cols-3 gap-4">
-            {services.map(service => (
-              <button
-                key={service.id}
-                onClick={() => handleServiceSelect(service.id)}
-                className={`p-4 rounded-2xl border-2 transition-all ${selectedService === service.id ? 'bg-purple-500/20 border-purple-400' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'}`}
-              >
-                <span className="font-bold text-gray-900 dark:text-white">{service.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        {/* Step 2: Configure Plan */}
-        {selectedService && (
-          <section className="animate-in fade-in space-y-6">
-            <div>
-              <label className="font-semibold text-lg mb-4 block">2. Configure your plan</label>
-              <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-transparent">
-                <p className="text-sm text-gray-500 dark:text-slate-400">Available slots to share:</p>
-                <input
-                  type="number"
-                  min="1"
-                  max={services.find(s => s.id === selectedService)?.maxSlots - 1}
-                  value={availableSlots}
-                  onChange={(e) => setAvailableSlots(parseInt(e.target.value))}
-                  className="w-full bg-transparent text-gray-900 dark:text-white text-3xl font-bold p-2 focus:outline-none"
-                />
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">Price per slot: ₹{pricePerSlot}/month</p>
-              </div>
-            </div>
-
-            {/* Joining Details Section */}
-            <div>
-              <h3 className="font-semibold text-lg mb-2">3. Joining Details</h3>
-              <div className={`bg-white dark:bg-white/5 p-4 rounded-xl space-y-4 border border-gray-200 dark:border-transparent transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
-                {selectedService === 'spotify' && (
-                  <input type="text" placeholder="https://open.spotify.com/..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                )}
-                {(selectedService === 'netflix' || selectedService === 'disney') && (
-                  <>
-                    <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                    <input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                  </>
-                )}
-              </div>
-              <div className="mt-4">
-                <div className="flex items-center">
-                  <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                  <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
-                </div>
-                {shareLater && (
-                  <div className="flex items-start gap-2 mt-2 p-2 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 text-xs rounded-lg animate-in fade-in">
-                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <p>Note: This choice is shown to users. Listings with instant joining details are often preferred.</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            const renewalDate = new Date(planPurchaseDate);
+            renewalDate.setHours(0, 0, 0, 0);
             
-            <div className="flex items-start gap-3 bg-blue-500/10 border border-blue-400/30 rounded-lg p-3 text-sm">
-                <ShieldCheck className="w-6 h-6 text-blue-500 dark:text-blue-400 flex-shrink-0 mt-1" />
-                <p className="text-blue-600 dark:text-blue-300 text-xs">
-                    {shareLater
-                    ? "Joining credentials are stored securely in an encrypted format and are only shared with members after they successfully join."
-                    : "Your credentials will be encrypted and only shared with members after they have paid for their slot."}
-                </p>
-            </div>
-            
-            <div className="relative p-6 bg-gray-100 dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 animate-pulse"></div>
-                <h3 className="font-bold text-lg mb-4 text-center">Host Rules</h3>
-                <ul className="space-y-3 text-xs text-gray-600 dark:text-slate-300 list-disc list-inside">
-                    <li><span className="font-semibold text-gray-900 dark:text-white">Payouts:</span> Hosts receive the total amount on the 30th day of the plan to their in-app wallet.</li>
-                    <li><span className="font-semibold text-gray-900 dark:text-white">User Management:</span> Do not remove users mid-plan. If a user leaves and requests to rejoin, you must provide credentials again.</li>
-                    <li><span className="font-semibold text-gray-900 dark:text-white">Plan Duration:</span> Every plan must run for a full 30 days without interruption.</li>
-                    <li><span className="font-semibold text-gray-900 dark:text-white">Ratings:</span> Improve your ratings by following these rules carefully.</li>
-                </ul>
-            </div>
+            // Calculate the date one full month from today
+            const oneMonthFromToday = new Date(today);
+            oneMonthFromToday.setMonth(oneMonthFromToday.getMonth() + 1);
 
-            <div className="flex items-center">
-                <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I have read the rules and agree to the <Link to="/terms" className="underline text-purple-500 dark:text-purple-400">T&C</Link>.</label>
-            </div>
+            // Condition: Show warning if selected date is LESS than one month away
+            if (renewalDate < oneMonthFromToday) {
+                // Calculate the required service/payout dates based on a 30/31 day cycle FROM TODAY
+                const requiredServiceDate = new Date();
+                requiredServiceDate.setDate(new Date().getDate() + 30);
+                
+                const finalPayoutDate = new Date();
+                finalPayoutDate.setDate(new Date().getDate() + 31);
+                
+               const dateFormatOptions = { day: 'numeric', month: 'short' };
+               setServiceEndDate(requiredServiceDate.toLocaleDateString('en-GB', dateFormatOptions));
+               setPayoutDate(finalPayoutDate.toLocaleDateString('en-GB', dateFormatOptions));
+                setShowDateWarning(true);
+            } else {
+                // If date is one month or more away, no warning is needed
+                setShowDateWarning(false);
+            }
+        } else {
+            // Reset if the date is cleared
+            setShowDateWarning(false);
+        }
+        // Reset the checkbox whenever the date changes
+        setUnderstandsDateWarning(false);
+    }, [planPurchaseDate]);
 
-            <button
-                disabled={!isFormValid()}
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
-            >
-                Host Plan
-            </button>
-          </section>
-        )}
+    const handleServiceSelect = (serviceId) => {
+        setSelectedService(serviceId);
+        setAvailableSlots(1);
+        const service = services.find(s => s.id === serviceId);
+        if (service) {
+            setSelectedCategory(service.category);
+        }
+    };
+    
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!isFormValid()) {
+            setError("Please fill all required fields correctly and agree to all terms.");
+            return;
+        }
+        setSubmitting(true);
+        setError('');
+
+        const newListing = {
+            host_id: session.user.id,
+            service_id: selectedService,
+            seats_total: selectedServiceData.max_seats_allowed,
+            seats_available: availableSlots,
+            plan_purchased_date: planPurchaseDate
+        };
+
+        const { data, error } = await supabase.from('listings').insert([newListing]);
+
+        if (error) {
+            setError(`Error creating listing: ${error.message}`);
+        } else {
+            navigate('/subscription');
+        }
+        setSubmitting(false);
+    };
+
+    // --- Fully updated form validation logic ---
+    const isFormValid = () => {
+        if (!selectedService || !agreeToTerms || !planPurchaseDate) return false;
+
+        // If the date warning is shown, the "I understand" checkbox is mandatory
+        if (showDateWarning && !understandsDateWarning) return false;
+
+        // If user wants to share details later, the form is valid from this point
+        if (shareLater) return true;
+
+        // Otherwise, check for credentials or link based on the service
+        if (selectedServiceData?.sharing_method === 'link' && inviteLink.startsWith('http')) return true;
+        if (selectedServiceData?.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
         
-        <div className="h-24"></div>
-      </div>
-    </div>
-  );
+        return false;
+    };
+
+    const filteredServices = selectedCategory === 'All'
+        ? services
+        : services.filter(service => service.category === selectedCategory);
+
+    if (!session) {
+        return (
+          <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen flex flex-col items-center justify-center text-center px-4">
+            <LogIn className="w-16 h-16 text-purple-400 mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Create a Listing</h2>
+            <p className="text-gray-500 dark:text-slate-400 mb-6">You need to be logged in to host a plan.</p>
+            <button
+              onClick={() => navigate('/auth')}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform"
+            >
+              Log In
+            </button>
+          </div>
+        );
+    }
+
+    return (
+        <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
+            <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
+                <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+                    <Link to="/" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
+                        ←
+                    </Link>
+                    <h1 className="text-xl font-bold text-center">Host a New Plan</h1>
+                    <div className="w-10"></div>
+                </div>
+            </header>
+
+            <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-6 space-y-8">
+                <section>
+                    <label className="font-semibold text-lg mb-4 block">1. Select a category</label>
+                    <div className="flex flex-wrap gap-2">
+                        {categories.map(category => (
+                            <button type="button" key={category} onClick={() => { setSelectedCategory(category); setSelectedService(null); }} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 border-2 ${selectedCategory === category ? 'bg-purple-500 text-white border-purple-500' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-400'}`}>
+                                {category}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+                <section>
+                    <label className="font-semibold text-lg mb-4 block">2. Select a service</label>
+                    <div className="grid grid-cols-3 gap-4">
+                        {loading ? <p>Loading services...</p> : filteredServices.map(service => (
+                            <button type="button" key={service.id} onClick={() => handleServiceSelect(service.id)} className={`p-4 rounded-2xl border-2 transition-all ${selectedService === service.id ? 'bg-purple-500/20 border-purple-400' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'}`}>
+                                <span className="font-bold text-gray-900 dark:text-white">{service.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {selectedServiceData && (
+                    <section className="animate-in fade-in space-y-6">
+                        <div>
+                            <label className="font-semibold text-lg mb-4 block">3. Configure your plan</label>
+                            <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-transparent space-y-4">
+                                <div>
+                                    <p className="text-sm text-gray-500 dark:text-slate-400">Available slots to share:</p>
+                                    <div className="flex items-center justify-center gap-4 mt-2">
+                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg">-</button>
+                                        <span className="text-gray-900 dark:text-white text-4xl font-bold w-16 text-center">{availableSlots}</span>
+                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.min(selectedServiceData.max_seats_allowed - 1, prev + 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg">+</button>
+                                    </div>
+                                </div>
+                                <div className="border-t border-gray-200 dark:border-white/10 pt-4 text-center">
+                                     <p className="text-lg font-bold text-green-600 dark:text-green-400">Price per slot: ₹{pricePerSlot}/month</p>
+                                     <p className="text-sm font-medium text-gray-600 dark:text-slate-300">Your total possible payout: <span className="font-bold">₹{hostPayout}/month</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2">4. Plan Renewal Date</h3>
+                            <div className="flex items-start gap-2 p-3 bg-blue-500/10 text-blue-600 dark:text-blue-300 text-xs rounded-lg mb-4">
+                                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <p>Enter the date you purchased the plan. If it's a recurring plan, enter your next renewal date (e.g., 2025-10-15).</p>
+                            </div>
+                            <input
+                                type="date"
+                                value={planPurchaseDate}
+                                onChange={(e) => setPlanPurchaseDate(e.target.value)}
+                                className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                required
+                            />
+                        </div>
+                        
+                        {/* --- Dynamic Warning UI --- */}
+                        {showDateWarning && (
+                            <div className="space-y-3 animate-in fade-in">
+                                <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 text-sm rounded-lg">
+                                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                    <p>You need to provide service till **{serviceEndDate}** to all users since you will receive your (estimated) payout on **{payoutDate}**.</p>
+                                </div>
+                                <div className="flex items-center">
+                                    <input type="checkbox" id="understandsDateWarning" checked={understandsDateWarning} onChange={() => setUnderstandsDateWarning(!understandsDateWarning)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                    <label htmlFor="understandsDateWarning" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I understand</label>
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
+                            {selectedServiceData.sharing_method === 'credentials' && (
+                                <div className={`bg-white dark:bg-white/5 p-4 rounded-xl space-y-4 border border-gray-200 dark:border-transparent transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
+                                    <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                    <input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                </div>
+                            )}
+                            {selectedServiceData.sharing_method === 'link' && (
+                                <div className="space-y-4">
+                                    <div className={`transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
+                                        <input type="text" placeholder="Paste your invite link here..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                    </div>
+                                </div>
+                            )}
+                            {selectedServiceData.sharing_policy === 'restricted' && (
+                                <div className="mt-4">
+                                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
+                                    <input type="text" placeholder="Enter the address used on your account" value={hostAddress} onChange={e => setHostAddress(e.target.value)} className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                </div>
+                            )}
+                            <div className="mt-4">
+                                <div className="flex items-center">
+                                    <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                    <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                            <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I have read the rules and agree to the <Link to="/terms" className="underline text-purple-500 dark:text-purple-400">T&C</Link>.</label>
+                        </div>
+
+                        {error && <p className="text-red-500 text-center">{error}</p>}
+
+                        <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed">
+                            {submitting ? 'Posting...' : 'Host Plan'}
+                        </button>
+                    </section>
+                )}
+                
+                <div className="h-24"></div>
+            </form>
+        </div>
+    );
 };
 
 export default HostPlanPage;

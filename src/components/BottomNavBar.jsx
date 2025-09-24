@@ -32,7 +32,7 @@ const navItems = [
     },
     {
       label: "Marketplace",
-      path: "/explore",
+      path: "/explore", // <-- CHANGED FROM /marketplace to /explore
       icon: (isActive) => (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={isActive ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
@@ -62,7 +62,7 @@ export default function BottomNavBar() {
           <div className="flex justify-between items-center">
             {navItems.map((item) => {
               const isActive = location.pathname.startsWith(item.path) && (item.path !== "/" || location.pathname === "/");
-
+              
               return (
                 <Link
                   key={item.label}

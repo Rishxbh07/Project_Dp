@@ -5,26 +5,28 @@ import { supabase } from './lib/supabaseClient';
 
 import HomePage from './pages/HomePage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import HostedPlanDetailPage from './pages/HostedPlanDetailPage';
 import SubscriptionDetailPage from './pages/SubscriptionDetailPage';
 import WalletPage from './pages/WalletPage';
 import ProfilePage from './pages/ProfilePage';
 import EditProfilePage from './pages/EditProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import MarketplacePage from './pages/MarketplacePage';
-import ExplorePage from './pages/ExplorePage'; // 1. IMPORT
+import ExplorePage from './pages/ExplorePage'; 
 import HostPlanPage from './pages/HostPlanPage';
+import ServiceRequestPage from './pages/ServiceRequestPage';
+import InvitePage from './pages/InvitePage';
 import Auth from './components/Auth';
 import MainLayout from './components/layout/MainLayout';
 
-// A component to protect routes that require authentication
 const PrivateRoute = ({ session }) => {
   if (!session) {
     return <Navigate to="/auth" replace />;
   }
-
   return (
     <MainLayout>
-      <Outlet />
+      {/* Pass session to all child routes through the Outlet's context */}
+      <Outlet context={{ session }} />
     </MainLayout>
   );
 };
@@ -39,18 +41,16 @@ function App() {
       setSession(session);
       setLoading(false);
     };
-
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>; // You can replace this with your loader component
+    return <div>Loading...</div>;
   }
 
   return (
@@ -58,16 +58,20 @@ function App() {
       <Routes>
         <Route path="/auth" element={<Auth />} />
         <Route element={<PrivateRoute session={session} />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/subscription" element={<SubscriptionPage />} />
-          <Route path="/subscription/:id" element={<SubscriptionDetailPage />} />
-          <Route path="/wallet" element={<WalletPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/edit-profile" element={<EditProfilePage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/explore" element={<ExplorePage />} /> {/* 2. ADDED EXPLORE ROUTE */}
-          <Route path="/marketplace/:serviceName" element={<MarketplacePage />} /> {/* 3. UPDATED MARKETPLACE ROUTE */}
-          <Route path="/host-plan" element={<HostPlanPage />} />
+            {/* --- FIX: Pass the session prop to all child elements --- */}
+            <Route path="/" element={<HomePage session={session} />} />
+            <Route path="/subscription" element={<SubscriptionPage session={session} />} />
+            <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
+            <Route path="/hosted-plan/:id" element={<HostedPlanDetailPage session={session} />} />
+            <Route path="/wallet" element={<WalletPage session={session} />} />
+            <Route path="/profile" element={<ProfilePage session={session} />} />
+            <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
+            <Route path="/notifications" element={<NotificationsPage session={session} />} />
+            <Route path="/explore" element={<ExplorePage session={session} />} />
+            <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
+            <Route path="/host-plan" element={<HostPlanPage session={session} />} />
+            <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
+            <Route path="/invite" element={<InvitePage session={session} />} />
         </Route>
       </Routes>
     </Router>

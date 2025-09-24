@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { Crown, Users } from 'lucide-react';
 
-// --- NEW: DapBuddy Plan Card Component ---
 const DapBuddyPlanCard = ({ plan }) => (
     <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
         <div className="flex items-center justify-between">
@@ -29,7 +28,6 @@ const DapBuddyPlanCard = ({ plan }) => (
     </div>
 );
 
-// --- NEW: Community Plan Card Component ---
 const CommunityPlanCard = ({ plan }) => (
     <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10">
          <div className="flex items-center justify-between">
@@ -54,7 +52,6 @@ const CommunityPlanCard = ({ plan }) => (
     </div>
 );
 
-
 const MarketplacePage = () => {
     const { serviceName } = useParams();
     const pageTitle = serviceName ? serviceName.charAt(0).toUpperCase() + serviceName.slice(1) : 'Marketplace';
@@ -70,34 +67,29 @@ const MarketplacePage = () => {
             if (!serviceName) return;
             setLoading(true);
 
-            // --- MOCK DATA FOR SPOTIFY ---
-            if (serviceName.toLowerCase() === 'spotify') {
-                setDapBuddyPlans([
-                    { id: 'db_spotify_1', service_id: 'Spotify', price_per_seat: 51, slots_total: 6, slots_available: 4, status: 'active' }
-                ]);
-                setCommunityPlans([
-                    { id: 'comm_spotify_1', service_id: 'Spotify', host_id: 'Rishabh S.', price_per_seat: 45, seats_total: 6, seats_available: 2, status: 'active' },
-                    { id: 'comm_spotify_2', service_id: 'Spotify', host_id: 'Aisha K.', price_per_seat: 48, seats_total: 6, seats_available: 1, status: 'active' },
-                ]);
-                setLoading(false);
-                return;
-            }
-
-            // --- REAL FETCHING LOGIC for other services ---
             try {
-                // Fetch dapbuddy_plans for the specific service
+                const { data: serviceData, error: serviceError } = await supabase
+                    .from('services')
+                    .select('id')
+                    .ilike('name', serviceName)
+                    .limit(1)
+                    .single();
+
+                if (serviceError || !serviceData) throw new Error("Service not found");
+
+                const serviceId = serviceData.id;
+
                 const { data: dapBuddyData, error: dapBuddyError } = await supabase
                     .from('dapbuddy_plans')
                     .select('*')
-                    .eq('service_id', pageTitle); // Use capitalized serviceName
+                    .eq('service_id', serviceId);
                 if (dapBuddyError) throw dapBuddyError;
                 setDapBuddyPlans(dapBuddyData);
 
-                // Fetch listings for community plans
                 const { data: listingsData, error: listingsError } = await supabase
                     .from('listings')
                     .select('*')
-                    .eq('service_id', serviceName); // Use lowercase serviceName
+                    .eq('service_id', serviceId);
                 if (listingsError) throw listingsError;
                 setCommunityPlans(listingsData);
 
@@ -109,11 +101,7 @@ const MarketplacePage = () => {
         };
 
         fetchPlans();
-    }, [serviceName, pageTitle]);
-
-    const handleTabClick = (tab) => {
-        setActiveTab(tab);
-    };
+    }, [serviceName]);
 
     return (
         <div className="bg-gray-50 dark:bg-[#0f172a] min-h-screen font-sans text-gray-900 dark:text-white">
@@ -128,13 +116,13 @@ const MarketplacePage = () => {
                 <main className="p-4">
                     <div className="flex border-b border-gray-200 dark:border-slate-700 mb-6">
                         <button
-                            onClick={() => handleTabClick('dapbuddy')}
+                            onClick={() => setActiveTab('dapbuddy')}
                             className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeTab === 'dapbuddy' ? 'text-purple-500 dark:text-purple-400 border-b-2 border-purple-500' : 'text-gray-500 dark:text-slate-400'}`}
                         >
                             DapBuddy Plan
                         </button>
                         <button
-                            onClick={() => handleTabClick('community')}
+                            onClick={() => setActiveTab('community')}
                             className={`flex-1 py-3 text-sm font-semibold transition-colors ${activeTab === 'community' ? 'text-purple-500 dark:text-purple-400 border-b-2 border-purple-500' : 'text-gray-500 dark:text-slate-400'}`}
                         >
                             Community Plans

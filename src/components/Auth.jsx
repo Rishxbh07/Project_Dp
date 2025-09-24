@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import { supabase } from '../lib/supabaseClient';
 import logo from '/assets/icons/Logo.png'; 
 
-const Auth = ({ onSuccess }) => {
+const Auth = () => { // 2. Removed onSuccess prop
+  const navigate = useNavigate(); // 3. Initialize the navigate function
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,7 +14,7 @@ const Auth = ({ onSuccess }) => {
   const [message, setMessage] = useState('');
   const [usernameMessage, setUsernameMessage] = useState('');
 
-  // Check username availability
+  // Check username availability (no changes here)
   const checkUsername = async (currentUsername) => {
     if (!currentUsername || currentUsername.length < 3) {
       setUsernameMessage('');
@@ -43,10 +45,12 @@ const Auth = ({ onSuccess }) => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setMessage(error.message);
-      } else if (onSuccess) {
-        onSuccess();
+      } else {
+        // 4. On successful login, navigate to the homepage
+        navigate('/'); 
       }
     } else {
+      // Sign-up logic (no changes here)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -67,6 +71,7 @@ const Auth = ({ onSuccess }) => {
     setLoading(false);
   };
 
+  // Google OAuth handler (no changes here)
   const handleGoogleAuth = async () => {
     setLoading(true);
     setMessage('');
@@ -80,6 +85,7 @@ const Auth = ({ onSuccess }) => {
     setLoading(false);
   };
 
+  // Effect to auto-fill referral code (no changes here)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const refCode = params.get('ref');
@@ -88,6 +94,7 @@ const Auth = ({ onSuccess }) => {
     }
   }, []);
 
+  // JSX for the form (no changes to the structure)
   return (
     <div className="w-full">
       <div className="text-center mb-6">
