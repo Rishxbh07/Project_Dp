@@ -77,11 +77,12 @@ const ProfilePage = ({ session }) => {
     navigate('/');
   };
 
-  const menuItems = [
-    { icon: Award, text: 'Achievements / Badges', path: '/profile/achievements' },
-    { icon: Shield, text: 'Privacy', path: '/profile/privacy' },
-    { icon: HelpCircle, text: 'Help & Support', path: '/profile/support' },
-  ];
+const menuItems = [
+        { icon: Award, text: 'Achievements / Badges', path: '/achievements' }, // <-- Correct path
+        { icon: Shield, text: 'Privacy', path: '/profile/privacy' },
+        { icon: HelpCircle, text: 'Help & Support', path: '/profile/support' },
+  
+      ];
   
   // --- ADDED: Dummy data for rating details ---
   const hostRatingDetails = [

@@ -12,10 +12,12 @@ import ProfilePage from './pages/ProfilePage';
 import EditProfilePage from './pages/EditProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import MarketplacePage from './pages/MarketplacePage';
+import JoinPlanPage from './pages/JoinPlanPage';
 import ExplorePage from './pages/ExplorePage'; 
 import HostPlanPage from './pages/HostPlanPage';
 import ServiceRequestPage from './pages/ServiceRequestPage';
 import InvitePage from './pages/InvitePage';
+import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import MainLayout from './components/layout/MainLayout';
 
@@ -69,9 +71,12 @@ function App() {
             <Route path="/notifications" element={<NotificationsPage session={session} />} />
             <Route path="/explore" element={<ExplorePage session={session} />} />
             <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
+            <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
+            <Route path="/host-plan" element={<HostPlanPage session={session} />} />
             <Route path="/host-plan" element={<HostPlanPage session={session} />} />
             <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
             <Route path="/invite" element={<InvitePage session={session} />} />
+            <Route path="/achievements" element={<AchievementsPage session={session} />} />
         </Route>
       </Routes>
     </Router>

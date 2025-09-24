@@ -28,6 +28,7 @@ CREATE TABLE public.bookings (
   host_confirmation_timestamp timestamp with time zone,
   joined_at timestamp with time zone NOT NULL DEFAULT now(),
   ended_at timestamp with time zone,
+  payment_status text NOT NULL DEFAULT 'not paid '::text,
   CONSTRAINT bookings_pkey PRIMARY KEY (id),
   CONSTRAINT bookings_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
   CONSTRAINT bookings_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
@@ -121,6 +122,7 @@ CREATE TABLE public.listings (
   status text NOT NULL DEFAULT 'active'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
+  plan_purchased_date date CHECK (plan_purchased_date > '2025-01-01'::date),
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -157,6 +159,7 @@ CREATE TABLE public.profiles (
   host_rating numeric DEFAULT 0,
   loyalty_score integer NOT NULL DEFAULT 0,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  pfp_url text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -184,11 +187,13 @@ CREATE TABLE public.referrals (
 );
 CREATE TABLE public.service_requests (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  requested_service_name text NOT NULL UNIQUE,
+  service_name text NOT NULL UNIQUE,
   user_id uuid NOT NULL,
-  request_count integer NOT NULL DEFAULT 1,
   status text NOT NULL DEFAULT 'pending'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  notes text,
+  requesting_to text,
+  service_url text NOT NULL,
   CONSTRAINT service_requests_pkey PRIMARY KEY (id),
   CONSTRAINT service_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
@@ -202,6 +207,9 @@ CREATE TABLE public.services (
   sharing_policy USER-DEFINED NOT NULL DEFAULT 'allowed'::sharing_policy_enum,
   sharing_method USER-DEFINED,
   platform_commission_rate numeric NOT NULL DEFAULT 10.00 CHECK (platform_commission_rate >= 0::numeric),
+  Full_price bigint DEFAULT '0'::bigint,
+  solo_plan_price integer DEFAULT 0,
+  tax_range jsonb NOT NULL DEFAULT '[0, 7, 12, 18]'::jsonb,
   CONSTRAINT services_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.super_admins (
