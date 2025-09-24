@@ -98,3 +98,33 @@
   background-size: 200px 100%;
   animation: skeleton-loading 1.5s infinite;
 }
+
+.plan-card-container {
+  position: absolute;
+  transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out, filter 0.5s ease-in-out;
+}
+
+.plan-card-container.active {
+  transform: translateX(0) scale(1.1);
+  z-index: 10;
+  opacity: 1;
+  filter: blur(0);
+}
+
+.plan-card-container.prev {
+  transform: translateX(-100%) scale(0.8);
+  opacity: 1;
+  filter: blur(2px);
+}
+
+.plan-card-container.next {
+  transform: translateX(100%) scale(0.8);
+  opacity: 1;
+  filter: blur(2px);
+}
+
+.plan-card-container.hidden {
+  transform: scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+}

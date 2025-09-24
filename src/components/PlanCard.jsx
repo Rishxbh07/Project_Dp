@@ -2,11 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 const PlanCard = ({ service }) => {
-  const { name, description } = service;
+  const { name, base_price } = service;
   const initial = name ? name.charAt(0).toUpperCase() : '?';
 
   // Enhanced pricing and stats
-  const minPrice = 45;
   const livePlansCount = 2;
 
   // Dynamic colors based on service name for variety
@@ -61,7 +60,7 @@ const PlanCard = ({ service }) => {
         {/* Enhanced pricing with better visual hierarchy */}
         <div className="relative z-10 mb-3">
           <p className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-blue-500 dark:from-purple-300 dark:to-blue-300 group-hover:from-purple-600 group-hover:to-blue-600 dark:group-hover:from-purple-200 dark:group-hover:to-blue-200 transition-all duration-300">
-            from ₹{minPrice}
+            from ₹{base_price}
           </p>
           <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">/month</p>
         </div>
@@ -76,7 +75,7 @@ const PlanCard = ({ service }) => {
         
         {/* Enhanced description */}
         <p className="relative z-10 text-gray-600 dark:text-slate-300 text-sm leading-relaxed font-light group-hover:text-gray-700 dark:group-hover:text-slate-200 transition-colors duration-300">
-          {description}
+          {service.description}
         </p>
         
         {/* Subtle bottom accent */}

@@ -4,21 +4,97 @@ import HostPlanCTA from '../components/HostPlanCTA';
 import { supabase } from '../lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
+import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
 
 const HomePage = ({ session }) => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [allServiceNames, setAllServiceNames] = useState([]);
+  const [runAnimation, setRunAnimation] = useState(false);
 
   useEffect(() => {
+    const fetchAllServiceNames = async () => {
+      const { data, error } = await supabase.from('services').select('name');
+      if (error) {
+        console.error('Error fetching all service names:', error);
+      } else {
+        setAllServiceNames(data.map(s => s.name));
+        
+        // Check if this is a new session and animation hasn't been shown
+        // Delay the animation to account for loading time
+        if (session && !sessionStorage.getItem('hasAnimatedText')) {
+          setTimeout(() => {
+            setRunAnimation(true);
+          }, 3500); // 3.5 second delay to account for loading
+        }
+      }
+    };
+
     const fetchServices = async () => {
       setLoading(true);
-      const { data, error } = await supabase.from('services').select('*');
-      if (error) console.error('Error fetching services:', error);
-      else setServices(data);
+      let recommendedServices = [];
+      const { data, error } = await supabase
+        .from('recommended_plans')
+        .select(`
+          listings (
+            id,
+            service:services (
+              id,
+              name,
+              base_price
+            )
+          )
+        `);
+      
+      if (error) {
+        console.error('Error fetching services:', error);
+      } else {
+        recommendedServices = data.map(item => item.listings.service);
+      }
+
+      if (recommendedServices.length > 0) {
+        setServices(recommendedServices);
+      } else {
+        const { data: listingsData, error: listingsError } = await supabase
+          .from('listings')
+          .select(`
+            service:services (
+              id,
+              name,
+              base_price
+            )
+          `)
+          .limit(5);
+
+        if (listingsError) {
+          console.error('Error fetching listings:', listingsError);
+        } else {
+          const popularServices = listingsData.map(item => item.service);
+          setServices(popularServices);
+        }
+      }
+
       setLoading(false);
     };
+
     fetchServices();
-  }, []);
+    fetchAllServiceNames();
+  }, [session]);
+
+  useEffect(() => {
+    if (services.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % services.length);
+      }, 3500);
+      return () => clearInterval(interval);
+    }
+  }, [services]);
+
+  const handleAnimationEnd = () => {
+    sessionStorage.setItem('hasAnimatedText', 'true');
+    setRunAnimation(false);
+  };
 
   return (
     <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative overflow-hidden">
@@ -46,9 +122,19 @@ const HomePage = ({ session }) => {
             <div className="mb-6">
               <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
                 Share & Save on
-                <span className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse">
-                  Premium Plans
-                </span>
+                {runAnimation ? (
+                  <SlotMachineAnimation
+                    words={allServiceNames}
+                    onAnimationEnd={handleAnimationEnd}
+                  />
+                ) : (
+                  <span
+                    className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse cursor-pointer"
+                    onClick={() => setRunAnimation(true)}
+                  >
+                    Premium Plans
+                  </span>
+                )}
               </h1>
               <p className="text-slate-600 dark:text-slate-300 text-lg font-light">
                 Split costs, multiply savings with friends
@@ -80,27 +166,39 @@ const HomePage = ({ session }) => {
                 Popular Plans
                 <span className="block w-16 h-1 bg-gradient-to-r from-purple-400 to-blue-400 mt-2 rounded-full"></span>
               </h2>
-              <Link to="/marketplace" className="text-purple-500 dark:text-purple-300 text-sm font-semibold hover:text-purple-600 dark:hover:text-purple-200 transition-colors">
+              <Link to="/explore" className="text-purple-500 dark:text-purple-300 text-sm font-semibold hover:text-purple-600 dark:hover:text-purple-200 transition-colors">
                 View All
               </Link>
             </div>
             
-            <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="relative h-[380px] flex items-center justify-center overflow-hidden">
               {loading ? (
-                // Enhanced loading skeletons
-                [...Array(3)].map((_, i) => (
-                  <div key={i} className="flex-shrink-0 w-[240px] h-[320px] bg-gray-200 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-3xl p-6 animate-pulse">
-                    <div className="w-24 h-24 bg-gray-300 dark:bg-white/10 rounded-2xl mb-4 mx-auto"></div>
-                    <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-2"></div>
-                    <div className="h-8 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
-                    <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
-                    <div className="h-4 bg-gray-300 dark:bg-white/10 rounded"></div>
-                  </div>
-                ))
+                <div className="flex-shrink-0 w-[240px] h-[320px] bg-gray-200 dark:bg-white/5 backdrop-blur-sm border border-gray-300 dark:border-white/10 rounded-3xl p-6 animate-pulse">
+                  <div className="w-24 h-24 bg-gray-300 dark:bg-white/10 rounded-2xl mb-4 mx-auto"></div>
+                  <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-2"></div>
+                  <div className="h-8 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
+                  <div className="h-6 bg-gray-300 dark:bg-white/10 rounded mb-3"></div>
+                  <div className="h-4 bg-gray-300 dark:bg-white/10 rounded"></div>
+                </div>
               ) : (
-                services.map((service) => (
-                  <PlanCard key={service.id} service={service} />
-                ))
+                services.map((service, index) => {
+                  let position = 'next';
+                  if (index === currentIndex) {
+                    position = 'active';
+                  } else if (index === (currentIndex - 1 + services.length) % services.length) {
+                    position = 'prev';
+                  } else if (index === (currentIndex + 1) % services.length) {
+                    position = 'next';
+                  } else {
+                    position = 'hidden';
+                  }
+
+                  return (
+                    <div key={service.id} className={`plan-card-container ${position}`}>
+                      <PlanCard service={service} />
+                    </div>
+                  );
+                })
               )}
             </div>
           </section>
