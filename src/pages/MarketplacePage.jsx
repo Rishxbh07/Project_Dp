@@ -32,24 +32,19 @@ const CommunityPlanCard = ({ plan }) => {
     const {
         average_rating,
         seats_total,
-        seats_available, // Now using the correct value from the database
+        seats_available,
         host,
         service,
         bookings
     } = plan;
 
     const members = bookings ? bookings.map(b => b.buyer).filter(Boolean) : [];
-
-    // Correctly calculate total sharable slots (excluding the host)
     const sharableSlots = Math.max(0, seats_total - 1);
-    
-    // Correctly calculate filled slots based on sharable slots and available slots
     const slotsFilled = sharableSlots - seats_available;
 
     return (
         <Link to={`/join-plan/${plan.id}`} className="block">
             <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all hover:border-purple-400/50 hover:shadow-lg">
-                {/* Host and Rating Info */}
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by</p>
@@ -73,7 +68,6 @@ const CommunityPlanCard = ({ plan }) => {
                     </div>
                 </div>
 
-                {/* Member Avatars */}
                 <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">{slotsFilled} of {sharableSlots} slots filled</p>
                     <div className="flex items-center">
@@ -96,7 +90,6 @@ const CommunityPlanCard = ({ plan }) => {
                     </div>
                 </div>
 
-                {/* Price and Join Button */}
                 <div className="flex items-end justify-between pt-2 border-t border-gray-100 dark:border-white/10">
                     <div>
                         <p className="text-sm text-gray-500 dark:text-slate-400">Price per slot</p>
@@ -128,15 +121,25 @@ const MarketplacePage = ({ session }) => {
             setLoading(true);
 
             try {
+                const { data: userBookings, error: bookingsError } = await supabase
+                    .from('bookings')
+                    .select('listing_id')
+                    .eq('buyer_id', session.user.id);
+                
+                if (bookingsError) throw bookingsError;
+                const joinedPlanIds = userBookings.map(b => b.listing_id);
+
+                // --- THIS IS THE FIX ---
                 const { data: serviceData, error: serviceError } = await supabase
                     .from('services')
                     .select('id')
                     .ilike('name', serviceName)
-                    .limit(1)
-                    .single();
+                    .limit(1); // Keep limit to be safe
 
-                if (serviceError || !serviceData) throw new Error("Service not found");
-                const serviceId = serviceData.id;
+                if (serviceError || !serviceData || serviceData.length === 0) {
+                    throw new Error("Service not found");
+                }
+                const serviceId = serviceData[0].id; // Get the id from the first item in the array
 
                 const { data: dapBuddyData, error: dapBuddyError } = await supabase
                     .from('dapbuddy_plans')
@@ -152,6 +155,7 @@ const MarketplacePage = ({ session }) => {
                         seats_total,
                         seats_available, 
                         average_rating,
+                        host_id,
                         host:profiles (
                             username,
                             host_rating
@@ -167,7 +171,9 @@ const MarketplacePage = ({ session }) => {
                         )
                     `)
                     .eq('service_id', serviceId)
-                    .eq('status', 'active');
+                    .eq('status', 'active')
+                    .neq('host_id', session.user.id)
+                    .not('id', 'in', `(${joinedPlanIds.join(',')})`);
 
                 if (listingsError) throw listingsError;
                 setCommunityPlans(listingsData);
@@ -181,7 +187,7 @@ const MarketplacePage = ({ session }) => {
         };
 
         fetchPlans();
-    }, [serviceName]);
+    }, [serviceName, session]);
 
     return (
         <div className="bg-gray-50 dark:bg-[#0f172a] min-h-screen font-sans text-gray-900 dark:text-white">

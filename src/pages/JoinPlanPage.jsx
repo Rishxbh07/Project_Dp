@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { Star, ShieldCheck, Clock, Users, IndianRupee, ChevronDown, ChevronUp, Coins } from 'lucide-react';
 
 const JoinPlanPage = ({ session }) => {
     const { listingId } = useParams();
+    const navigate = useNavigate();
     const [listing, setListing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isAlreadyJoined, setIsAlreadyJoined] = useState(false);
 
-    // --- State for payment, pricing, and wallet ---
+    // State for payment, pricing, and wallet
     const [walletBalance, setWalletBalance] = useState(0);
     const [useCoins, setUseCoins] = useState(false);
     const [paymentOption, setPaymentOption] = useState('autoPay');
@@ -34,12 +36,12 @@ const JoinPlanPage = ({ session }) => {
 
             setLoading(true);
             try {
-                // Fetch listing and wallet balance in parallel
                 const [listingRes, walletRes] = await Promise.all([
                     supabase
                         .from('listings')
                         .select(`
                             id, seats_total, average_rating, created_at,
+                            host_id,
                             service:services (name, base_price, platform_commission_rate),
                             host:profiles (username, host_rating),
                             bookings (buyer_id)
@@ -54,7 +56,11 @@ const JoinPlanPage = ({ session }) => {
                 ]);
 
                 if (listingRes.error) throw listingRes.error;
-                setListing(listingRes.data);
+                const listingData = listingRes.data;
+                setListing(listingData);
+
+                const alreadyJoined = listingData.bookings.some(b => b.buyer_id === session.user.id);
+                setIsAlreadyJoined(alreadyJoined);
 
                 if (walletRes.data) {
                     setWalletBalance(walletRes.data.credit_balance);
@@ -80,17 +86,16 @@ const JoinPlanPage = ({ session }) => {
         const platformFee = base * commissionRate;
         
         let convenienceFee = 0;
-        let taxRate = 0.12; // Default tax for Auto Pay (12%)
+        let taxRate = 0.12;
         
         if (paymentOption === 'oneTime') {
-            convenienceFee = base * 0.10; // 10% fee for one-time payment
-            taxRate = 0.18; // 18% tax for one-time payment
+            convenienceFee = base * 0.10;
+            taxRate = 0.18;
         }
 
         const subtotal = base + platformFee + convenienceFee;
         const tax = subtotal * taxRate;
         
-        // Calculate coin discount
         const maxCoinsToUse = 10;
         const coinDiscount = useCoins && walletBalance >= maxCoinsToUse ? maxCoinsToUse : 0;
         
@@ -107,15 +112,60 @@ const JoinPlanPage = ({ session }) => {
 
     }, [listing, paymentOption, useCoins, walletBalance]);
 
+    const handleFakePayment = async () => {
+        if (!session || !listing) return;
+        setLoading(true);
+        
+        try {
+            const { data: bookingData, error: bookingError } = await supabase
+                .from('bookings')
+                .insert({
+                    listing_id: listing.id,
+                    buyer_id: session.user.id,
+                    payment_status: 'Paid'
+                })
+                .select()
+                .single();
+
+            if (bookingError) throw bookingError;
+
+            // --- THIS IS THE FIX ---
+            const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
+            const { error: transactionError } = await supabase
+                .from('transactions')
+                .insert({
+                    booking_id: bookingData.id,
+                    buyer_id: session.user.id,
+                    original_amount: originalAmount.toFixed(2), // Add original amount
+                    credits_used: priceDetails.coinDiscount, // Add credits used
+                    final_amount_charged: priceDetails.total,
+                    payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
+                    platform_fee: priceDetails.platformFee
+                });
+
+            if (transactionError) throw transactionError;
+
+            navigate('/subscription');
+
+        } catch (error) {
+            setError(`An error occurred: ${error.message}`);
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
 
-    const { service, host, bookings, average_rating, created_at, seats_total } = listing;
+    const { service, host, bookings, average_rating, created_at, seats_total, host_id } = listing;
+    const isHost = session.user.id === host_id;
     const slotsFilled = bookings.length;
     const sharableSlots = Math.max(0, seats_total - 1);
     const slotsAvailable = sharableSlots - slotsFilled;
     const renewalDate = new Date(created_at);
-    renewalDate.setDate(renewalDate.getDate() + 30); // More accurate 30-day cycle
+    renewalDate.setDate(renewalDate.getDate() + 30);
 
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
@@ -130,7 +180,6 @@ const JoinPlanPage = ({ session }) => {
             </header>
 
             <main className="max-w-md mx-auto px-4 py-6 pb-48">
-                {/* --- NEW LAYOUT: Top Section --- */}
                 <section className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-gray-200 dark:border-white/10 mb-6">
                     <div className="text-center mb-4">
                         <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">
@@ -155,7 +204,6 @@ const JoinPlanPage = ({ session }) => {
                     </div>
                 </section>
 
-                {/* --- NEW LAYOUT: Plan Details Section --- */}
                 <section className="bg-white dark:bg-white/5 p-4 rounded-3xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
                      <div className="flex items-center gap-4 p-2">
                         <Users className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
@@ -180,7 +228,6 @@ const JoinPlanPage = ({ session }) => {
                     </div>
                 </section>
                 
-                {/* --- All new features below this line --- */}
                 <section className="mb-6">
                     <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-3">Payment Option</h3>
                     <div className="grid grid-cols-2 gap-4">
@@ -237,8 +284,19 @@ const JoinPlanPage = ({ session }) => {
                            <IndianRupee className="w-5 h-5" />{priceDetails.total}
                         </p>
                     </div>
-                    <button disabled={slotsAvailable <= 0} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100">
-                        {slotsAvailable > 0 ? 'Proceed to Pay' : 'Plan Full'}
+                    <button 
+                        onClick={handleFakePayment}
+                        disabled={slotsAvailable <= 0 || loading || isHost || isAlreadyJoined}
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+                    >
+                        {loading 
+                            ? 'Processing...' 
+                            : isHost 
+                                ? "This is Your Plan" 
+                                : isAlreadyJoined
+                                    ? "Already Joined"
+                                    : (slotsAvailable > 0 ? 'Proceed to Pay' : 'Plan Full')
+                        }
                     </button>
                 </div>
             </footer>

@@ -21,12 +21,10 @@ const HomePage = ({ session }) => {
       } else {
         setAllServiceNames(data.map(s => s.name));
         
-        // Check if this is a new session and animation hasn't been shown
-        // Delay the animation to account for loading time
         if (session && !sessionStorage.getItem('hasAnimatedText')) {
           setTimeout(() => {
             setRunAnimation(true);
-          }, 3500); // 3.5 second delay to account for loading
+          }, 3500); 
         }
       }
     };
@@ -54,7 +52,8 @@ const HomePage = ({ session }) => {
       }
 
       if (recommendedServices.length > 0) {
-        setServices(recommendedServices);
+        const uniqueServices = Array.from(new Map(recommendedServices.map(item => [item.id, item])).values());
+        setServices(uniqueServices);
       } else {
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
@@ -71,7 +70,8 @@ const HomePage = ({ session }) => {
           console.error('Error fetching listings:', listingsError);
         } else {
           const popularServices = listingsData.map(item => item.service);
-          setServices(popularServices);
+          const uniqueServices = Array.from(new Map(popularServices.map(item => [item.id, item])).values());
+          setServices(uniqueServices);
         }
       }
 
@@ -112,7 +112,6 @@ const HomePage = ({ session }) => {
       <div className="relative z-10">
         <div className="max-w-md mx-auto px-4">
           
-          {/* --- THIS IS THE FIX for the layering issue --- */}
           <div className="relative z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 shadow-lg my-6 px-4 py-2 rounded-full">
             <DapBuddyDropdownMenu session={session} />
           </div>
