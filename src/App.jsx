@@ -20,6 +20,7 @@ import InvitePage from './pages/InvitePage';
 import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import MainLayout from './components/layout/MainLayout';
+import ConnectAccountPage from './pages/ConnectAccountPage';
 
 const PrivateRoute = ({ session }) => {
   if (!session) {
@@ -77,6 +78,7 @@ function App() {
             <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
             <Route path="/invite" element={<InvitePage session={session} />} />
             <Route path="/achievements" element={<AchievementsPage session={session} />} />
+            <Route path="/connect-account/:bookingId" element={<ConnectAccountPage session={session} />} />
         </Route>
       </Routes>
     </Router>

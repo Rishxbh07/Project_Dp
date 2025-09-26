@@ -4,39 +4,37 @@ import { Link } from 'react-router-dom';
 const HostPlanCTA = () => {
   return (
     <section className="relative my-10 group">
-      {/* Enhanced background with animated gradient */}
+      {/* Background glow effect */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-indigo-500/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-500"></div>
       
-      {/* Main CTA container with glassmorphism */}
-      <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 text-center p-8 rounded-3xl shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 hover:scale-[1.02] overflow-hidden">
+      {/* Main container with improved, more readable background */}
+      <div className="relative bg-white dark:bg-slate-800/90 backdrop-blur-xl border border-slate-200 dark:border-white/20 text-center p-8 rounded-3xl shadow-2xl hover:shadow-purple-500/10 transition-all duration-500 hover:scale-[1.02] overflow-hidden">
         
         {/* Animated background pattern */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.1)_1px,transparent_0)] bg-[size:24px_24px] opacity-30"></div>
         
         {/* Content */}
         <div className="relative z-10">
-          {/* Enhanced icon/emoji */}
           <div className="mb-6 flex justify-center">
             <div className="relative">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-blue-400 rounded-2xl flex items-center justify-center text-2xl shadow-lg group-hover:rotate-3 transition-transform duration-300">
                 💎
               </div>
-              {/* Sparkle effects */}
               <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-ping"></div>
               <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-blue-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-ping delay-150"></div>
             </div>
           </div>
           
-          {/* Enhanced heading with better typography */}
-          <h3 className="text-white text-3xl font-bold mb-3 leading-tight">
+          {/* --- CORRECTED TEXT AND STYLES --- */}
+          <h3 className="text-slate-900 dark:text-white text-3xl font-bold mb-3 leading-tight">
             Have Empty Spots?
-            <span className="block text-xl font-semibold text-slate-300 mt-1">
+            <span className="block text-xl font-semibold text-slate-600 dark:text-slate-300 mt-1">
               Turn them into earnings!
             </span>
           </h3>
           
           {/* Value proposition */}
-          <p className="text-slate-400 text-base mb-6 max-w-sm mx-auto leading-relaxed">
+          <p className="text-slate-500 dark:text-slate-400 text-base mb-6 max-w-sm mx-auto leading-relaxed">
             Share your unused subscription slots and earn money while helping others save.
           </p>
           

@@ -19,7 +19,6 @@ const WalletPage = ({ session }) => {
 
       try {
         setLoading(true);
-        // This query is now safe because our trigger ensures a wallet always exists.
         const { data: walletData, error: walletError } = await supabase
           .from('credit_wallets')
           .select('credit_balance')
@@ -66,13 +65,15 @@ const WalletPage = ({ session }) => {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-purple-900/10 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
+    // --- MODIFIED: Consistent background styling ---
+    <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
       <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
         <div className="max-w-md mx-auto px-4 py-4 flex justify-center items-center">
           <h1 className="text-xl font-bold">My Wallet</h1>
         </div>
       </header>
       <div className="max-w-md mx-auto px-4 py-6">
+        {/* --- MODIFIED: Updated balance card style --- */}
         <section className="relative bg-gradient-to-br from-purple-600 to-indigo-600 p-8 rounded-3xl shadow-2xl shadow-purple-500/20 overflow-hidden mb-8">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,255,255,0.1)_1px,transparent_0)] bg-[size:30px_30px] opacity-50"></div>
           <div className="relative z-10 text-center">
@@ -82,13 +83,13 @@ const WalletPage = ({ session }) => {
           </div>
         </section>
 
-        {/* --- MODIFIED: Action Buttons --- */}
+        {/* --- MODIFIED: Action Buttons with consistent styling --- */}
         <section className="grid grid-cols-2 gap-4 text-center mb-8">
-          <button className="bg-white dark:bg-white/10 backdrop-blur-xl border border-gray-200 dark:border-white/20 rounded-2xl p-4 flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <button className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 transform hover:scale-105">
             <Coins className="w-8 h-8 text-yellow-500 dark:text-yellow-400 mb-2" />
             <span className="text-sm font-semibold text-gray-800 dark:text-white">Buy Coins</span>
           </button>
-          <button className="bg-white dark:bg-white/10 backdrop-blur-xl border border-gray-200 dark:border-white/20 rounded-2xl p-4 flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <button className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-col items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 transform hover:scale-105">
             <Gift className="w-8 h-8 text-pink-500 dark:text-pink-400 mb-2" />
             <span className="text-sm font-semibold text-gray-800 dark:text-white">My Referral Earning</span>
           </button>
@@ -105,7 +106,8 @@ const WalletPage = ({ session }) => {
             {transactions.map((tx) => {
               const isCredit = tx.type === 'credit' || tx.amount > 0;
               return (
-                <div key={tx.id} className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl p-4 flex items-center">
+                // --- MODIFIED: Transaction item styling ---
+                <div key={tx.id} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 flex items-center">
                   <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mr-4 ${isCredit ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
                     {isCredit ? <ArrowDownLeft className="w-5 h-5 text-green-500" /> : <ArrowUpRight className="w-5 h-5 text-red-500" />}
                   </div>
@@ -114,7 +116,7 @@ const WalletPage = ({ session }) => {
                     <p className="text-xs text-gray-500 dark:text-slate-400">{new Date(tx.created_at).toLocaleDateString()}</p>
                   </div>
                   <p className={`font-bold text-lg ${isCredit ? 'text-green-500 dark:text-green-400' : 'text-gray-700 dark:text-slate-300'}`}>
-                    {isCredit ? `+₹${tx.amount}` : `-₹${tx.amount}`}
+                    {isCredit ? `+${tx.amount}` : `-${tx.amount}`}
                   </p>
                 </div>
               );
