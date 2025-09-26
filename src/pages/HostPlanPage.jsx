@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Info, LogIn, Plus, Minus } from 'lucide-react';
+import { Info, LogIn, Plus, Minus, Loader2 } from 'lucide-react';
 
 const HostPlanPage = ({ session }) => {
     const navigate = useNavigate();
@@ -23,7 +23,7 @@ const HostPlanPage = ({ session }) => {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     
-    // --- States for the dynamic warning ---
+    // States for the dynamic warning
     const [showDateWarning, setShowDateWarning] = useState(false);
     const [understandsDateWarning, setUnderstandsDateWarning] = useState(false);
     const [serviceEndDate, setServiceEndDate] = useState('');
@@ -50,9 +50,9 @@ const HostPlanPage = ({ session }) => {
 
     useEffect(() => {
         if (selectedServiceData) {
-            const pricePerSeat = selectedServiceData.Full_price / selectedServiceData.max_seats_allowed;
+            const pricePerSeat = (selectedServiceData.Full_price || 0) / (selectedServiceData.max_seats_allowed || 1);
             const totalRevenue = pricePerSeat * availableSlots;
-            const platformFee = totalRevenue * (selectedServiceData.platform_commission_rate / 100);
+            const platformFee = totalRevenue * ((selectedServiceData.platform_commission_rate || 0) / 100);
             const finalPayout = totalRevenue - platformFee;
             setPricePerSlot(Math.ceil(pricePerSeat));
             setHostPayout(finalPayout.toFixed(2));
@@ -62,22 +62,18 @@ const HostPlanPage = ({ session }) => {
         }
     }, [selectedServiceData, availableSlots]);
 
-    // --- Final logic for the dynamic date warning ---
+    // Logic for the dynamic date warning
     useEffect(() => {
         if (planPurchaseDate) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-
             const renewalDate = new Date(planPurchaseDate);
             renewalDate.setHours(0, 0, 0, 0);
             
-            // Calculate the date one full month from today
             const oneMonthFromToday = new Date(today);
             oneMonthFromToday.setMonth(oneMonthFromToday.getMonth() + 1);
 
-            // Condition: Show warning if selected date is LESS than one month away
             if (renewalDate < oneMonthFromToday) {
-                // Calculate the required service/payout dates based on a 30/31 day cycle FROM TODAY
                 const requiredServiceDate = new Date();
                 requiredServiceDate.setDate(new Date().getDate() + 30);
                 
@@ -87,16 +83,13 @@ const HostPlanPage = ({ session }) => {
                const dateFormatOptions = { day: 'numeric', month: 'short' };
                setServiceEndDate(requiredServiceDate.toLocaleDateString('en-GB', dateFormatOptions));
                setPayoutDate(finalPayoutDate.toLocaleDateString('en-GB', dateFormatOptions));
-                setShowDateWarning(true);
+               setShowDateWarning(true);
             } else {
-                // If date is one month or more away, no warning is needed
                 setShowDateWarning(false);
             }
         } else {
-            // Reset if the date is cleared
             setShowDateWarning(false);
         }
-        // Reset the checkbox whenever the date changes
         setUnderstandsDateWarning(false);
     }, [planPurchaseDate]);
 
@@ -126,27 +119,21 @@ const HostPlanPage = ({ session }) => {
             plan_purchased_date: planPurchaseDate
         };
 
-        const { data, error } = await supabase.from('listings').insert([newListing]);
+        const { data, error } = await supabase.from('listings').insert([newListing]).select();
 
         if (error) {
             setError(`Error creating listing: ${error.message}`);
+            setSubmitting(false);
         } else {
+            // Success! This will trigger the database function to update popular_plans.
             navigate('/subscription');
         }
-        setSubmitting(false);
     };
 
-    // --- Fully updated form validation logic ---
     const isFormValid = () => {
         if (!selectedService || !agreeToTerms || !planPurchaseDate) return false;
-
-        // If the date warning is shown, the "I understand" checkbox is mandatory
         if (showDateWarning && !understandsDateWarning) return false;
-
-        // If user wants to share details later, the form is valid from this point
         if (shareLater) return true;
-
-        // Otherwise, check for credentials or link based on the service
         if (selectedServiceData?.sharing_method === 'link' && inviteLink.startsWith('http')) return true;
         if (selectedServiceData?.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
         
@@ -215,9 +202,9 @@ const HostPlanPage = ({ session }) => {
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-slate-400">Available slots to share:</p>
                                     <div className="flex items-center justify-center gap-4 mt-2">
-                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg">-</button>
+                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Minus className="w-4 h-4"/></button>
                                         <span className="text-gray-900 dark:text-white text-4xl font-bold w-16 text-center">{availableSlots}</span>
-                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.min(selectedServiceData.max_seats_allowed - 1, prev + 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg">+</button>
+                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.min(selectedServiceData.max_seats_allowed - 1, prev + 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Plus className="w-4 h-4"/></button>
                                     </div>
                                 </div>
                                 <div className="border-t border-gray-200 dark:border-white/10 pt-4 text-center">
@@ -237,12 +224,12 @@ const HostPlanPage = ({ session }) => {
                                 type="date"
                                 value={planPurchaseDate}
                                 onChange={(e) => setPlanPurchaseDate(e.target.value)}
+                                min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split("T")[0]}
                                 className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 required
                             />
                         </div>
                         
-                        {/* --- Dynamic Warning UI --- */}
                         {showDateWarning && (
                             <div className="space-y-3 animate-in fade-in">
                                 <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 text-sm rounded-lg">
@@ -290,9 +277,10 @@ const HostPlanPage = ({ session }) => {
                             <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I have read the rules and agree to the <Link to="/terms" className="underline text-purple-500 dark:text-purple-400">T&C</Link>.</label>
                         </div>
 
-                        {error && <p className="text-red-500 text-center">{error}</p>}
+                        {error && <p className="text-red-500 text-center bg-red-500/10 p-3 rounded-lg">{error}</p>}
 
-                        <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed">
+                        <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                            {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
                             {submitting ? 'Posting...' : 'Host Plan'}
                         </button>
                     </section>

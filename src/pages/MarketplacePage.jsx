@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { Crown, Star } from 'lucide-react';
 
-// NOTE: This component assumes its props are in camelCase
 const CommunityPlanCard = ({ plan }) => {
+    // This component expects props in camelCase, which we handle in the main page component
     const {
         id,
         averageRating,
@@ -121,7 +121,11 @@ const MarketplacePage = ({ session }) => {
 
     useEffect(() => {
         const fetchPlans = async () => {
-            if (!serviceName || !session?.user?.id) return;
+            if (!serviceName) {
+                setError("Service name is missing.");
+                setLoading(false);
+                return;
+            };
             setLoading(true);
             setError(null);
 
@@ -143,7 +147,8 @@ const MarketplacePage = ({ session }) => {
                     supabase.from('dapbuddy_plans').select('*').eq('service_id', serviceId),
                     supabase.rpc('get_community_plans_for_service', {
                         p_service_id: serviceId,
-                        p_user_id: session.user.id
+                        // p_user_id is needed if your RPC uses it to check against the host_id
+                        p_user_id: session?.user?.id 
                     })
                 ]);
 
@@ -152,7 +157,7 @@ const MarketplacePage = ({ session }) => {
 
                 if (communityRes.error) throw communityRes.error;
 
-                // --- CRITICAL FIX: Map snake_case to camelCase ---
+                // Map snake_case from the RPC response to camelCase for the component
                 const formattedCommunityPlans = communityRes.data.map(plan => ({
                     id: plan.id,
                     averageRating: plan.average_rating,

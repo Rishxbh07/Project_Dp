@@ -8,89 +8,64 @@ import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
 import { Search, ShieldCheck, Smile } from 'lucide-react';
 
 const HomePage = ({ session }) => {
-  const [services, setServices] = useState([]);
+  const [popularPlans, setPopularPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allServiceNames, setAllServiceNames] = useState([]);
   const [runAnimation, setRunAnimation] = useState(false);
 
   useEffect(() => {
+    // This function fetches all service names for the slot machine animation
     const fetchAllServiceNames = async () => {
       const { data, error } = await supabase.from('services').select('name');
       if (error) {
         console.error('Error fetching all service names:', error);
       } else {
         setAllServiceNames(data.map(s => s.name));
-        
         if (session && !sessionStorage.getItem('hasAnimatedText')) {
-          setTimeout(() => {
-            setRunAnimation(true);
-          }, 3500); 
+          setTimeout(() => setRunAnimation(true), 3500);
         }
       }
     };
 
-    const fetchServices = async () => {
+    // This is the ONLY function that fetches plan data for the homepage
+    const fetchPopularPlans = async () => {
       setLoading(true);
-      let recommendedServices = [];
-      const { data, error } = await supabase
-        .from('recommended_plans')
-        .select(`
-          listings (
-            id,
-            service:services (
-              id,
-              name,
-              base_price
-            )
-          )
-        `);
       
+      // Fetches exclusively from the 'popular_plans' table.
+      const { data, error } = await supabase
+        .from('popular_plans')
+        .select('*')
+        .order('average_rating', { ascending: false });
+
       if (error) {
-        console.error('Error fetching services:', error);
+        console.error('Error fetching popular plans:', error);
+        setPopularPlans([]);
       } else {
-        recommendedServices = data.map(item => item.listings.service);
+        const formattedPlans = data.map(plan => ({
+          id: plan.listing_id,
+          name: plan.service_name,
+          base_price: plan.base_price,
+          description: `Join the best ${plan.service_name} plan!`
+        }));
+        setPopularPlans(formattedPlans);
       }
-
-      if (recommendedServices.length > 0) {
-        const uniqueServices = Array.from(new Map(recommendedServices.map(item => [item.id, item])).values());
-        setServices(uniqueServices);
-      } else {
-        const { data: listingsData, error: listingsError } = await supabase
-          .from('listings')
-          .select(`
-            service:services (
-              id,
-              name,
-              base_price
-            )
-          `)
-          .limit(5);
-
-        if (listingsError) {
-          console.error('Error fetching listings:', listingsError);
-        } else {
-          const popularServices = listingsData.map(item => item.service);
-          const uniqueServices = Array.from(new Map(popularServices.map(item => [item.id, item])).values());
-          setServices(uniqueServices);
-        }
-      }
-
       setLoading(false);
     };
 
-    fetchServices();
+    fetchPopularPlans();
     fetchAllServiceNames();
   }, [session]);
 
+  // Effect to handle the card carousel animation
   useEffect(() => {
-    if (services.length > 1) {
+    if (popularPlans.length > 1) {
       const interval = setInterval(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % services.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % popularPlans.length);
       }, 3500);
       return () => clearInterval(interval);
     }
-  }, [services]);
+  }, [popularPlans]);
 
   const handleAnimationEnd = () => {
     sessionStorage.setItem('hasAnimatedText', 'true');
@@ -99,10 +74,8 @@ const HomePage = ({ session }) => {
 
   return (
     <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative overflow-hidden">
-      
       <div className="relative z-10">
         <div className="max-w-md mx-auto px-4">
-          
           <div className="relative z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 shadow-lg my-6 px-4 py-2 rounded-full">
             <DapBuddyDropdownMenu session={session} />
           </div>
@@ -175,13 +148,13 @@ const HomePage = ({ session }) => {
                   <div className="h-4 bg-gray-300 dark:bg-white/10 rounded"></div>
                 </div>
               ) : (
-                services.map((service, index) => {
+                popularPlans.map((service, index) => {
                   let position = 'next';
                   if (index === currentIndex) {
                     position = 'active';
-                  } else if (index === (currentIndex - 1 + services.length) % services.length) {
+                  } else if (index === (currentIndex - 1 + popularPlans.length) % popularPlans.length) {
                     position = 'prev';
-                  } else if (index === (currentIndex + 1) % services.length) {
+                  } else if (index === (currentIndex + 1) % popularPlans.length) {
                     position = 'next';
                   } else {
                     position = 'hidden';
@@ -197,7 +170,6 @@ const HomePage = ({ session }) => {
             </div>
           </section>
 
-          {/* --- MODIFIED SECTION: How It Works --- */}
           <section className="my-10 py-10">
             <h2 className="text-slate-900 dark:text-white text-3xl font-bold text-center mb-8">
               How It Works
@@ -224,7 +196,6 @@ const HomePage = ({ session }) => {
                   <p className="text-slate-600 dark:text-slate-300 mt-1">
                     Pay safely through our platform. We hold your payment and only release it to the host after your monthly subscription tenure is successfully completed.
                   </p>
-                  {/* --- ADDED: "Know More" Link --- */}
                   <Link to="/rules" className="text-sm font-semibold text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 mt-2 inline-block">
                     Know more in details &rarr;
                   </Link>

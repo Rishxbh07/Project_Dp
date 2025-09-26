@@ -1,6 +1,17 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
+CREATE TABLE public.achievements (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name text NOT NULL,
+  description text NOT NULL,
+  icon_url text,
+  task_type text NOT NULL,
+  task_threshold integer NOT NULL,
+  reward_type text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT achievements_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.admin_activity_logs (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   admin_id uuid NOT NULL,
@@ -39,12 +50,14 @@ CREATE TABLE public.connected_accounts (
   dapbuddy_subscription_id uuid UNIQUE,
   host_id uuid,
   buyer_id uuid NOT NULL,
-  service_username text,
+  service_uid text,
   service_profile_name text,
-  invite_link text,
+  profile_link text NOT NULL,
   credentials_encrypted text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
+  service_pfp_link text,
+  account_confirmation text NOT NULL DEFAULT 'no'::text,
   CONSTRAINT connected_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT connected_accounts_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT connected_accounts_dapbuddy_subscription_id_fkey FOREIGN KEY (dapbuddy_subscription_id) REFERENCES public.dapbuddy_subscriptions(id),
@@ -163,6 +176,21 @@ CREATE TABLE public.profiles (
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.promo_codes (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  code text NOT NULL UNIQUE,
+  user_id uuid,
+  achievement_id bigint,
+  discount_amount numeric NOT NULL,
+  service_id text,
+  is_used boolean DEFAULT false,
+  expires_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT promo_codes_pkey PRIMARY KEY (id),
+  CONSTRAINT promo_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT promo_codes_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievements(id),
+  CONSTRAINT promo_codes_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+);
 CREATE TABLE public.recommended_plans (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   listing_id uuid NOT NULL UNIQUE,
@@ -236,6 +264,15 @@ CREATE TABLE public.transactions (
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
   CONSTRAINT transactions_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT transactions_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.user_achievements (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  achievement_id bigint NOT NULL,
+  unlocked_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_achievements_pkey PRIMARY KEY (id),
+  CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT user_achievements_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievements(id)
 );
 CREATE TABLE public.user_activity_logs (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
