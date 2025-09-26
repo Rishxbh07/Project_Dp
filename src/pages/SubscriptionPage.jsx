@@ -23,67 +23,46 @@ const SubscriptionPage = ({ session }) => {
       try {
         setLoading(true);
 
+        // 1. Fetch User Subscriptions (This part is correct)
         const { data: subsData, error: subsError } = await supabase
-          .from('bookings')
-          .select(`
-            id,
-            joined_at,
-            listing:listings (
-              id,
-              seats_total,
-              seats_available,
-              service:services (
-                name
-              ),
-              host:profiles (
-                username
-              )
-            ),
-            transaction:transactions (
-              final_amount_charged
-            )
-          `)
-          .eq('buyer_id', session.user.id);
+          .rpc('get_user_subscriptions', { uid: session.user.id });
 
         if (subsError) throw subsError;
 
         const formattedSubs = subsData.map(sub => ({
-          id: sub.id,
-          serviceName: sub.listing.service.name,
-          hostName: sub.listing.host.username,
-          rate: sub.transaction.final_amount_charged,
+          id: sub.booking_id,
+          serviceName: sub.service_name,
+          hostName: sub.host_name,
+          rate: sub.final_amount_charged,
           renewalDate: new Date(new Date(sub.joined_at).setMonth(new Date(sub.joined_at).getMonth() + 1)).toLocaleDateString(),
-          slotsFilled: sub.listing.seats_total - sub.listing.seats_available,
-          slotsTotal: sub.listing.seats_total,
+          slotsFilled: sub.seats_total - sub.seats_available,
+          slotsTotal: sub.seats_total,
         }));
         setMySubscriptions(formattedSubs);
 
+        // 2. Fetch Hosted Plans
         const { data: hostedData, error: hostedError } = await supabase
-          .from('listings')
-          .select(`
-            id,
-            created_at,
-            seats_total,
-            seats_available,
-            average_rating, 
-            service:services (
-              name,
-              base_price
-            )
-          `)
-          .eq('host_id', session.user.id);
+          .rpc('get_hosted_plans', { p_host_id: session.user.id });
 
         if (hostedError) throw hostedError;
         
+        // --- THIS IS THE CRITICAL FIX ---
+        // This mapping ensures the data has the correct shape and names for HostedPlanCard
         const formattedHosted = hostedData.map(plan => ({
-          ...plan,
-          serviceName: plan.service.name,
+          id: plan.id,
+          createdAt: plan.created_at,
+          seatsTotal: plan.seats_total,
+          seatsAvailable: plan.seats_available,
+          averageRating: plan.average_rating,
+          serviceName: plan.service_name,
+          basePrice: plan.base_price
         }));
+
         setHostedPlans(formattedHosted);
 
       } catch (error) {
         setError(error.message);
-        console.error("Error fetching subscription data:", error);
+        console.error("Error fetching page data:", error);
       } finally {
         setLoading(false);
       }
@@ -178,7 +157,7 @@ const SubscriptionPage = ({ session }) => {
           )}
         </div>
       </div>
-       <div className="h-24"></div>
+      <div className="h-24"></div>
     </div>
   );
 };

@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star, Users } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 const HostedPlanCard = ({ plan }) => {
+    // --- FIXED: Destructuring the flat 'plan' object ---
     const {
         id,
         serviceName,
-        average_rating,
-        created_at,
-        seats_total,
-        service: { base_price }
+        averageRating,
+        createdAt, // Renamed from created_at
+        seatsTotal,  // Renamed from seats_total
+        basePrice    // Renamed from base_price
     } = plan;
 
     const [members, setMembers] = useState([]);
@@ -18,7 +19,7 @@ const HostedPlanCard = ({ plan }) => {
     const [expectedPayout, setExpectedPayout] = useState(0);
 
     const getRenewalInfo = () => {
-        const startDate = new Date(created_at);
+        const startDate = new Date(createdAt);
         const now = new Date();
         
         const endDate = new Date(startDate);
@@ -42,46 +43,48 @@ const HostedPlanCard = ({ plan }) => {
     useEffect(() => {
         const fetchMembers = async () => {
             setLoading(true);
+            // --- MODIFIED: Use the secure RPC function ---
             const { data, error } = await supabase
-                .from('bookings')
-                .select('user:profiles(username, pfp_url)')
-                .eq('listing_id', id);
+                .rpc('get_listing_members', { p_listing_id: id });
 
             if (error) {
                 console.error('Error fetching members:', error);
                 setMembers([]);
             } else {
-                const fetchedMembers = data.map(item => item.user);
-                setMembers(fetchedMembers);
+                setMembers(data);
                 
-                const seatsSold = fetchedMembers.length;
-                const payout = seatsSold > 0 ? (base_price * seatsSold).toFixed(2) : 0;
+                // --- FIXED: Payout calculation uses the correct prop ---
+                const seatsSold = data.length;
+                const pricePerSeat = basePrice / seatsTotal; // Calculate price per seat
+                const payout = seatsSold > 0 ? (pricePerSeat * seatsSold).toFixed(2) : "0.00";
                 setExpectedPayout(payout);
             }
             setLoading(false);
         };
 
-        fetchMembers();
-    }, [id, base_price]);
+        if (id) {
+            fetchMembers();
+        }
+    }, [id, basePrice, seatsTotal]);
     
     const getServiceColor = (service) => {
+        if (!service) return 'from-gray-500 to-gray-600';
         const name = service.toLowerCase();
         if (name.includes('netflix')) return 'from-red-500 to-red-800';
         if (name.includes('spotify')) return 'from-green-400 to-green-600';
         return 'from-purple-500 to-indigo-600';
     };
 
-    const seatsAvailable = seats_total - members.length;
+    const seatsAvailable = seatsTotal - members.length;
 
     return (
-        // --- MODIFIED: Link points to the new detail page ---
         <Link
             to={`/hosted-plan/${id}`}
             className="group block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
         >
             <div className={`w-full h-28 flex items-center justify-center bg-gradient-to-br ${getServiceColor(serviceName)}`}>
                 <span className="text-white font-bold text-5xl opacity-80 group-hover:opacity-100 transition-opacity">
-                    {serviceName.charAt(0).toUpperCase()}
+                    {serviceName?.charAt(0).toUpperCase()}
                 </span>
             </div>
 
@@ -91,7 +94,7 @@ const HostedPlanCard = ({ plan }) => {
                 <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                         <Star className="w-4 h-4 text-yellow-400" />
-                        <span className="font-semibold text-gray-700 dark:text-slate-300">Listing Rating: {average_rating.toFixed(1)}</span>
+                        <span className="font-semibold text-gray-700 dark:text-slate-300">Rating: {(averageRating || 0).toFixed(1)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-gray-700 dark:text-slate-300">Payout: ₹{expectedPayout}</span>
@@ -109,21 +112,21 @@ const HostedPlanCard = ({ plan }) => {
                 </div>
 
                 <div>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Members ({members.length}/{seats_total})</p>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Members ({members.length}/{seatsTotal})</p>
                     {loading ? <p className="text-xs text-center text-gray-500">Loading members...</p> : (
                         <div className="flex items-center space-x-2">
-                            {members.map((member, index) => (
+                            {members.slice(0, 4).map((member, index) => ( // Show max 4 members
                                 <div key={index} title={member.username}>
                                     {member.pfp_url ? (
                                         <img src={member.pfp_url} alt={member.username} className="w-8 h-8 rounded-full object-cover" />
                                     ) : (
                                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                                            {member.username.charAt(0).toUpperCase()}
+                                            {member.username?.charAt(0).toUpperCase()}
                                         </div>
                                     )}
                                 </div>
                             ))}
-                            {seatsAvailable > 0 && <span className="text-xs text-gray-400">+{seatsAvailable} more spots</span>}
+                            {seatsAvailable > 0 && <span className="text-xs text-gray-400">+{seatsAvailable} spots</span>}
                         </div>
                     )}
                 </div>
