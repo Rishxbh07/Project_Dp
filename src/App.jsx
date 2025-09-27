@@ -21,6 +21,7 @@ import InvitePage from './pages/InvitePage';
 import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import ConnectAccountPage from './pages/ConnectAccountPage';
+import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -76,6 +77,7 @@ function App() {
             <Route path="/wallet" element={<WalletPage session={session} />} />
             <Route path="/profile" element={<ProfilePage session={session} />} />
             <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
+            <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
             <Route path="/notifications" element={<NotificationsPage session={session} />} />
             <Route path="/explore" element={<ExplorePage session={session} />} />
             <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />

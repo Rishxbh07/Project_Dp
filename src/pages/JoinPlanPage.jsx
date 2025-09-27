@@ -70,14 +70,12 @@ const JoinPlanPage = ({ session }) => {
         });
     }, [listing, paymentOption, useCoins, walletBalance]);
 
-    // ✅ MODIFIED: This function now calls our atomic database function
     const handleJoinPlan = async () => {
         if (!session || !listing) return;
         setLoading(true);
         setError('');
 
         try {
-            // This is the key change: call the database function instead of inserting directly.
             const { data, error } = await supabase.rpc('create_booking_atomic', {
                 p_listing_id: listing.id,
                 p_buyer_id: session.user.id
@@ -86,11 +84,9 @@ const JoinPlanPage = ({ session }) => {
             if (error) throw error;
 
             if (data && data[0].success) {
-                // On success, the function returns the new booking ID.
                 const newBookingId = data[0].booking_id;
-
-                // Create the transaction record after successful booking
                 const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
+                
                 const { error: transactionError } = await supabase.from('transactions').insert({
                     booking_id: newBookingId,
                     buyer_id: session.user.id,
@@ -100,13 +96,21 @@ const JoinPlanPage = ({ session }) => {
                     payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
                     platform_fee: priceDetails.platformFee
                 });
+
                 if (transactionError) throw transactionError;
 
-                // Redirect the user to connect their account.
-                navigate(`/connect-account/${newBookingId}`);
+                // --- CORRECTED LOGIC ---
+                const serviceName = listing.service.name.toLowerCase();
+                
+                // Check if the service name *includes* spotify or youtube
+                if (serviceName.includes('spotify') || serviceName.includes('youtube')) {
+                    navigate(`/connect-account/${newBookingId}`);
+                } else {
+                    navigate('/subscription');
+                }
+
             } else {
-                // If the function returns success: false, it means no seats were available.
-                setError(data[0].message || 'Failed to join the plan.');
+                setError(data[0].message || 'Failed to join the plan. The plan might be full.');
             }
 
         } catch (error) {
@@ -121,10 +125,7 @@ const JoinPlanPage = ({ session }) => {
 
     const { service, host, average_rating, created_at, seats_total, seats_available, host_id } = listing;
     const isHost = session.user.id === host_id;
-
-    // Use seats_available directly from the listing for the most up-to-date count
     const slotsFilled = seats_total - seats_available;
-
     const renewalDate = new Date(created_at);
     renewalDate.setDate(renewalDate.getDate() + 30);
 
@@ -133,7 +134,7 @@ const JoinPlanPage = ({ session }) => {
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
                     <Link to={`/marketplace/${service.name.toLowerCase()}`} className="text-purple-500 dark:text-purple-400 text-sm">
-                        &larr; Back
+                        ← Back
                     </Link>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">Join Plan</h1>
                     <div className="w-16"></div>
@@ -232,7 +233,7 @@ const JoinPlanPage = ({ session }) => {
                         </p>
                     </div>
                     <button
-                        onClick={handleJoinPlan} // ✅ MODIFIED: Calls the new function
+                        onClick={handleJoinPlan}
                         disabled={seats_available <= 0 || loading || isHost || isAlreadyJoined}
                         className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
                     >

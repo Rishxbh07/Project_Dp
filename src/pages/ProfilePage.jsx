@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { ChevronRight, Star, Award, Shield, HelpCircle, LogOut, User, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { ChevronRight, Star, Award, Shield, HelpCircle, LogOut, User, ArrowUp, ArrowDown, Minus, Link2 } from 'lucide-react'; // Added Link2 icon
 import Modal from '../components/common/Modal';
 
 // A component for the trend indicator icons
@@ -19,30 +19,27 @@ const TrendIndicator = ({ trend }) => {
 const ProfilePage = ({ session }) => {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(null); // 'host' or 'user'
+  const [showRatingModal, setShowRatingModal] = useState(null);
   const [savePassword, setSavePassword] = useState(true);
   const [profile, setProfile] = useState({
     username: 'dapbuddy_user',
     email: 'user@example.com',
     avatarUrl: null,
     hostRating: 0,
-    loyaltyScore: 0, // <-- FIX: Changed from userRating
-    hostRatingTrend: 'same', // 'up', 'down', or 'same'
+    loyaltyScore: 0,
+    hostRatingTrend: 'same',
     userRatingTrend: 'up',
   });
   const [loading, setLoading] = useState(true);
 
   const user = session?.user;
 
-  // --- FIX: Correctly fetch and combine user and profile data ---
   useEffect(() => {
     const fetchProfile = async () => {
       if (user) {
         setLoading(true);
-        // Set email from the session immediately
         setProfile(prev => ({ ...prev, email: user.email }));
 
-        // --- FIX: Changed user_rating to loyalty_score in the query ---
         const { data, error } = await supabase
           .from('profiles')
           .select('username, host_rating, loyalty_score')
@@ -51,7 +48,6 @@ const ProfilePage = ({ session }) => {
 
         if (error) {
           console.error('Error fetching profile:', error);
-          // Fallback to session data if profile doesn't exist yet
           setProfile(prev => ({
               ...prev,
               username: user.user_metadata?.username || prev.username,
@@ -61,7 +57,7 @@ const ProfilePage = ({ session }) => {
             ...prev,
             username: data.username || user.user_metadata?.username || prev.username,
             hostRating: data.host_rating || 0,
-            loyaltyScore: data.loyalty_score || 0, // <-- FIX: Changed from userRating
+            loyaltyScore: data.loyalty_score || 0,
           }));
         }
         setLoading(false);
@@ -77,14 +73,14 @@ const ProfilePage = ({ session }) => {
     navigate('/');
   };
 
-const menuItems = [
-        { icon: Award, text: 'Achievements / Badges', path: '/achievements' }, // <-- Correct path
-        { icon: Shield, text: 'Privacy', path: '/profile/privacy' },
-        { icon: HelpCircle, text: 'Help & Support', path: '/profile/support' },
-  
-      ];
-  
-  // --- ADDED: Dummy data for rating details ---
+  // --- MODIFIED: Added "Connected Accounts" to the menu ---
+  const menuItems = [
+    { icon: Award, text: 'Achievements / Badges', path: '/achievements' },
+    { icon: Link2, text: 'Connected Accounts', path: '/profile/connected-accounts' }, // New Item
+    { icon: Shield, text: 'Privacy', path: '/profile/privacy' },
+    { icon: HelpCircle, text: 'Help & Support', path: '/profile/support' },
+  ];
+
   const hostRatingDetails = [
       { reason: "Successful plan renewal", score: "+0.1", positive: true },
       { reason: "Positive review from a member", score: "+0.2", positive: true },
@@ -139,7 +135,6 @@ const menuItems = [
               <p className="font-semibold text-gray-800 dark:text-slate-300 text-sm">Loyalty Score</p>
               <div className="flex items-center gap-2 mt-2">
                 <User className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                {/* --- FIX: Changed profile.userRating to profile.loyaltyScore --- */}
                 <p className="font-bold text-2xl text-blue-600 dark:text-blue-300">{loading ? '...' : profile.loyaltyScore}</p>
                  {!loading && <TrendIndicator trend={profile.userRatingTrend} />}
               </div>
