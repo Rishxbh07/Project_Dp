@@ -159,12 +159,20 @@ CREATE TABLE public.platform_service_credentials (
   CONSTRAINT platform_service_credentials_pkey PRIMARY KEY (id),
   CONSTRAINT platform_service_credentials_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
 );
-CREATE TABLE public.popular_services (
+CREATE TABLE public.popular_plans (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  listing_id uuid NOT NULL,
   service_id text NOT NULL,
-  listing_count integer NOT NULL,
-  updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT popular_services_pkey PRIMARY KEY (service_id),
-  CONSTRAINT popular_services_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+  host_id uuid NOT NULL,
+  service_name text NOT NULL,
+  base_price numeric,
+  average_rating numeric,
+  host_rating numeric,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT popular_plans_pkey PRIMARY KEY (id),
+  CONSTRAINT popular_plans_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
+  CONSTRAINT popular_plans_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT popular_plans_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,

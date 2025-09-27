@@ -70,33 +70,44 @@ const JoinPlanPage = ({ session }) => {
         });
     }, [listing, paymentOption, useCoins, walletBalance]);
 
-    const handleFakePayment = async () => {
+    // ✅ MODIFIED: This function now calls our atomic database function
+    const handleJoinPlan = async () => {
         if (!session || !listing) return;
         setLoading(true);
+        setError('');
+
         try {
-            // 1. Create the booking
-            const { data: bookingData, error: bookingError } = await supabase
-                .from('bookings')
-                .insert({ listing_id: listing.id, buyer_id: session.user.id, payment_status: 'Paid' })
-                .select()
-                .single();
-            if (bookingError) throw bookingError;
-
-            // 2. Create the transaction record
-            const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
-            const { error: transactionError } = await supabase.from('transactions').insert({
-                booking_id: bookingData.id,
-                buyer_id: session.user.id,
-                original_amount: originalAmount.toFixed(2),
-                credits_used: priceDetails.coinDiscount,
-                final_amount_charged: priceDetails.total,
-                payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
-                platform_fee: priceDetails.platformFee
+            // This is the key change: call the database function instead of inserting directly.
+            const { data, error } = await supabase.rpc('create_booking_atomic', {
+                p_listing_id: listing.id,
+                p_buyer_id: session.user.id
             });
-            if (transactionError) throw transactionError;
 
-            // 3. Redirect to the new connect account page with the new booking ID
-            navigate(`/connect-account/${bookingData.id}`);
+            if (error) throw error;
+
+            if (data && data[0].success) {
+                // On success, the function returns the new booking ID.
+                const newBookingId = data[0].booking_id;
+
+                // Create the transaction record after successful booking
+                const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
+                const { error: transactionError } = await supabase.from('transactions').insert({
+                    booking_id: newBookingId,
+                    buyer_id: session.user.id,
+                    original_amount: originalAmount.toFixed(2),
+                    credits_used: priceDetails.coinDiscount,
+                    final_amount_charged: priceDetails.total,
+                    payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
+                    platform_fee: priceDetails.platformFee
+                });
+                if (transactionError) throw transactionError;
+
+                // Redirect the user to connect their account.
+                navigate(`/connect-account/${newBookingId}`);
+            } else {
+                // If the function returns success: false, it means no seats were available.
+                setError(data[0].message || 'Failed to join the plan.');
+            }
 
         } catch (error) {
             setError(`An error occurred: ${error.message}`);
@@ -108,11 +119,12 @@ const JoinPlanPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
 
-    const { service, host, bookings, average_rating, created_at, seats_total, host_id } = listing;
+    const { service, host, average_rating, created_at, seats_total, seats_available, host_id } = listing;
     const isHost = session.user.id === host_id;
-    const slotsFilled = bookings.length;
-    const sharableSlots = Math.max(0, seats_total - 1);
-    const slotsAvailable = sharableSlots - slotsFilled;
+
+    // Use seats_available directly from the listing for the most up-to-date count
+    const slotsFilled = seats_total - seats_available;
+
     const renewalDate = new Date(created_at);
     renewalDate.setDate(renewalDate.getDate() + 30);
 
@@ -128,7 +140,6 @@ const JoinPlanPage = ({ session }) => {
                 </div>
             </header>
             <main className="max-w-md mx-auto px-4 py-6 pb-48">
-                {/* All the plan details, pricing, etc. go here as before */}
                 <section className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-gray-200 dark:border-white/10 mb-6">
                     <div className="text-center mb-4">
                         <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">
@@ -156,8 +167,8 @@ const JoinPlanPage = ({ session }) => {
                     <div className="flex items-center gap-4 p-2">
                         <Users className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                         <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {sharableSlots} Slots Filled</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">{slotsAvailable} spot(s) remaining</p>
+                            <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {seats_total} Slots Filled</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 p-2">
@@ -220,12 +231,12 @@ const JoinPlanPage = ({ session }) => {
                             <IndianRupee className="w-5 h-5" />{priceDetails.total}
                         </p>
                     </div>
-                    <button 
-                        onClick={handleFakePayment}
-                        disabled={slotsAvailable <= 0 || loading || isHost || isAlreadyJoined}
+                    <button
+                        onClick={handleJoinPlan} // ✅ MODIFIED: Calls the new function
+                        disabled={seats_available <= 0 || loading || isHost || isAlreadyJoined}
                         className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
                     >
-                        {loading ? 'Processing...' : isHost ? "This is Your Plan" : isAlreadyJoined ? "Already Joined" : (slotsAvailable > 0 ? 'Proceed to Pay' : 'Plan Full')}
+                        {loading ? 'Processing...' : isHost ? "This is Your Plan" : isAlreadyJoined ? "Already Joined" : (seats_available > 0 ? 'Proceed to Pay' : 'Plan Full')}
                     </button>
                 </div>
             </footer>
