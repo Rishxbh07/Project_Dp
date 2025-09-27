@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
 
+// Import Layout and Pages
+import MainLayout from './components/layout/MainLayout';
 import HomePage from './pages/HomePage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import HostedPlanDetailPage from './pages/HostedPlanDetailPage';
@@ -13,25 +14,23 @@ import EditProfilePage from './pages/EditProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import MarketplacePage from './pages/MarketplacePage';
 import JoinPlanPage from './pages/JoinPlanPage';
-import ExplorePage from './pages/ExplorePage'; 
+import ExplorePage from './pages/ExplorePage';
 import HostPlanPage from './pages/HostPlanPage';
 import ServiceRequestPage from './pages/ServiceRequestPage';
 import InvitePage from './pages/InvitePage';
 import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
-import MainLayout from './components/layout/MainLayout';
 import ConnectAccountPage from './pages/ConnectAccountPage';
 
-const PrivateRoute = ({ session }) => {
-  if (!session) {
-    return <Navigate to="/auth" replace />;
-  }
-  return (
-    <MainLayout>
-      {/* Pass session to all child routes through the Outlet's context */}
-      <Outlet context={{ session }} />
-    </MainLayout>
-  );
+// ✅ NEW: A dedicated component to handle the session check.
+// Its only job is to check for a session and redirect if one doesn't exist.
+const AuthRequired = ({ session }) => {
+    const location = useLocation();
+    if (!session) {
+        return <Navigate to="/auth" state={{ from: location }} replace />;
+    }
+    // If the user is logged in, it renders the child route (<MainLayout /> in our case).
+    return <Outlet />;
 };
 
 function App() {
@@ -53,15 +52,23 @@ function App() {
   }, []);
 
   if (loading) {
+    // You can replace this with a proper loading spinner component
     return <div>Loading...</div>;
   }
 
   return (
     <Router>
       <Routes>
+        {/* Public route for authentication */}
         <Route path="/auth" element={<Auth />} />
-        <Route element={<PrivateRoute session={session} />}>
-            {/* --- FIX: Pass the session prop to all child elements --- */}
+
+        {/* ✅ CORRECTED: Protected Routes Structure */}
+        {/* 1. The AuthRequired route checks if the user is logged in. */}
+        <Route element={<AuthRequired session={session} />}>
+          {/* 2. If logged in, it renders the MainLayout route. */}
+          {/* 3. MainLayout renders the bottom nav bar and an <Outlet /> for the page content. */}
+          <Route element={<MainLayout />}>
+            {/* 4. All your protected pages are now children of MainLayout. */}
             <Route path="/" element={<HomePage session={session} />} />
             <Route path="/subscription" element={<SubscriptionPage session={session} />} />
             <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
@@ -74,11 +81,11 @@ function App() {
             <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
             <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
             <Route path="/host-plan" element={<HostPlanPage session={session} />} />
-            <Route path="/host-plan" element={<HostPlanPage session={session} />} />
             <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
             <Route path="/invite" element={<InvitePage session={session} />} />
             <Route path="/achievements" element={<AchievementsPage session={session} />} />
             <Route path="/connect-account/:bookingId" element={<ConnectAccountPage session={session} />} />
+          </Route>
         </Route>
       </Routes>
     </Router>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Info, LogIn, Plus, Minus, Loader2 } from 'lucide-react';
+import { Info, LogIn, Plus, Minus, Loader2, PartyPopper } from 'lucide-react';
 
 const HostPlanPage = ({ session }) => {
     const navigate = useNavigate();
@@ -22,12 +22,21 @@ const HostPlanPage = ({ session }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    
-    // States for the dynamic warning
+    const [success, setSuccess] = useState(false);
+
     const [showDateWarning, setShowDateWarning] = useState(false);
     const [understandsDateWarning, setUnderstandsDateWarning] = useState(false);
     const [serviceEndDate, setServiceEndDate] = useState('');
     const [payoutDate, setPayoutDate] = useState('');
+
+    useEffect(() => {
+        if (success) {
+            const timer = setTimeout(() => {
+                navigate(-1);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, navigate]);
 
     useEffect(() => {
         const fetchServicesAndCategories = async () => {
@@ -62,28 +71,25 @@ const HostPlanPage = ({ session }) => {
         }
     }, [selectedServiceData, availableSlots]);
 
-    // Logic for the dynamic date warning
     useEffect(() => {
         if (planPurchaseDate) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const renewalDate = new Date(planPurchaseDate);
             renewalDate.setHours(0, 0, 0, 0);
-            
+
             const oneMonthFromToday = new Date(today);
             oneMonthFromToday.setMonth(oneMonthFromToday.getMonth() + 1);
 
             if (renewalDate < oneMonthFromToday) {
                 const requiredServiceDate = new Date();
                 requiredServiceDate.setDate(new Date().getDate() + 30);
-                
                 const finalPayoutDate = new Date();
                 finalPayoutDate.setDate(new Date().getDate() + 31);
-                
-               const dateFormatOptions = { day: 'numeric', month: 'short' };
-               setServiceEndDate(requiredServiceDate.toLocaleDateString('en-GB', dateFormatOptions));
-               setPayoutDate(finalPayoutDate.toLocaleDateString('en-GB', dateFormatOptions));
-               setShowDateWarning(true);
+                const dateFormatOptions = { day: 'numeric', month: 'short' };
+                setServiceEndDate(requiredServiceDate.toLocaleDateString('en-GB', dateFormatOptions));
+                setPayoutDate(finalPayoutDate.toLocaleDateString('en-GB', dateFormatOptions));
+                setShowDateWarning(true);
             } else {
                 setShowDateWarning(false);
             }
@@ -101,10 +107,11 @@ const HostPlanPage = ({ session }) => {
             setSelectedCategory(service.category);
         }
     };
-    
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!isFormValid()) {
+        // ✅ FIX: Check if selectedServiceData exists before proceeding
+        if (!isFormValid() || !selectedServiceData) {
             setError("Please fill all required fields correctly and agree to all terms.");
             return;
         }
@@ -114,49 +121,44 @@ const HostPlanPage = ({ session }) => {
         const newListing = {
             host_id: session.user.id,
             service_id: selectedService,
-            seats_total: selectedServiceData.max_seats_allowed,
+            seats_total: selectedServiceData.max_seats_allowed, // Now this is safe
             seats_available: availableSlots,
-            plan_purchased_date: planPurchaseDate
+            plan_purchased_date: planPurchaseDate,
+            status: 'active'
         };
 
-        const { data, error } = await supabase.from('listings').insert([newListing]).select();
+        const { error } = await supabase.from('listings').insert([newListing]);
 
         if (error) {
             setError(`Error creating listing: ${error.message}`);
             setSubmitting(false);
         } else {
-            // Success! This will trigger the database function to update popular_plans.
-            navigate('/subscription');
+            setSuccess(true);
         }
     };
 
     const isFormValid = () => {
-        if (!selectedService || !agreeToTerms || !planPurchaseDate) return false;
+        // ✅ FIX: Also check that selectedServiceData is not null
+        if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
         if (showDateWarning && !understandsDateWarning) return false;
         if (shareLater) return true;
         if (selectedServiceData?.sharing_method === 'link' && inviteLink.startsWith('http')) return true;
         if (selectedServiceData?.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
-        
         return false;
     };
 
-    const filteredServices = selectedCategory === 'All'
-        ? services
-        : services.filter(service => service.category === selectedCategory);
+    const filteredServices = selectedCategory === 'All' ? services : services.filter(service => service.category === selectedCategory);
 
     if (!session) {
         return (
-          <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen flex flex-col items-center justify-center text-center px-4">
-            <LogIn className="w-16 h-16 text-purple-400 mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Create a Listing</h2>
-            <p className="text-gray-500 dark:text-slate-400 mb-6">You need to be logged in to host a plan.</p>
-            <button
-              onClick={() => navigate('/auth')}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform"
-            >
-              Log In
-            </button>
-          </div>
+            <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen flex flex-col items-center justify-center text-center px-4">
+                <LogIn className="w-16 h-16 text-purple-400 mb-4" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Create a Listing</h2>
+                <p className="text-gray-500 dark:text-slate-400 mb-6">You need to be logged in to host a plan.</p>
+                <button onClick={() => navigate('/auth')} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform">
+                    Log In
+                </button>
+            </div>
         );
     }
 
@@ -164,130 +166,144 @@ const HostPlanPage = ({ session }) => {
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link to="/" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
+                    {/* ✅ FIX: Use navigate(-1) to go back to the previous page */}
+                    <button onClick={() => navigate(-1)} className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
                         ←
-                    </Link>
+                    </button>
                     <h1 className="text-xl font-bold text-center">Host a New Plan</h1>
                     <div className="w-10"></div>
                 </div>
             </header>
 
-            <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-6 space-y-8">
-                <section>
-                    <label className="font-semibold text-lg mb-4 block">1. Select a category</label>
-                    <div className="flex flex-wrap gap-2">
-                        {categories.map(category => (
-                            <button type="button" key={category} onClick={() => { setSelectedCategory(category); setSelectedService(null); }} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 border-2 ${selectedCategory === category ? 'bg-purple-500 text-white border-purple-500' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-400'}`}>
-                                {category}
-                            </button>
-                        ))}
+            {success ? (
+                <div className="max-w-md mx-auto px-4 py-6 text-center animate-in fade-in">
+                    <div className="p-8 bg-white dark:bg-white/5 rounded-2xl">
+                        <PartyPopper className="w-16 h-16 text-purple-500 mx-auto mb-4" />
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Listing Successful!</h2>
+                        <p className="text-gray-600 dark:text-slate-300 mt-2">Please be ready to provide credentials or invite links as soon as users join your plan.</p>
+                        <p className="text-gray-600 dark:text-slate-300 mt-4">Thank you for using DapBuddy. Happy savings! ;)</p>
+                        <p className="text-sm text-gray-400 mt-6 animate-pulse">Redirecting you now...</p>
                     </div>
-                </section>
-                <section>
-                    <label className="font-semibold text-lg mb-4 block">2. Select a service</label>
-                    <div className="grid grid-cols-3 gap-4">
-                        {loading ? <p>Loading services...</p> : filteredServices.map(service => (
-                            <button type="button" key={service.id} onClick={() => handleServiceSelect(service.id)} className={`p-4 rounded-2xl border-2 transition-all ${selectedService === service.id ? 'bg-purple-500/20 border-purple-400' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'}`}>
-                                <span className="font-bold text-gray-900 dark:text-white">{service.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </section>
-
-                {selectedServiceData && (
-                    <section className="animate-in fade-in space-y-6">
-                        <div>
-                            <label className="font-semibold text-lg mb-4 block">3. Configure your plan</label>
-                            <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-transparent space-y-4">
-                                <div>
-                                    <p className="text-sm text-gray-500 dark:text-slate-400">Available slots to share:</p>
-                                    <div className="flex items-center justify-center gap-4 mt-2">
-                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Minus className="w-4 h-4"/></button>
-                                        <span className="text-gray-900 dark:text-white text-4xl font-bold w-16 text-center">{availableSlots}</span>
-                                        <button type="button" onClick={() => setAvailableSlots(prev => Math.min(selectedServiceData.max_seats_allowed - 1, prev + 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Plus className="w-4 h-4"/></button>
-                                    </div>
-                                </div>
-                                <div className="border-t border-gray-200 dark:border-white/10 pt-4 text-center">
-                                     <p className="text-lg font-bold text-green-600 dark:text-green-400">Price per slot: ₹{pricePerSlot}/month</p>
-                                     <p className="text-sm font-medium text-gray-600 dark:text-slate-300">Your total possible payout: <span className="font-bold">₹{hostPayout}/month</span></p>
-                                </div>
-                            </div>
+                </div>
+            ) : (
+                <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-6 space-y-8">
+                    {/* The rest of the form remains unchanged... */}
+                    <section>
+                        <label className="font-semibold text-lg mb-4 block">1. Select a category</label>
+                        <div className="flex flex-wrap gap-2">
+                            {categories.map(category => (
+                                <button type="button" key={category} onClick={() => { setSelectedCategory(category); setSelectedService(null); }} className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 border-2 ${selectedCategory === category ? 'bg-purple-500 text-white border-purple-500' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-purple-400'}`}>
+                                    {category}
+                                </button>
+                            ))}
                         </div>
-                        
-                        <div>
-                            <h3 className="font-semibold text-lg mb-2">4. Plan Renewal Date</h3>
-                            <div className="flex items-start gap-2 p-3 bg-blue-500/10 text-blue-600 dark:text-blue-300 text-xs rounded-lg mb-4">
-                                <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                <p>Enter the date you purchased the plan. If it's a recurring plan, enter your next renewal date (e.g., 2025-10-15).</p>
-                            </div>
-                            <input
-                                type="date"
-                                value={planPurchaseDate}
-                                onChange={(e) => setPlanPurchaseDate(e.target.value)}
-                                min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split("T")[0]}
-                                className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                required
-                            />
-                        </div>
-                        
-                        {showDateWarning && (
-                            <div className="space-y-3 animate-in fade-in">
-                                <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 text-sm rounded-lg">
-                                    <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                    <p>You need to provide service till **{serviceEndDate}** to all users since you will receive your (estimated) payout on **{payoutDate}**.</p>
-                                </div>
-                                <div className="flex items-center">
-                                    <input type="checkbox" id="understandsDateWarning" checked={understandsDateWarning} onChange={() => setUnderstandsDateWarning(!understandsDateWarning)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                                    <label htmlFor="understandsDateWarning" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I understand</label>
-                                </div>
-                            </div>
-                        )}
-
-                        <div>
-                            <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
-                            {selectedServiceData.sharing_method === 'credentials' && (
-                                <div className={`bg-white dark:bg-white/5 p-4 rounded-xl space-y-4 border border-gray-200 dark:border-transparent transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
-                                    <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                                    <input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                                </div>
-                            )}
-                            {selectedServiceData.sharing_method === 'link' && (
-                                <div className="space-y-4">
-                                    <div className={`transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
-                                        <input type="text" placeholder="Paste your invite link here..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
-                                    </div>
-                                </div>
-                            )}
-                            {selectedServiceData.sharing_policy === 'restricted' && (
-                                <div className="mt-4">
-                                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
-                                    <input type="text" placeholder="Enter the address used on your account" value={hostAddress} onChange={e => setHostAddress(e.target.value)} className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                                </div>
-                            )}
-                            <div className="mt-4">
-                                <div className="flex items-center">
-                                    <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                                    <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center">
-                            <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                            <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I have read the rules and agree to the <Link to="/terms" className="underline text-purple-500 dark:text-purple-400">T&C</Link>.</label>
-                        </div>
-
-                        {error && <p className="text-red-500 text-center bg-red-500/10 p-3 rounded-lg">{error}</p>}
-
-                        <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                            {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                            {submitting ? 'Posting...' : 'Host Plan'}
-                        </button>
                     </section>
-                )}
-                
-                <div className="h-24"></div>
-            </form>
+                    <section>
+                        <label className="font-semibold text-lg mb-4 block">2. Select a service</label>
+                        <div className="grid grid-cols-3 gap-4">
+                            {loading ? <p>Loading services...</p> : filteredServices.map(service => (
+                                <button type="button" key={service.id} onClick={() => handleServiceSelect(service.id)} className={`p-4 rounded-2xl border-2 transition-all ${selectedService === service.id ? 'bg-purple-500/20 border-purple-400' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-gray-400 dark:hover:border-white/30'}`}>
+                                    <span className="font-bold text-gray-900 dark:text-white">{service.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+
+                    {selectedServiceData && (
+                        <section className="animate-in fade-in space-y-6">
+                            <div>
+                                <label className="font-semibold text-lg mb-4 block">3. Configure your plan</label>
+                                <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-transparent space-y-4">
+                                    <div>
+                                        <p className="text-sm text-gray-500 dark:text-slate-400">Available slots to share:</p>
+                                        <div className="flex items-center justify-center gap-4 mt-2">
+                                            <button type="button" onClick={() => setAvailableSlots(prev => Math.max(1, prev - 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Minus className="w-4 h-4"/></button>
+                                            <span className="text-gray-900 dark:text-white text-4xl font-bold w-16 text-center">{availableSlots}</span>
+                                            <button type="button" onClick={() => setAvailableSlots(prev => Math.min(selectedServiceData.max_seats_allowed - 1, prev + 1))} className="w-10 h-10 flex items-center justify-center bg-gray-200 dark:bg-slate-700 rounded-full font-bold text-lg"><Plus className="w-4 h-4"/></button>
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-gray-200 dark:border-white/10 pt-4 text-center">
+                                         <p className="text-lg font-bold text-green-600 dark:text-green-400">Price per slot: ₹{pricePerSlot}/month</p>
+                                         <p className="text-sm font-medium text-gray-600 dark:text-slate-300">Your total possible payout: <span className="font-bold">₹{hostPayout}/month</span></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold text-lg mb-2">4. Plan Renewal Date</h3>
+                                <div className="flex items-start gap-2 p-3 bg-blue-500/10 text-blue-600 dark:text-blue-300 text-xs rounded-lg mb-4">
+                                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                    <p>Enter the date you purchased the plan. If it's a recurring plan, enter your next renewal date (e.g., 2025-10-15).</p>
+                                </div>
+                                <input
+                                    type="date"
+                                    value={planPurchaseDate}
+                                    onChange={(e) => setPlanPurchaseDate(e.target.value)}
+                                    min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split("T")[0]}
+                                    className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    required
+                                />
+                            </div>
+
+                            {showDateWarning && (
+                                <div className="space-y-3 animate-in fade-in">
+                                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-300 text-sm rounded-lg">
+                                        <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                        <p>You need to provide service till **{serviceEndDate}** to all users since you will receive your (estimated) payout on **{payoutDate}**.</p>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <input type="checkbox" id="understandsDateWarning" checked={understandsDateWarning} onChange={() => setUnderstandsDateWarning(!understandsDateWarning)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                        <label htmlFor="understandsDateWarning" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I understand</label>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
+                                {selectedServiceData.sharing_method === 'credentials' && (
+                                    <div className={`bg-white dark:bg-white/5 p-4 rounded-xl space-y-4 border border-gray-200 dark:border-transparent transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
+                                        <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                        <input type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                    </div>
+                                )}
+                                {selectedServiceData.sharing_method === 'link' && (
+                                    <div className="space-y-4">
+                                        <div className={`transition-opacity ${shareLater ? 'opacity-50' : 'opacity-100'}`}>
+                                            <input type="text" placeholder="Paste your invite link here..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-200 dark:disabled:bg-slate-900" />
+                                        </div>
+                                    </div>
+                                )}
+                                {selectedServiceData.sharing_policy === 'restricted' && (
+                                    <div className="mt-4">
+                                        <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
+                                        <input type="text" placeholder="Enter the address used on your account" value={hostAddress} onChange={e => setHostAddress(e.target.value)} className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                    </div>
+                                )}
+                                <div className="mt-4">
+                                    <div className="flex items-center">
+                                        <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                        <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center">
+                                <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                <label htmlFor="agreeToTerms" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I have read the rules and agree to the <Link to="/terms" className="underline text-purple-500 dark:text-purple-400">T&C</Link>.</label>
+                            </div>
+
+                            {error && <p className="text-red-500 text-center bg-red-500/10 p-3 rounded-lg">{error}</p>}
+
+                            <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                                {submitting ? 'Posting...' : 'Host Plan'}
+                            </button>
+                        </section>
+                    )}
+
+                    <div className="h-24"></div>
+                </form>
+            )}
         </div>
     );
 };
