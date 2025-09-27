@@ -149,6 +149,19 @@ CREATE TABLE public.notifications (
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.ops_queue (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  op_type text NOT NULL,
+  listing_id uuid,
+  booking_id uuid,
+  payload jsonb DEFAULT '{}'::jsonb,
+  processed boolean NOT NULL DEFAULT false,
+  attempts integer NOT NULL DEFAULT 0,
+  last_error text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  processed_at timestamp with time zone,
+  CONSTRAINT ops_queue_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.platform_service_credentials (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   service_id text NOT NULL UNIQUE,
