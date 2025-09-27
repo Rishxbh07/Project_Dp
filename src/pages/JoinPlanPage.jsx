@@ -94,7 +94,8 @@ const JoinPlanPage = ({ session }) => {
                     credits_used: priceDetails.coinDiscount,
                     final_amount_charged: priceDetails.total,
                     payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
-                    platform_fee: priceDetails.platformFee
+                    platform_fee: priceDetails.platformFee,
+                    billing_options: paymentOption
                 });
 
                 if (transactionError) throw transactionError;

@@ -109,33 +109,35 @@ const HostPlanPage = ({ session }) => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        // ✅ FIX: Check if selectedServiceData exists before proceeding
-        if (!isFormValid() || !selectedServiceData) {
-            setError("Please fill all required fields correctly and agree to all terms.");
-            return;
-        }
-        setSubmitting(true);
-        setError('');
+    e.preventDefault();
+    if (!isFormValid() || !selectedServiceData) {
+        setError("Please fill all required fields correctly and agree to all terms.");
+        return;
+    }
+    setSubmitting(true);
+    setError('');
 
-        const newListing = {
-            host_id: session.user.id,
-            service_id: selectedService,
-            seats_total: selectedServiceData.max_seats_allowed, // Now this is safe
-            seats_available: availableSlots,
-            plan_purchased_date: planPurchaseDate,
-            status: 'active'
-        };
-
-        const { error } = await supabase.from('listings').insert([newListing]);
-
-        if (error) {
-            setError(`Error creating listing: ${error.message}`);
-            setSubmitting(false);
-        } else {
-            setSuccess(true);
-        }
+    // Prepare the payload for the queue
+    const payload = {
+        host_id: session.user.id,
+        service_id: selectedService,
+        seats_total: selectedServiceData.max_seats_allowed,
+        seats_available: availableSlots,
+        plan_purchased_date: planPurchaseDate
     };
+
+    // Call the RPC function to queue the job
+    const { error } = await supabase.rpc('queue_new_listing', {
+        p_payload: payload
+    });
+
+    if (error) {
+        setError(`Error submitting request: ${error.message}`);
+        setSubmitting(false);
+    } else {
+        // Show success message immediately
+        setSuccess(true);
+    }};
 
     const isFormValid = () => {
         // ✅ FIX: Also check that selectedServiceData is not null
