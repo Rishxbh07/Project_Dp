@@ -108,39 +108,36 @@ const HostPlanPage = ({ session }) => {
         }
     };
 
+    // --- REVERTED: This is the original, correct way to create a listing ---
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!isFormValid() || !selectedServiceData) {
-        setError("Please fill all required fields correctly and agree to all terms.");
-        return;
-    }
-    setSubmitting(true);
-    setError('');
+        e.preventDefault();
+        if (!isFormValid() || !selectedServiceData) {
+            setError("Please fill all required fields correctly and agree to all terms.");
+            return;
+        }
+        setSubmitting(true);
+        setError('');
 
-    // Prepare the payload for the queue
-    const payload = {
-        host_id: session.user.id,
-        service_id: selectedService,
-        seats_total: selectedServiceData.max_seats_allowed,
-        seats_available: availableSlots,
-        plan_purchased_date: planPurchaseDate
+        const newListing = {
+            host_id: session.user.id,
+            service_id: selectedService,
+            seats_total: selectedServiceData.max_seats_allowed,
+            seats_available: availableSlots,
+            plan_purchased_date: planPurchaseDate,
+            status: 'active'
+        };
+
+        const { error } = await supabase.from('listings').insert([newListing]);
+
+        if (error) {
+            setError(`Error creating listing: ${error.message}`);
+            setSubmitting(false);
+        } else {
+            setSuccess(true);
+        }
     };
 
-    // Call the RPC function to queue the job
-    const { error } = await supabase.rpc('queue_new_listing', {
-        p_payload: payload
-    });
-
-    if (error) {
-        setError(`Error submitting request: ${error.message}`);
-        setSubmitting(false);
-    } else {
-        // Show success message immediately
-        setSuccess(true);
-    }};
-
     const isFormValid = () => {
-        // ✅ FIX: Also check that selectedServiceData is not null
         if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
         if (showDateWarning && !understandsDateWarning) return false;
         if (shareLater) return true;
@@ -168,7 +165,6 @@ const HostPlanPage = ({ session }) => {
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-                    {/* ✅ FIX: Use navigate(-1) to go back to the previous page */}
                     <button onClick={() => navigate(-1)} className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
                         ←
                     </button>
@@ -182,14 +178,13 @@ const HostPlanPage = ({ session }) => {
                     <div className="p-8 bg-white dark:bg-white/5 rounded-2xl">
                         <PartyPopper className="w-16 h-16 text-purple-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Listing Successful!</h2>
-                        <p className="text-gray-600 dark:text-slate-300 mt-2">Please be ready to provide credentials or invite links as soon as users join your plan.</p>
-                        <p className="text-gray-600 dark:text-slate-300 mt-4">Thank you for using DapBuddy. Happy savings! ;)</p>
+                        <p className="text-gray-600 dark:text-slate-300 mt-2">Your plan is now live on the marketplace.</p>
                         <p className="text-sm text-gray-400 mt-6 animate-pulse">Redirecting you now...</p>
                     </div>
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="max-w-md mx-auto px-4 py-6 space-y-8">
-                    {/* The rest of the form remains unchanged... */}
+                    {/* The rest of the form is unchanged */}
                     <section>
                         <label className="font-semibold text-lg mb-4 block">1. Select a category</label>
                         <div className="flex flex-wrap gap-2">
@@ -235,14 +230,13 @@ const HostPlanPage = ({ session }) => {
                                 <h3 className="font-semibold text-lg mb-2">4. Plan Renewal Date</h3>
                                 <div className="flex items-start gap-2 p-3 bg-blue-500/10 text-blue-600 dark:text-blue-300 text-xs rounded-lg mb-4">
                                     <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                    <p>Enter the date you purchased the plan. If it's a recurring plan, enter your next renewal date (e.g., 2025-10-15).</p>
+                                    <p>Enter the date you purchased the plan. If it's a recurring plan, enter your next renewal date.</p>
                                 </div>
                                 <input
                                     type="date"
                                     value={planPurchaseDate}
                                     onChange={(e) => setPlanPurchaseDate(e.target.value)}
-                                    min={new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split("T")[0]}
-                                    className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="[color-scheme:dark] w-full p-3 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     required
                                 />
                             </div>
