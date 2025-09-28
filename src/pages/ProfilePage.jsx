@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { ChevronRight, Star, Award, Shield, HelpCircle, LogOut, User, ArrowUp, ArrowDown, Minus, Link2 } from 'lucide-react'; // Added Link2 icon
+import { ChevronRight, Star, Award, Shield, HelpCircle, LogOut, User, ArrowUp, ArrowDown, Minus, Link2 } from 'lucide-react';
 import Modal from '../components/common/Modal';
 
 // A component for the trend indicator icons
@@ -21,10 +21,12 @@ const ProfilePage = ({ session }) => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(null);
   const [savePassword, setSavePassword] = useState(true);
+
+  // --- State now includes pfp_url ---
   const [profile, setProfile] = useState({
     username: 'dapbuddy_user',
     email: 'user@example.com',
-    avatarUrl: null,
+    pfp_url: null, // <-- For the profile picture
     hostRating: 0,
     loyaltyScore: 0,
     hostRatingTrend: 'same',
@@ -40,9 +42,10 @@ const ProfilePage = ({ session }) => {
         setLoading(true);
         setProfile(prev => ({ ...prev, email: user.email }));
 
+        // --- Fetch now includes pfp_url ---
         const { data, error } = await supabase
           .from('profiles')
-          .select('username, host_rating, loyalty_score')
+          .select('username, host_rating, loyalty_score, pfp_url') // <-- Fetched pfp_url
           .eq('id', user.id)
           .single();
 
@@ -58,6 +61,7 @@ const ProfilePage = ({ session }) => {
             username: data.username || user.user_metadata?.username || prev.username,
             hostRating: data.host_rating || 0,
             loyaltyScore: data.loyalty_score || 0,
+            pfp_url: data.pfp_url, // <-- Set pfp_url in state
           }));
         }
         setLoading(false);
@@ -73,10 +77,9 @@ const ProfilePage = ({ session }) => {
     navigate('/');
   };
 
-  // --- MODIFIED: Added "Connected Accounts" to the menu ---
   const menuItems = [
     { icon: Award, text: 'Achievements / Badges', path: '/achievements' },
-    { icon: Link2, text: 'Connected Accounts', path: '/profile/connected-accounts' }, // New Item
+    { icon: Link2, text: 'Connected Accounts', path: '/profile/connected-accounts' },
     { icon: Shield, text: 'Privacy', path: '/profile/privacy' },
     { icon: HelpCircle, text: 'Help & Support', path: '/profile/support' },
   ];
@@ -107,9 +110,16 @@ const ProfilePage = ({ session }) => {
 
         <main className="max-w-md mx-auto px-4 py-6">
           <section className="flex items-center gap-4 bg-white dark:bg-white/5 p-4 rounded-2xl mb-6 border border-gray-200 dark:border-transparent">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-2xl">
-              {profile.username.charAt(0).toUpperCase()}
-            </div>
+            
+            {/* --- Dynamically displays the PFP or the initial --- */}
+            {profile.pfp_url ? (
+                <img src={profile.pfp_url} alt={profile.username} className="w-16 h-16 rounded-full object-cover" />
+            ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-2xl">
+                    {profile.username.charAt(0).toUpperCase()}
+                </div>
+            )}
+
             <div className="flex-1">
               <h2 className="font-bold text-lg text-gray-900 dark:text-white">{loading ? '...' : profile.username}</h2>
               <p className="text-sm text-gray-500 dark:text-slate-400">{loading ? '...' : profile.email}</p>

@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { Crown, Star } from 'lucide-react';
+import { Crown, Star, Users, BadgePercent } from 'lucide-react';
+import ElectricBorder from '../components/common/ElectricBorder';
 
+// --- THIS IS THE NEWLY UPDATED COMPONENT ---
 const CommunityPlanCard = ({ plan }) => {
-    // This component expects props in camelCase, which we handle in the main page component
     const {
         id,
         averageRating,
@@ -13,77 +14,95 @@ const CommunityPlanCard = ({ plan }) => {
         seatsAvailable,
         hostUsername,
         hostRating,
+        hostPfpUrl, // The new prop for the host's profile picture
         basePrice,
+        solo_plan_price,
         members
     } = plan;
 
+    const savings = solo_plan_price && basePrice
+        ? Math.round(((solo_plan_price - basePrice) / solo_plan_price) * 100)
+        : 0;
+
     const memberList = members || [];
-    const sharableSlots = Math.max(0, seatsTotal - 1);
-    const slotsFilled = sharableSlots - seatsAvailable;
+    const slotsFilled = seatsTotal - seatsAvailable;
 
     return (
-        <Link to={`/join-plan/${id}`} className="block">
-            <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all hover:border-purple-400/50 hover:shadow-lg">
+        <Link to={`/join-plan/${id}`} className="block group">
+            <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02]">
+                {/* Host Info Section with Profile Picture */}
                 <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by</p>
-                        <p className="font-bold text-gray-800 dark:text-white">{hostUsername || 'Community Member'}</p>
-                    </div>
-                    <div className="flex gap-3 text-xs text-right">
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400">Host Rating</p>
-                            <div className="flex items-center justify-end gap-1 font-semibold text-yellow-500">
-                                <Star className="w-3 h-3" fill="currentColor" />
-                                <span>{(hostRating || 0).toFixed(1)}</span>
+                    <div className="flex items-center gap-3">
+                        {/* --- NEW: Host Profile Picture/Initial --- */}
+                        {hostPfpUrl ? (
+                            <img src={hostPfpUrl} alt={hostUsername} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                {hostUsername ? hostUsername.charAt(0).toUpperCase() : '?'}
                             </div>
+                        )}
+                        <div>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by</p>
+                            <p className="font-bold text-lg text-gray-800 dark:text-white">{hostUsername || 'Community Member'}</p>
                         </div>
-                        <div>
-                            <p className="text-gray-500 dark:text-slate-400">Plan Rating</p>
-                             <div className="flex items-center justify-end gap-1 font-semibold text-yellow-500">
-                                <Star className="w-3 h-3" fill="currentColor" />
-                                <span>{(averageRating || 0).toFixed(1)}</span>
-                            </div>
+                    </div>
+                    <div className="text-right">
+                         <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
+                         <div className="flex items-center justify-end gap-1 font-semibold text-yellow-500">
+                            <Star className="w-4 h-4" fill="currentColor" />
+                            <span>{(hostRating || 0).toFixed(1)}</span>
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">{slotsFilled} of {sharableSlots} slots filled</p>
-                    <div className="flex items-center">
-                        {memberList.slice(0, 5).map((member, index) => (
-                            <div key={index} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800" style={{ marginLeft: index > 0 ? '-10px' : '0' }}>
-                                 {member.pfp_url ? (
-                                    <img src={member.pfp_url} alt={member.username} className="w-full h-full rounded-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
-                                        {member.username ? member.username.charAt(0).toUpperCase() : '?'}
-                                    </div>
-                                )}
+                {/* Members Section */}
+                <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-purple-500" />
+                    <div className="flex -space-x-3">
+                        {memberList.slice(0, 4).map((member, index) => (
+                            <div key={index} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800">
+                                <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                                    {member.username ? member.username.charAt(0).toUpperCase() : '?'}
+                                </div>
                             </div>
                         ))}
-                         {seatsAvailable > 0 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-xs font-semibold text-gray-500 dark:text-slate-400" style={{ marginLeft: memberList.length > 0 ? '-10px' : '0' }}>
-                               +{seatsAvailable}
-                            </div>
-                         )}
                     </div>
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">
+                        {slotsFilled} of {seatsTotal} slots filled
+                    </span>
                 </div>
-
-                <div className="flex items-end justify-between pt-2 border-t border-gray-100 dark:border-white/10">
+                
+                {/* Pricing Section */}
+                <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex items-end justify-between">
                     <div>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">Price per slot</p>
-                        <p className="text-2xl font-bold text-green-500">₹{basePrice || 'N/A'}</p>
+                        <div className="flex items-baseline gap-2">
+                             <p className="text-3xl font-bold text-green-500">₹{basePrice}</p>
+                             {solo_plan_price > 0 && (
+                                <p className="text-md font-medium text-gray-400 dark:text-slate-500 line-through">
+                                    ₹{solo_plan_price}
+                                </p>
+                             )}
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">/month per slot</p>
                     </div>
-                    <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-2 px-5 rounded-lg">
+                    <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
                         Join Now
                     </div>
                 </div>
+
+                {/* Savings Badge */}
+                {savings > 0 && (
+                     <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-green-600 dark:text-green-400 bg-green-500/10 py-1.5 px-3 rounded-full">
+                        <BadgePercent className="w-4 h-4" />
+                        <span>Save up to {savings}% compared to a solo plan!</span>
+                    </div>
+                )}
             </div>
         </Link>
     );
 };
 
-
+// DapBuddyPlanCard remains unchanged
 const DapBuddyPlanCard = ({ plan }) => (
     <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
         <div className="flex items-center justify-between">
@@ -98,9 +117,17 @@ const DapBuddyPlanCard = ({ plan }) => (
                 <p className="text-sm text-gray-500 dark:text-slate-400">Price per slot</p>
                 <p className="text-2xl font-bold text-green-500">₹{plan.platform_price}</p>
             </div>
-            <Link to={`/join-plan/${plan.id}`} className="bg-purple-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-purple-700 transition-all">
-                Join Now
-            </Link>
+            <ElectricBorder
+                        color="#8B5CF6" // A nice purple color
+                        speed={2}
+                        chaos={1}
+                        thickness={1.5}
+                        style={{ borderRadius: '0.75rem' }} // Matches the button's rounded-xl
+                    >
+                        <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
+                            Join Now
+                        </div>
+            </ElectricBorder>
         </div>
         <div className="text-xs text-center mt-3 text-gray-400 dark:text-slate-500">
             {plan.seats_available} of {plan.seats_total} slots available
@@ -130,7 +157,6 @@ const MarketplacePage = ({ session }) => {
             setError(null);
 
             try {
-                // First, get the service ID from the service name
                 const { data: serviceData, error: serviceError } = await supabase
                     .from('services')
                     .select('id')
@@ -142,12 +168,10 @@ const MarketplacePage = ({ session }) => {
                 }
                 const serviceId = serviceData.id;
 
-                // Fetch DapBuddy and Community plans in parallel
                 const [dapBuddyRes, communityRes] = await Promise.all([
                     supabase.from('dapbuddy_plans').select('*').eq('service_id', serviceId),
                     supabase.rpc('get_community_plans_for_service', {
                         p_service_id: serviceId,
-                        // p_user_id is needed if your RPC uses it to check against the host_id
                         p_user_id: session?.user?.id 
                     })
                 ]);
@@ -157,7 +181,7 @@ const MarketplacePage = ({ session }) => {
 
                 if (communityRes.error) throw communityRes.error;
 
-                // Map snake_case from the RPC response to camelCase for the component
+                // --- THIS MAPPING IS NOW UPDATED ---
                 const formattedCommunityPlans = communityRes.data.map(plan => ({
                     id: plan.id,
                     averageRating: plan.average_rating,
@@ -165,14 +189,15 @@ const MarketplacePage = ({ session }) => {
                     seatsAvailable: plan.seats_available,
                     hostUsername: plan.host_username,
                     hostRating: plan.host_rating,
+                    hostPfpUrl: plan.host_pfp_url, // Pass the new data
                     basePrice: plan.base_price,
+                    solo_plan_price: plan.solo_plan_price,
                     members: plan.members || []
                 }));
                 setCommunityPlans(formattedCommunityPlans);
 
             } catch (error) {
                 setError(error.message);
-                console.error(error);
             } finally {
                 setLoading(false);
             }
@@ -184,11 +209,13 @@ const MarketplacePage = ({ session }) => {
     return (
         <div className="bg-gray-50 dark:bg-[#0f172a] min-h-screen font-sans text-gray-900 dark:text-white">
             <div className="max-w-md mx-auto">
-                <header className="flex items-center p-4 border-b border-gray-200 dark:border-slate-700 sticky top-0 bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-md z-10">
-                    <Link to="/explore" className="text-2xl font-bold mr-4 text-purple-500 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
-                        &larr;
-                    </Link>
-                    <h1 className="text-xl font-bold">{pageTitle} Plans</h1>
+                 <header className="sticky top-0 z-10 backdrop-blur-md bg-white/80 dark:bg-[#0f172a]/80">
+                    <div className="flex items-center p-4 border-b border-gray-200 dark:border-slate-700">
+                        <Link to="/explore" className="text-2xl font-bold mr-4 text-purple-500 dark:text-white hover:text-purple-600 dark:hover:text-purple-400 transition-colors">
+                            &larr;
+                        </Link>
+                        <h1 className="text-xl font-bold">{pageTitle} Plans</h1>
+                    </div>
                 </header>
 
                 <main className="p-4">

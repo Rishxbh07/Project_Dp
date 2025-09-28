@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient'; // Import supabase
 import { ChevronRight, X, Search, Sun, Moon } from 'lucide-react';
 import Modal from '../common/Modal';
 import Auth from '../Auth';
@@ -12,9 +13,36 @@ const DapBuddyDropdownMenu = ({ session }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const dropdownRef = useRef(null);
   const searchInputRef = useRef(null);
-
-  // 1. We get the theme and toggleTheme function from our context
   const { theme, toggleTheme } = useContext(ThemeContext);
+
+  const [profile, setProfile] = useState({
+      username: session?.user?.email?.charAt(0).toUpperCase() || '',
+      pfp_url: null
+  });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username, pfp_url')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile for dropdown:', error);
+          setProfile({
+              username: session.user.email.charAt(0).toUpperCase(),
+              pfp_url: null
+          });
+        } else if (data) {
+          setProfile(data);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [session]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -50,7 +78,6 @@ const DapBuddyDropdownMenu = ({ session }) => {
   return (
     <>
       <div className={`relative ${isOpen ? 'z-50' : ''}`} ref={dropdownRef}>
-        {/* ... (rest of the component's JSX for search, logo, etc. remains the same) ... */}
         <div className="flex items-center justify-between">
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -111,9 +138,21 @@ const DapBuddyDropdownMenu = ({ session }) => {
           <div className="flex items-center">
             {session ? (
               <Link to="/profile">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center hover:scale-105 transition-transform">
-                  {session.user.email.charAt(0).toUpperCase()}
-                </div>
+                {profile.pfp_url ? (
+                  <img
+                    src={profile.pfp_url}
+                    alt="Profile"
+                    // --- MODIFIED CLASSES FOR HIGHLIGHT ---
+                    className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-md shadow-purple-500/50 hover:scale-105 transition-transform"
+                  />
+                ) : (
+                  <div
+                    // --- MODIFIED CLASSES FOR HIGHLIGHT ---
+                    className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center border-2 border-purple-500 shadow-md shadow-purple-500/50 hover:scale-105 transition-transform"
+                  >
+                    {profile.username ? profile.username.charAt(0).toUpperCase() : ''}
+                  </div>
+                )}
               </Link>
             ) : (
               <button
@@ -143,8 +182,6 @@ const DapBuddyDropdownMenu = ({ session }) => {
                       {theme === 'dark' ? 'Dark' : 'Light'} Mode
                     </span>
                   </div>
-
-                  {/* 2. The onClick event calls the toggleTheme function */}
                   <button
                     onClick={toggleTheme}
                     className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${theme === 'dark' ? 'bg-gradient-to-r from-purple-500 to-indigo-500' : 'bg-gray-300'}`}
@@ -163,7 +200,7 @@ const DapBuddyDropdownMenu = ({ session }) => {
       </div>
       
       <Modal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)}>
-        <Auth onSuccess={() => setShowAuthModal(false)} />
+        <Auth />
       </Modal>
     </>
   );
