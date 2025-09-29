@@ -4,15 +4,18 @@ import { supabase } from '../lib/supabaseClient';
 import { Star } from 'lucide-react';
 
 const HostedPlanCard = ({ plan }) => {
-    // --- FIXED: Destructuring the flat 'plan' object ---
     const {
         id,
         serviceName,
-        averageRating,
-        createdAt, // Renamed from created_at
-        seatsTotal,  // Renamed from seats_total
-        basePrice    // Renamed from base_price
+        total_rating, // Receive total_rating
+        rating_count, // Receive rating_count
+        createdAt,
+        seatsTotal,
+        basePrice
     } = plan;
+
+    // --- NEW: Dynamically calculate average rating ---
+    const averageRating = rating_count > 0 ? (total_rating / rating_count) : 0;
 
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,7 +24,6 @@ const HostedPlanCard = ({ plan }) => {
     const getRenewalInfo = () => {
         const startDate = new Date(createdAt);
         const now = new Date();
-        
         const endDate = new Date(startDate);
         endDate.setMonth(startDate.getMonth() + 1);
 
@@ -43,7 +45,6 @@ const HostedPlanCard = ({ plan }) => {
     useEffect(() => {
         const fetchMembers = async () => {
             setLoading(true);
-            // --- MODIFIED: Use the secure RPC function ---
             const { data, error } = await supabase
                 .rpc('get_listing_members', { p_listing_id: id });
 
@@ -52,11 +53,9 @@ const HostedPlanCard = ({ plan }) => {
                 setMembers([]);
             } else {
                 setMembers(data);
-                
-                // --- FIXED: Payout calculation uses the correct prop ---
                 const seatsSold = data.length;
-                const pricePerSeat = basePrice / seatsTotal; // Calculate price per seat
-                const payout = seatsSold > 0 ? (pricePerSeat * seatsSold).toFixed(2) : "0.00";
+                // Payout calculation is now more robust
+                const payout = seatsSold > 0 ? (basePrice * seatsSold).toFixed(2) : "0.00";
                 setExpectedPayout(payout);
             }
             setLoading(false);
@@ -65,7 +64,7 @@ const HostedPlanCard = ({ plan }) => {
         if (id) {
             fetchMembers();
         }
-    }, [id, basePrice, seatsTotal]);
+    }, [id, basePrice]);
     
     const getServiceColor = (service) => {
         if (!service) return 'from-gray-500 to-gray-600';
@@ -94,7 +93,8 @@ const HostedPlanCard = ({ plan }) => {
                 <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                         <Star className="w-4 h-4 text-yellow-400" />
-                        <span className="font-semibold text-gray-700 dark:text-slate-300">Rating: {(averageRating || 0).toFixed(1)}</span>
+                        {/* --- UPDATED: Display dynamic average rating --- */}
+                        <span className="font-semibold text-gray-700 dark:text-slate-300">Rating: {averageRating.toFixed(1)}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="font-semibold text-gray-700 dark:text-slate-300">Payout: ₹{expectedPayout}</span>
@@ -115,7 +115,7 @@ const HostedPlanCard = ({ plan }) => {
                     <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Members ({members.length}/{seatsTotal})</p>
                     {loading ? <p className="text-xs text-center text-gray-500">Loading members...</p> : (
                         <div className="flex items-center space-x-2">
-                            {members.slice(0, 4).map((member, index) => ( // Show max 4 members
+                            {members.slice(0, 4).map((member, index) => (
                                 <div key={index} title={member.username}>
                                     {member.pfp_url ? (
                                         <img src={member.pfp_url} alt={member.username} className="w-8 h-8 rounded-full object-cover" />

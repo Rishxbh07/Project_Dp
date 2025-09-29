@@ -50,7 +50,7 @@ const JoinPlanPage = ({ session }) => {
     }, [listingId, session]);
 
     useEffect(() => {
-        if (!listing) return;
+        if (!listing || !listing.service) return; // Add guard for service
         const base = Number(listing.service.base_price);
         const commissionRate = Number(listing.service.platform_commission_rate) / 100;
         const platformFee = base * commissionRate;
@@ -100,10 +100,8 @@ const JoinPlanPage = ({ session }) => {
 
                 if (transactionError) throw transactionError;
 
-                // --- CORRECTED LOGIC ---
                 const serviceName = listing.service.name.toLowerCase();
                 
-                // Check if the service name *includes* spotify or youtube
                 if (serviceName.includes('spotify') || serviceName.includes('youtube')) {
                     navigate(`/connect-account/${newBookingId}`);
                 } else {
@@ -124,7 +122,10 @@ const JoinPlanPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
 
-    const { service, host, average_rating, created_at, seats_total, seats_available, host_id } = listing;
+    // --- FIX: Safely destructure with default values ---
+    const { service, host, average_rating = 0, created_at, seats_total, seats_available, host_id } = listing;
+    const hostRating = host?.host_rating ?? 0; // Safely access nested property
+
     const isHost = session.user.id === host_id;
     const slotsFilled = seats_total - seats_available;
     const renewalDate = new Date(created_at);
@@ -134,7 +135,7 @@ const JoinPlanPage = ({ session }) => {
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link to={`/marketplace/${service.name.toLowerCase()}`} className="text-purple-500 dark:text-purple-400 text-sm">
+                    <Link to={`/marketplace/${service?.name?.toLowerCase() ?? 'explore'}`} className="text-purple-500 dark:text-purple-400 text-sm">
                         ← Back
                     </Link>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">Join Plan</h1>
@@ -145,21 +146,23 @@ const JoinPlanPage = ({ session }) => {
                 <section className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-gray-200 dark:border-white/10 mb-6">
                     <div className="text-center mb-4">
                         <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">
-                            {service.name.charAt(0)}
+                            {service?.name?.charAt(0) ?? '?'}
                         </div>
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{service.name}</h2>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by {host.username}</p>
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{service?.name ?? 'Service'}</h2>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by {host?.username ?? 'a member'}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-center">
                         <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
                             <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1">
-                                <Star className="w-4 h-4" /> {host.host_rating.toFixed(1)}
+                                {/* --- FIX: Use the safe variable --- */}
+                                <Star className="w-4 h-4" /> {hostRating.toFixed(1)}
                             </p>
                         </div>
                         <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 dark:text-slate-400">Plan Rating</p>
                             <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
+                                {/* --- FIX: Use the safe variable --- */}
                                 <Star className="w-4 h-4" /> {average_rating.toFixed(1)}
                             </p>
                         </div>

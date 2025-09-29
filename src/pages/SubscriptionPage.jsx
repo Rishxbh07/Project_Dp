@@ -23,7 +23,7 @@ const SubscriptionPage = ({ session }) => {
       try {
         setLoading(true);
 
-        // 1. Fetch User Subscriptions (This part is correct)
+        // Fetch User Subscriptions (no changes needed here)
         const { data: subsData, error: subsError } = await supabase
           .rpc('get_user_subscriptions', { uid: session.user.id });
 
@@ -40,20 +40,20 @@ const SubscriptionPage = ({ session }) => {
         }));
         setMySubscriptions(formattedSubs);
 
-        // 2. Fetch Hosted Plans
+        // --- MODIFIED: Fetch Hosted Plans using the updated function ---
         const { data: hostedData, error: hostedError } = await supabase
           .rpc('get_hosted_plans', { p_host_id: session.user.id });
 
         if (hostedError) throw hostedError;
         
-        // --- THIS IS THE CRITICAL FIX ---
-        // This mapping ensures the data has the correct shape and names for HostedPlanCard
+        // This mapping ensures the data has the correct shape for HostedPlanCard
         const formattedHosted = hostedData.map(plan => ({
           id: plan.id,
           createdAt: plan.created_at,
           seatsTotal: plan.seats_total,
           seatsAvailable: plan.seats_available,
-          averageRating: plan.average_rating,
+          total_rating: plan.total_rating, // Pass new rating data
+          rating_count: plan.rating_count, // Pass new rating data
           serviceName: plan.service_name,
           basePrice: plan.base_price
         }));
