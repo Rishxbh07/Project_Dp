@@ -2,26 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
+import AgeBadge from '../components/common/AgeBadge'; // Import the new component
 import { Crown, Star, Users, BadgePercent } from 'lucide-react';
 import ElectricBorder from '../components/common/ElectricBorder';
-
-// --- NEW: Helper function to determine badge details based on age ---
-const getListingAgeBadge = (createdAt) => {
-    if (!createdAt) return null;
-    const now = new Date();
-    const startDate = new Date(createdAt);
-    let months = (now.getFullYear() - startDate.getFullYear()) * 12;
-    months -= startDate.getMonth();
-    months += now.getMonth();
-
-    if (months <= 0) return { text: 'Newborn', color: 'bg-cyan-500', glow: false };
-    if (months < 2) return { text: 'Toddler', color: 'bg-green-500', glow: false };
-    if (months < 6) return { text: 'Teen', color: 'bg-yellow-500', glow: false };
-    if (months < 9) return { text: 'Adult', color: 'bg-orange-500', glow: false };
-    if (months < 12) return { text: 'Legend', color: 'bg-red-500', glow: false };
-    return { text: 'Legendary', color: 'bg-gradient-to-r from-amber-400 to-yellow-500', glow: true };
-};
-
 
 const CommunityPlanCard = ({ plan }) => {
     const {
@@ -43,21 +26,13 @@ const CommunityPlanCard = ({ plan }) => {
     const savings = solo_plan_price && basePrice ? Math.round(((solo_plan_price - basePrice) / solo_plan_price) * 100) : 0;
     const memberList = members || [];
     const slotsFilled = seatsTotal - seatsAvailable;
-    const badge = getListingAgeBadge(createdAt);
 
     return (
         <Link to={`/join-plan/${id}`} className="block group">
-            <div className="relative bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02] pt-6">
-                
-                {/* --- NEW: Age Badge --- */}
-                {badge && (
-                    <div className="absolute top-0 -translate-y-1/2 left-4 z-10">
-                        <div className={`relative px-3 py-1 text-xs font-bold text-white rounded-md shadow-lg ${badge.color}`}>
-                            {badge.glow && <div className="absolute -inset-0.5 bg-yellow-400 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-200 animate-pulse"></div>}
-                            <span className="relative">{badge.text}</span>
-                        </div>
-                    </div>
-                )}
+            <div className="relative bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02] pt-6 overflow-visible">
+
+                {/* Age Badge Component */}
+                <AgeBadge createdAt={createdAt} />
 
                 {/* Host Info Section */}
                 <div className="flex items-center justify-between">
@@ -129,7 +104,6 @@ const CommunityPlanCard = ({ plan }) => {
         </Link>
     );
 };
-
 const DapBuddyPlanCard = ({ plan }) => (
     <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
         <div className="flex items-center justify-between">
@@ -145,15 +119,15 @@ const DapBuddyPlanCard = ({ plan }) => (
                 <p className="text-2xl font-bold text-green-500">₹{plan.platform_price}</p>
             </div>
             <ElectricBorder
-                color="#8B5CF6"
-                speed={2}
-                chaos={1}
-                thickness={1.5}
-                style={{ borderRadius: '0.75rem' }}
-            >
-                <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
-                    Join Now
-                </div>
+                        color="#8B5CF6"
+                        speed={2}
+                        chaos={1}
+                        thickness={1.5}
+                        style={{ borderRadius: '0.75rem' }}
+                    >
+                        <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
+                            Join Now
+                        </div>
             </ElectricBorder>
         </div>
         <div className="text-xs text-center mt-3 text-gray-400 dark:text-slate-500">
@@ -220,7 +194,7 @@ const MarketplacePage = ({ session }) => {
                     hostPfpUrl: plan.host_pfp_url,
                     basePrice: plan.base_price,
                     solo_plan_price: plan.solo_plan_price,
-                    createdAt: plan.created_at, // Pass the created_at value
+                    createdAt: plan.created_at,
                     members: plan.members || []
                 }));
                 setCommunityPlans(formattedCommunityPlans);

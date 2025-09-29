@@ -2,7 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { Star, ShieldCheck, Clock, Users, IndianRupee, ChevronDown, ChevronUp, CalendarPlus } from 'lucide-react';
+import { Star, ShieldCheck, Users, IndianRupee, ChevronDown, ChevronUp, Crown, Flame, Zap, Baby, Sparkles } from 'lucide-react';
+
+// --- Internal Component for Displaying Plan Age ---
+const PlanAgeInfo = ({ createdAt }) => {
+    const getAgeDetails = (creationDate) => {
+        if (!creationDate) return null;
+        
+        const now = new Date();
+        const startDate = new Date(creationDate);
+        const diffTime = Math.abs(now - startDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 7) {
+            return { text: 'Newborn', icon: Baby, color: 'text-cyan-400' };
+        }
+        if (diffDays <= 30) {
+            return { text: 'Toddler', icon: Sparkles, color: 'text-green-400' };
+        }
+        if (diffDays <= 90) {
+            return { text: 'Teen', icon: Zap, color: 'text-yellow-400' };
+        }
+        if (diffDays <= 180) {
+            return { text: 'Adult', icon: Star, color: 'text-orange-400' };
+        }
+        if (diffDays <= 365) {
+            return { text: 'Legend', icon: Flame, color: 'text-red-500' };
+        }
+        // Only Legendary gets the glow effect
+        return { text: 'Legendary', icon: Crown, color: 'text-amber-400', glow: 'text-shadow-[0_0_12px_rgba(252,211,77,0.9)]' };
+    };
+
+    const ageDetails = getAgeDetails(createdAt);
+    if (!ageDetails) return null;
+
+    const IconComponent = ageDetails.icon;
+    const months = Math.floor(Math.ceil(Math.abs(new Date() - new Date(createdAt)) / (1000 * 60 * 60 * 24)) / 30);
+
+    return (
+        <div className="flex items-center gap-4 p-2">
+            <IconComponent className={`w-6 h-6 ${ageDetails.color} flex-shrink-0`} />
+            <div>
+                <p className={`font-semibold text-gray-800 dark:text-white ${ageDetails.color} ${ageDetails.glow || ''}`}>
+                    {ageDetails.text} Plan
+                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {months > 0 ? `Hosted for ${months} month${months > 1 ? 's' : ''}` : 'Hosted for less than a month'}
+                </p>
+            </div>
+        </div>
+    );
+};
+
 
 const JoinPlanPage = ({ session }) => {
     const { listingId } = useParams();
@@ -121,28 +172,12 @@ const JoinPlanPage = ({ session }) => {
 
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
-
-    const { service, host, total_rating = 0, rating_count = 0, user_count = 0, created_at, seats_total, seats_available, host_id } = listing;
+    
+    const { service, host, average_rating = 0, created_at, seats_total, seats_available, host_id } = listing;
     const hostRating = host?.host_rating ?? 0;
-    const averageRating = rating_count > 0 ? (total_rating / rating_count).toFixed(1) : 'N/A';
-
-    const getListingAge = () => {
-        if (!created_at) return '';
-        const now = new Date();
-        const startDate = new Date(created_at);
-        let months = (now.getFullYear() - startDate.getFullYear()) * 12;
-        months -= startDate.getMonth();
-        months += now.getMonth();
-        if (months <= 0) return "New";
-        if (months < 12) return `${months} month${months > 1 ? 's' : ''} old`;
-        const years = Math.floor(months / 12);
-        return `${years} year${years > 1 ? 's' : ''} old`;
-    };
 
     const isHost = session.user.id === host_id;
     const slotsFilled = seats_total - seats_available;
-    const renewalDate = new Date(created_at);
-    renewalDate.setDate(renewalDate.getDate() + 30);
 
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
@@ -173,11 +208,9 @@ const JoinPlanPage = ({ session }) => {
                         </div>
                         <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 dark:text-slate-400">Plan Rating</p>
-                            <div className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
-                                <Star className="w-4 h-4" />
-                                <span>{averageRating}</span>
-                                {rating_count > 0 && <span className="text-xs text-gray-500 dark:text-slate-400">({rating_count} ratings)</span>}
-                            </div>
+                            <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
+                                <Star className="w-4 h-4" /> {average_rating.toFixed(1)}
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -186,23 +219,12 @@ const JoinPlanPage = ({ session }) => {
                         <Users className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                         <div>
                             <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {seats_total} Slots Filled</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining, {user_count} joined ever</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 p-2">
-                        <CalendarPlus className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-                        <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">Listing Age</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">{getListingAge()}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4 p-2">
-                        <Clock className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-                        <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">Renews on {renewalDate.toLocaleDateString()}</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Billed monthly from your join date</p>
-                        </div>
-                    </div>
+                    
+                    <PlanAgeInfo createdAt={created_at} />
+
                     <div className="flex items-center gap-4 p-2">
                         <ShieldCheck className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                         <div>
