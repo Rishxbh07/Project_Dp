@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { Star, ShieldCheck, Clock, Users, IndianRupee, ChevronDown, ChevronUp } from 'lucide-react';
+import { Star, ShieldCheck, Clock, Users, IndianRupee, ChevronDown, ChevronUp, CalendarPlus } from 'lucide-react';
 
 const JoinPlanPage = ({ session }) => {
     const { listingId } = useParams();
@@ -50,7 +50,7 @@ const JoinPlanPage = ({ session }) => {
     }, [listingId, session]);
 
     useEffect(() => {
-        if (!listing || !listing.service) return; // Add guard for service
+        if (!listing || !listing.service) return;
         const base = Number(listing.service.base_price);
         const commissionRate = Number(listing.service.platform_commission_rate) / 100;
         const platformFee = base * commissionRate;
@@ -122,9 +122,22 @@ const JoinPlanPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
 
-    // --- FIX: Safely destructure with default values ---
-    const { service, host, average_rating = 0, created_at, seats_total, seats_available, host_id } = listing;
-    const hostRating = host?.host_rating ?? 0; // Safely access nested property
+    const { service, host, total_rating = 0, rating_count = 0, user_count = 0, created_at, seats_total, seats_available, host_id } = listing;
+    const hostRating = host?.host_rating ?? 0;
+    const averageRating = rating_count > 0 ? (total_rating / rating_count).toFixed(1) : 'N/A';
+
+    const getListingAge = () => {
+        if (!created_at) return '';
+        const now = new Date();
+        const startDate = new Date(created_at);
+        let months = (now.getFullYear() - startDate.getFullYear()) * 12;
+        months -= startDate.getMonth();
+        months += now.getMonth();
+        if (months <= 0) return "New";
+        if (months < 12) return `${months} month${months > 1 ? 's' : ''} old`;
+        const years = Math.floor(months / 12);
+        return `${years} year${years > 1 ? 's' : ''} old`;
+    };
 
     const isHost = session.user.id === host_id;
     const slotsFilled = seats_total - seats_available;
@@ -155,16 +168,16 @@ const JoinPlanPage = ({ session }) => {
                         <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
                             <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1">
-                                {/* --- FIX: Use the safe variable --- */}
                                 <Star className="w-4 h-4" /> {hostRating.toFixed(1)}
                             </p>
                         </div>
                         <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 dark:text-slate-400">Plan Rating</p>
-                            <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
-                                {/* --- FIX: Use the safe variable --- */}
-                                <Star className="w-4 h-4" /> {average_rating.toFixed(1)}
-                            </p>
+                            <div className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
+                                <Star className="w-4 h-4" />
+                                <span>{averageRating}</span>
+                                {rating_count > 0 && <span className="text-xs text-gray-500 dark:text-slate-400">({rating_count} ratings)</span>}
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -173,7 +186,14 @@ const JoinPlanPage = ({ session }) => {
                         <Users className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                         <div>
                             <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {seats_total} Slots Filled</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining, {user_count} joined ever</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-2">
+                        <CalendarPlus className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
+                        <div>
+                            <p className="font-semibold text-gray-800 dark:text-white">Listing Age</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">{getListingAge()}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4 p-2">

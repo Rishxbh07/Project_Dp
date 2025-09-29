@@ -52,16 +52,19 @@ CREATE TABLE public.connected_accounts (
   buyer_id uuid NOT NULL,
   service_uid text,
   service_profile_name text,
-  profile_link text NOT NULL,
+  profile_link text,
   credentials_encrypted text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
   service_pfp_link text,
   account_confirmation text NOT NULL DEFAULT 'no'::text,
+  service_id text,
+  joined_email text,
   CONSTRAINT connected_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT connected_accounts_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT connected_accounts_dapbuddy_subscription_id_fkey FOREIGN KEY (dapbuddy_subscription_id) REFERENCES public.dapbuddy_subscriptions(id),
-  CONSTRAINT connected_accounts_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
+  CONSTRAINT connected_accounts_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT connected_accounts_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
 );
 CREATE TABLE public.credit_ledger (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -131,11 +134,14 @@ CREATE TABLE public.listings (
   service_id text NOT NULL,
   seats_total integer NOT NULL CHECK (seats_total > 0),
   seats_available integer NOT NULL,
-  average_rating numeric DEFAULT 0,
   status text NOT NULL DEFAULT 'active'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
   plan_purchased_date date CHECK (plan_purchased_date > '2025-01-01'::date),
+  archive_reason text,
+  total_rating integer NOT NULL DEFAULT 0,
+  rating_count integer NOT NULL DEFAULT 0,
+  user_count integer NOT NULL DEFAULT 0,
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -161,6 +167,20 @@ CREATE TABLE public.ops_queue (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   processed_at timestamp with time zone,
   CONSTRAINT ops_queue_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.plan_credentials (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  listing_id uuid NOT NULL,
+  host_id uuid NOT NULL,
+  login_email text,
+  login_password_encrypted text,
+  invite_link text,
+  host_address text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT plan_credentials_pkey PRIMARY KEY (id),
+  CONSTRAINT plan_credentials_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
+  CONSTRAINT plan_credentials_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.platform_service_credentials (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -252,13 +272,13 @@ CREATE TABLE public.services (
   category text,
   max_seats_allowed integer,
   base_price numeric,
-  platform_price numeric,
   sharing_policy USER-DEFINED NOT NULL DEFAULT 'allowed'::sharing_policy_enum,
   sharing_method USER-DEFINED,
   platform_commission_rate numeric NOT NULL DEFAULT 10.00 CHECK (platform_commission_rate >= 0::numeric),
   Full_price bigint DEFAULT '0'::bigint,
   solo_plan_price integer DEFAULT 0,
   tax_range jsonb NOT NULL DEFAULT '[0, 7, 12, 18]'::jsonb,
+  seats_allowed_to_sell smallint,
   CONSTRAINT services_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.super_admins (
@@ -282,6 +302,8 @@ CREATE TABLE public.transactions (
   payout_status text NOT NULL DEFAULT 'held_by_gateway'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   payout_processed_at timestamp with time zone,
+  billing_options jsonb,
+  expires_on timestamp with time zone NOT NULL DEFAULT (now() + '30 days'::interval),
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
   CONSTRAINT transactions_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT transactions_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
