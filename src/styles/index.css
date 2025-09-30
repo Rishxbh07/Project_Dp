@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Add these styles to your global CSS for better animation support */
+@layer utilities {
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slide-in-from-bottom-2 {
+        from { transform: translateX(-50%) translateY(0.5rem); }
+        to { transform: translateX(-50%) translateY(0); }
+    }
+
+    /* NEW animation for the notification badge */
+    @keyframes zoom-in {
+        from { transform: scale(0.5); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-in {
+        animation-duration: 200ms;
+        animation-fill-mode: both;
+    }
+
+    .fade-in {
+        animation-name: fade-in;
+    }
+    
+    .zoom-in {
+      animation-name: zoom-in;
+    }
+
+    .slide-in-from-bottom-2 {
+        animation-name: slide-in-from-bottom-2;
+    }
+
+    .safe-area-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+}

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { AlertTriangle, LogOut, Star, ChevronRight, Zap, UserX, AlertOctagon, CheckCircle, MoreHorizontal } from 'lucide-react';
+import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
 
-// Star rating component
+// Star rating component (no changes needed)
 const StarRating = ({ rating, onRatingChange, disabled = false }) => {
     return (
         <div className={`flex items-center justify-center gap-1 ${disabled ? 'cursor-not-allowed' : ''}`}>
@@ -23,12 +23,11 @@ const StarRating = ({ rating, onRatingChange, disabled = false }) => {
 
 const SubscriptionDetailPage = ({ session }) => {
     const { id } = useParams();
-    const navigate = useNavigate(); // Hook for navigation
+    const navigate = useNavigate();
     const [bookingDetails, setBookingDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showLeaveModal, setShowLeaveModal] = useState(false);
-    const [isIssueSectionOpen, setIsIssueSectionOpen] = useState(false);
     
     const [originalRating, setOriginalRating] = useState(0);
     const [currentRating, setCurrentRating] = useState(0);
@@ -68,7 +67,6 @@ const SubscriptionDetailPage = ({ session }) => {
             .eq('id', id);
 
         if (error) {
-            console.error("Failed to update rating:", error);
             alert("Failed to save your rating. Please try again.");
             setCurrentRating(originalRating);
         } else {
@@ -77,52 +75,36 @@ const SubscriptionDetailPage = ({ session }) => {
         setIsRatingEditable(false);
         setIsSubmittingRating(false);
     };
-
-    const handleRaiseIssue = async (reason) => {
-        if (!bookingDetails) return;
-        
-        const { data, error } = await supabase
-            .from('disputes')
-            .insert({
-                booking_id: id,
-                transaction_id: bookingDetails.transaction_id,
-                raised_by_id: session.user.id,
-                host_id: bookingDetails.host_id,
-                reason: reason,
-                status: 'open'
-            });
-
-        if (error) {
-             alert('Failed to raise issue. Please try again.');
-             console.error(error);
-        } else {
-            alert('Your issue has been submitted. Our support team will review it shortly.');
-            setIsIssueSectionOpen(false);
-        }
-    };
     
-    // --- MODIFIED: Functional "Leave Plan" handler ---
     const handleLeavePlan = async () => {
         setShowLeaveModal(false);
-        setLoading(true); // Show a loading state
+        setLoading(true);
 
         const { error } = await supabase
             .from('bookings')
-            .update({ status: 'left' }) // Update the status in the database
+            .update({ status: 'left' })
             .eq('id', id);
 
         if (error) {
             setLoading(false);
             alert('Could not leave the plan. Please try again.');
-            console.error('Error leaving plan:', error);
         } else {
-            // On success, navigate back to the subscriptions list
             navigate('/subscription');
         }
     };
     
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>
-    if (error) return <p className="text-center text-red-500 mt-8">{error}</p>
+    if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Subscription details could not be loaded.'}</p>
+
+    // --- NEW: Calculations for Savings and Renewal Status ---
+    const joinDate = new Date(bookingDetails.joined_on);
+    const now = new Date();
+    const diffTime = Math.abs(now - joinDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const monthsJoined = Math.max(1, Math.floor(diffDays / 30));
+    const savingsPerMonth = (bookingDetails.solo_plan_price || 0) - (bookingDetails.base_price || 0);
+    const totalSavings = savingsPerMonth > 0 ? (savingsPerMonth * monthsJoined).toFixed(2) : null;
+    const renewalStatus = bookingDetails.billing_option === 'autoPay' ? 'Renews Automatically' : 'One-Time Payment';
 
     return (
         <>
@@ -137,61 +119,88 @@ const SubscriptionDetailPage = ({ session }) => {
                     </div>
                 </header>
 
-                <div className="max-w-md mx-auto px-4 py-6">
-                    <section className="bg-white dark:bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-6 mb-8 space-y-4">
-                         <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Hosted by</p>
-                                <p className="text-gray-900 dark:text-white font-semibold text-lg">{bookingDetails.host_name}</p>
+                <main className="max-w-md mx-auto px-4 py-6 pb-24">
+                    {/* --- NEW: Host Info Section --- */}
+                    <section className="flex flex-col items-center text-center mb-8">
+                        {bookingDetails.host_pfp_url ? (
+                            <img src={bookingDetails.host_pfp_url} alt={bookingDetails.host_name} className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-white dark:border-slate-700 shadow-lg" />
+                        ) : (
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-3xl mb-3">
+                                {bookingDetails.host_name.charAt(0).toUpperCase()}
                             </div>
-                            <div className="text-right">
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Monthly Rate</p>
-                                <p className="text-purple-600 dark:text-purple-300 font-bold text-2xl">₹{bookingDetails.monthly_rate}</p>
+                        )}
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{bookingDetails.host_name}</h2>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">Host</p>
+                    </section>
+
+                    {/* --- NEW: Main Details Card --- */}
+                    <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
+                                <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1">
+                                    <Star className="w-4 h-4" /> {bookingDetails.host_rating.toFixed(1)}
+                                </p>
+                            </div>
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Your Plan Rating</p>
+                                <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
+                                    <Star className="w-4 h-4" /> {(currentRating || 0).toFixed(1)}
+                                </p>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-left">
-                            <div>
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Plan Rating</p>
-                                <p className="text-gray-900 dark:text-white font-semibold flex items-center gap-1">{currentRating.toFixed(1)} <Star className="w-4 h-4 text-yellow-400" /></p>
-                            </div>
-                            <div className="text-left">
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Host Rating</p>
-                                <p className="text-gray-900 dark:text-white font-semibold flex items-center gap-1">{bookingDetails.host_rating.toFixed(1)} <Star className="w-4 h-4 text-yellow-400" /></p>
-                            </div>
+
+                        <div className="text-center border-t border-b border-gray-200 dark:border-white/10 py-4">
+                            <p className="text-4xl font-bold text-purple-500 dark:text-purple-400 flex items-center justify-center">
+                                <IndianRupee className="w-7 h-7" />{bookingDetails.monthly_rate}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">per month</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-left border-t border-gray-200 dark:border-white/10 pt-4">
-                            <div>
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Next Renewal</p>
-                                <p className="text-gray-900 dark:text-white font-semibold">{new Date(bookingDetails.next_renewal).toLocaleDateString()}</p>
+                        
+                        {totalSavings && (
+                            <div className="flex items-center gap-4 p-3 bg-green-500/10 rounded-xl">
+                                <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Zap className="w-5 h-5 text-green-500" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-green-600 dark:text-green-400">You've saved an estimated ₹{totalSavings}!</p>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">by sharing this plan for {monthsJoined} month{monthsJoined > 1 ? 's' : ''}.</p>
+                                </div>
                             </div>
-                            <div className="text-left">
-                                <p className="text-gray-500 dark:text-slate-400 text-sm">Joined on</p>
-                                <p className="text-gray-900 dark:text-white font-semibold">{new Date(bookingDetails.joined_on).toLocaleDateString()}</p>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Joined On</p>
+                                <p className="font-semibold text-gray-800 dark:text-white mt-1">{joinDate.toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                                <p className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Next Renewal</p>
+                                <p className="font-semibold text-gray-800 dark:text-white mt-1">{new Date(bookingDetails.next_renewal).toLocaleDateString()}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <p className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5"><Repeat className="w-4 h-4" /> Renewal Status</p>
+                                <p className="font-semibold text-gray-800 dark:text-white mt-1">{renewalStatus}</p>
                             </div>
                         </div>
                     </section>
                     
                     <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
                         <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
-                        <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable} />
-                        <div className="mt-4">
-                            {isRatingEditable ? (
+                        <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
+                        <div className="mt-4 h-10 flex items-center justify-center">
+                            {isSubmittingRating ? <Loader /> : isRatingEditable ? (
                                 <button
                                     onClick={submitRating}
-                                    disabled={currentRating === originalRating || isSubmittingRating}
+                                    disabled={currentRating === originalRating}
                                     className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isSubmittingRating ? 'Saving...' : 'Submit Rating'}
+                                    Submit Rating
                                 </button>
                             ) : (
-                                <div className="space-y-2">
-                                    <p className="text-sm text-green-600 dark:text-green-400 flex items-center justify-center gap-2">
-                                        <CheckCircle className="w-4 h-4" /> Your rating has been submitted!
-                                    </p>
-                                    <button
-                                        onClick={() => setIsRatingEditable(true)}
-                                        className="text-sm font-semibold text-purple-500 hover:underline"
-                                    >
+                                <div className="space-y-1">
+                                    <p className="text-sm text-green-600 dark:text-green-400">Your rating has been submitted!</p>
+                                    <button onClick={() => setIsRatingEditable(true)} className="text-xs font-semibold text-purple-500 hover:underline">
                                         Change Rating
                                     </button>
                                 </div>
@@ -200,48 +209,20 @@ const SubscriptionDetailPage = ({ session }) => {
                     </section>
 
                     <section className="space-y-3">
-                        <div className="bg-white dark:bg-white/5 rounded-lg border border-gray-200 dark:border-transparent overflow-hidden">
-                            <button onClick={() => setIsIssueSectionOpen(!isIssueSectionOpen)} className="w-full text-left flex items-center p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                                <AlertTriangle className="w-5 h-5 mr-4 text-yellow-500 dark:text-yellow-400" />
-                                <span className="flex-1 font-semibold text-gray-800 dark:text-white">Raise an Issue</span>
-                                <ChevronRight className={`w-5 h-5 text-gray-400 dark:text-slate-500 transition-transform ${isIssueSectionOpen ? 'rotate-90' : ''}`} />
-                            </button>
-                            {isIssueSectionOpen && (
-                                <div className="p-4 border-t border-gray-200 dark:border-white/10 animate-in fade-in space-y-2">
-                                    <button onClick={() => handleRaiseIssue('Accidental: Forgot Credentials / Left Plan')} className="w-full text-left text-sm p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3">
-                                        <Zap className="w-5 h-5 text-blue-500"/>
-                                        <span>Forgot Credentials / Left Plan</span>
-                                    </button>
-                                     <button onClick={() => handleRaiseIssue('Host Action: Removed from plan')} className="w-full text-left text-sm p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3">
-                                        <UserX className="w-5 h-5 text-red-500"/>
-                                        <span>Host removed me from plan</span>
-                                    </button>
-                                    <button onClick={() => handleRaiseIssue('Host Action: Changed credentials')} className="w-full text-left text-sm p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3">
-                                        <UserX className="w-5 h-5 text-red-500"/>
-                                        <span>Host changed credentials</span>
-                                    </button>
-                                    <button onClick={() => handleRaiseIssue('Other: My account is suspended or locked')} className="w-full text-left text-sm p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3">
-                                        <AlertOctagon className="w-5 h-5 text-orange-500"/>
-                                        <span>My account is suspended/locked</span>
-                                    </button>
-                                    {/* --- NEW: Other... option --- */}
-                                    <button onClick={() => handleRaiseIssue('Other')} className="w-full text-left text-sm p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-3">
-                                        <MoreHorizontal className="w-5 h-5 text-gray-500"/>
-                                        <span>Other...</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                        <Link to={`/dispute/${id}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
+                            <AlertTriangle className="w-5 h-5 mr-4 text-yellow-600 dark:text-yellow-400" />
+                            <span className="flex-1 font-semibold text-yellow-700 dark:text-yellow-300">Raise an Issue</span>
+                            <ChevronRight className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                        </Link>
                         
                         <button onClick={() => setShowLeaveModal(true)} className="w-full text-left bg-red-500/10 flex items-center p-4 rounded-lg hover:bg-red-500/20 transition-colors">
                             <LogOut className="w-5 h-5 mr-4 text-red-500 dark:text-red-400" />
                             <span className="font-semibold text-red-500 dark:text-red-400">Leave Plan</span>
                         </button>
                     </section>
-                </div>
+                </main>
             </div>
 
-            {/* --- MODIFIED: Modal now calls the functional handleLeavePlan --- */}
             <Modal isOpen={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
                 <div className="text-center">
                     <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
@@ -250,16 +231,10 @@ const SubscriptionDetailPage = ({ session }) => {
                         If you leave this plan, your spot will be given to someone else and you will **not receive a refund** for the current billing period.
                     </p>
                     <div className="flex gap-4">
-                        <button 
-                            onClick={() => setShowLeaveModal(false)}
-                            className="flex-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-semibold py-3 rounded-lg transition-colors"
-                        >
+                        <button onClick={() => setShowLeaveModal(false)} className="flex-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-semibold py-3 rounded-lg transition-colors">
                             Cancel
                         </button>
-                        <button 
-                            onClick={handleLeavePlan}
-                            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors"
-                        >
+                        <button onClick={handleLeavePlan} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors">
                             Leave Anyways
                         </button>
                     </div>

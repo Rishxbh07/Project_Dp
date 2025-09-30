@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import SubscriptionCard from '../components/SubscriptionCard';
 import HostedPlanCard from '../components/HostedPlanCard';
 import { LogIn } from 'lucide-react';
+import Loader from '../components/common/Loader'; // <-- IMPORTED
 
 const SubscriptionPage = ({ session }) => {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ const SubscriptionPage = ({ session }) => {
         </div>
 
         <div className="px-4">
-          {loading && <p>Loading plans...</p>}
+          {loading && <Loader />} {/* <-- UPDATED */}
           {error && <p className="text-red-500">{error}</p>}
           
           {activeTab === 'mySubscriptions' && !loading && (
