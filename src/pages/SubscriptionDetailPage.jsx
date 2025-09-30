@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight, Eye, Copy, Check, HelpCircle } from 'lucide-react';
+import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
+import JoiningDetails from '../components/common/JoiningDetails';
 
-// Star rating component
 const StarRating = ({ rating, onRatingChange, disabled = false }) => {
     return (
         <div className={`flex items-center justify-center gap-1 ${disabled ? 'cursor-not-allowed' : ''}`}>
@@ -22,94 +22,44 @@ const StarRating = ({ rating, onRatingChange, disabled = false }) => {
 };
 
 const SubscriptionDetailPage = ({ session }) => {
-    const { id } = useParams(); // This is the booking_id
+    const { id } = useParams();
     const navigate = useNavigate();
     const [bookingDetails, setBookingDetails] = useState(null);
-    const [inviteData, setInviteData] = useState(null);
-    const [isRevealed, setIsRevealed] = useState(false);
-    const [copySuccess, setCopySuccess] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showLeaveModal, setShowLeaveModal] = useState(false);
-    
     const [originalRating, setOriginalRating] = useState(0);
     const [currentRating, setCurrentRating] = useState(0);
     const [isRatingEditable, setIsRatingEditable] = useState(false);
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
     useEffect(() => {
-        const fetchAllDetails = async () => {
+        const fetchDetails = async () => {
             if (!id || !session?.user?.id) return;
             setLoading(true);
-
-            // Fetch both booking and invite link details
-            const [bookingRes, inviteRes] = await Promise.all([
-                supabase.rpc('get_subscription_details', { p_booking_id: id, p_buyer_id: session.user.id }),
-                supabase.from('invite_link').select('*').eq('booking_id', id).single()
-            ]);
-
-            if (bookingRes.error || !bookingRes.data || bookingRes.data.length === 0) {
+            const { data, error } = await supabase.rpc('get_subscription_details', {
+                p_booking_id: id,
+                p_buyer_id: session.user.id
+            });
+            if (error) {
                 setError('Could not load subscription details.');
-            } else {
-                setBookingDetails(bookingRes.data[0]);
-                const initialRating = bookingRes.data[0].plan_rating || 0;
+            } else if (data && data.length > 0) {
+                setBookingDetails(data[0]);
+                const initialRating = data[0].plan_rating || 0;
                 setOriginalRating(initialRating);
                 setCurrentRating(initialRating);
                 setIsRatingEditable(initialRating === 0);
             }
-            
-            if (inviteRes.data) {
-                setInviteData(inviteRes.data);
-                // If user has already confirmed, show details by default
-                if (inviteRes.data.user_confirmation_status?.status === 'confirmed') {
-                    setIsRevealed(true);
-                }
-            }
-
             setLoading(false);
         };
-        fetchAllDetails();
+        fetchDetails();
     }, [id, session]);
-
-    const handleReveal = async () => {
-        setIsRevealed(true);
-        if (inviteData && inviteData.user_confirmation_status?.status === 'pending') {
-            const newStatus = {
-                ...inviteData.user_confirmation_status,
-                status: 'revealed',
-                revealed_at: new Date().toISOString()
-            };
-            await supabase.from('invite_link').update({ user_confirmation_status: newStatus }).eq('id', inviteData.id);
-        }
-    };
-
-    const handleConfirmJoin = async () => {
-        const newStatus = {
-            ...inviteData.user_confirmation_status,
-            status: 'confirmed',
-            confirmed_at: new Date().toISOString()
-        };
-        const { error } = await supabase.from('invite_link').update({ user_confirmation_status: newStatus }).eq('id', inviteData.id);
-        if (!error) {
-            setInviteData(prev => ({...prev, user_confirmation_status: newStatus}));
-        }
-    };
-    
-    const handleCopy = (text) => {
-        navigator.clipboard.writeText(text);
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
-    };
 
     const submitRating = async () => {
         setIsSubmittingRating(true);
-        const { error } = await supabase
-            .from('bookings')
-            .update({ service_rating: currentRating })
-            .eq('id', id);
-
+        const { error } = await supabase.from('bookings').update({ service_rating: currentRating }).eq('id', id);
         if (error) {
-            alert("Failed to save your rating. Please try again.");
+            alert("Failed to save your rating.");
             setCurrentRating(originalRating);
         } else {
             setOriginalRating(currentRating);
@@ -121,35 +71,27 @@ const SubscriptionDetailPage = ({ session }) => {
     const handleLeavePlan = async () => {
         setShowLeaveModal(false);
         setLoading(true);
-
-        const { error } = await supabase
-            .from('bookings')
-            .update({ status: 'left' })
-            .eq('id', id);
-
+        const { error } = await supabase.from('bookings').update({ status: 'left' }).eq('id', id);
         if (error) {
             setLoading(false);
-            alert('Could not leave the plan. Please try again.');
+            alert('Could not leave the plan.');
         } else {
             navigate('/subscription');
         }
     };
     
-    if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>
-    if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Subscription details could not be loaded.'}</p>
+    if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
+    if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
 
     const joinDate = new Date(bookingDetails.joined_on);
-    const now = new Date();
-    const diffTime = Math.abs(now - joinDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const monthsJoined = Math.max(1, Math.floor(diffDays / 30));
+    const monthsJoined = Math.max(1, Math.floor(Math.abs(new Date() - joinDate) / (1000 * 60 * 60 * 24 * 30)));
     const savingsPerMonth = (bookingDetails.solo_plan_price || 0) - (bookingDetails.base_price || 0);
     const totalSavings = savingsPerMonth > 0 ? (savingsPerMonth * monthsJoined).toFixed(2) : null;
     const renewalStatus = bookingDetails.billing_option === 'autoPay' ? 'Renews Automatically' : 'One-Time Payment';
 
     return (
         <>
-            <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
+            <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
                 <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                     <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
                         <Link to="/subscription" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors">
@@ -159,7 +101,6 @@ const SubscriptionDetailPage = ({ session }) => {
                         <div className="w-16"></div>
                     </div>
                 </header>
-
                 <main className="max-w-md mx-auto px-4 py-6 pb-24">
                     <section className="flex flex-col items-center text-center mb-8">
                         {bookingDetails.host_pfp_url ? (
@@ -172,7 +113,6 @@ const SubscriptionDetailPage = ({ session }) => {
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{bookingDetails.host_name}</h2>
                         <p className="text-sm text-gray-500 dark:text-slate-400">Host</p>
                     </section>
-
                     <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4 text-center">
                             <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
@@ -188,14 +128,12 @@ const SubscriptionDetailPage = ({ session }) => {
                                 </p>
                             </div>
                         </div>
-
                         <div className="text-center border-t border-b border-gray-200 dark:border-white/10 py-4">
                             <p className="text-4xl font-bold text-purple-500 dark:text-purple-400 flex items-center justify-center">
                                 <IndianRupee className="w-7 h-7" />{bookingDetails.monthly_rate}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-slate-400">per month</p>
                         </div>
-                        
                         {totalSavings && (
                             <div className="flex items-center gap-4 p-3 bg-green-500/10 rounded-xl">
                                 <div className="w-10 h-10 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -207,7 +145,6 @@ const SubscriptionDetailPage = ({ session }) => {
                                 </div>
                             </div>
                         )}
-
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Joined On</p>
@@ -223,66 +160,15 @@ const SubscriptionDetailPage = ({ session }) => {
                             </div>
                         </div>
                     </section>
-
-                    <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6">
-                        <h3 className="font-bold text-lg mb-4">Joining Details</h3>
-                        {!inviteData ? (
-                            <p className="text-sm text-center text-gray-500 dark:text-slate-400">Your host has not sent the joining details yet.</p>
-                        ) : (
-                            !isRevealed ? (
-                                <button onClick={handleReveal} className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold py-3 rounded-lg hover:bg-purple-700 transition-colors">
-                                    <Eye className="w-5 h-5" /> Reveal Invite Details
-                                </button>
-                            ) : (
-                                <div className="space-y-4 animate-in fade-in">
-                                    <div>
-                                        <label className="text-xs text-gray-500 dark:text-slate-400">Invite Link</label>
-                                        <a href={inviteData.invite_link} target="_blank" rel="noopener noreferrer" className="block p-3 bg-gray-100 dark:bg-slate-800 rounded-lg text-purple-500 font-semibold truncate hover:underline">
-                                            {inviteData.invite_link}
-                                        </a>
-                                    </div>
-                                    {inviteData.address && (
-                                        <div>
-                                            <label className="text-xs text-gray-500 dark:text-slate-400">Address</label>
-                                            <div className="relative">
-                                                <input type="text" readOnly value={inviteData.address} className="w-full p-3 pr-10 bg-gray-100 dark:bg-slate-800 rounded-lg font-mono" />
-                                                <button onClick={() => handleCopy(inviteData.address)} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-500">
-                                                    {copySuccess ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {inviteData.user_confirmation_status?.status !== 'confirmed' ? (
-                                        <div className="pt-4 border-t border-gray-200 dark:border-white/10 text-center">
-                                            <h4 className="font-semibold mb-3">Did you join successfully?</h4>
-                                            <div className="flex gap-4">
-                                                <button onClick={() => navigate(`/dispute/${id}`)} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg">
-                                                    <HelpCircle className="w-4 h-4" /> I have a problem
-                                                </button>
-                                                <button onClick={handleConfirmJoin} className="flex-1 flex items-center justify-center gap-2 bg-green-500/10 text-green-600 font-semibold py-2 rounded-lg">
-                                                    <Check className="w-4 h-4" /> Yes, I'm in!
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-center text-sm text-green-600 dark:text-green-400 font-semibold pt-4 border-t border-gray-200 dark:border-white/10">✓ You have confirmed your access to this plan.</p>
-                                    )}
-                                </div>
-                            )
-                        )}
-                    </section>
                     
+                    {bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />}
+
                     <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
                         <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
                         <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
                         <div className="mt-4 h-10 flex items-center justify-center">
                             {isSubmittingRating ? <Loader /> : isRatingEditable ? (
-                                <button
-                                    onClick={submitRating}
-                                    disabled={currentRating === originalRating}
-                                    className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
+                                <button onClick={submitRating} disabled={currentRating === originalRating} className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
                                     Submit Rating
                                 </button>
                             ) : (
@@ -295,7 +181,6 @@ const SubscriptionDetailPage = ({ session }) => {
                             )}
                         </div>
                     </section>
-
                     <section className="space-y-3">
                         <Link to={`/dispute/${id}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
                             <AlertTriangle className="w-5 h-5 mr-4 text-yellow-600 dark:text-yellow-400" />
@@ -310,7 +195,6 @@ const SubscriptionDetailPage = ({ session }) => {
                     </section>
                 </main>
             </div>
-
             <Modal isOpen={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
                 <div className="text-center">
                     <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
