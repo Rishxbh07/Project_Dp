@@ -5,76 +5,83 @@ import { Star, User, ChevronDown, ChevronUp, CheckCircle, XCircle, IndianRupee, 
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
 
-// --- Helper function for domain validation ---
-const isValidDomain = (url, serviceName) => {
-    try {
-        const hostname = new URL(url).hostname;
-        const lowerCaseServiceName = serviceName.toLowerCase();
-        
-        if (lowerCaseServiceName.includes('spotify')) {
-            return hostname.endsWith('spotify.com');
-        }
-        if (lowerCaseServiceName.includes('youtube')) {
-            return hostname.endsWith('youtube.com') || hostname.endsWith('youtu.be');
-        }
-        if (lowerCaseServiceName.includes('netflix')) {
-            return hostname.endsWith('netflix.com');
-        }
-        // Add more services as needed...
-        return true; // Default to true if no specific rule is set
-    } catch (e) {
-        return false;
-    }
-};
-
-
-const MemberCard = ({ booking, sharingMethod, serviceName }) => {
+// This is the new, more advanced MemberCard
+const MemberCard = ({ booking, listing }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [inviteLink, setInviteLink] = useState('');
     const [address, setAddress] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState('');
-    const [sendSuccess, setSendSuccess] = useState(false);
+    const [inviteData, setInviteData] = useState(null);
 
-    const connectedAccount = booking.connected_accounts && booking.connected_accounts[0];
+    // FIX: Safely access nested objects. Add a guard to prevent rendering if they don't exist.
     const userProfile = booking.profiles;
+    const service = listing.services;
+    if (!userProfile || !service) return null;
 
-    if (!userProfile) {
-        return null;
-    }
+
+    // Fetch existing invite link data when the card expands
+    useEffect(() => {
+        if (isExpanded && !inviteData) {
+            const fetchInvite = async () => {
+                const { data, error } = await supabase
+                    .from('invite_link')
+                    .select('*')
+                    .eq('booking_id', booking.id)
+                    .single();
+                
+                if (data) {
+                    setInviteData(data);
+                    setInviteLink(data.invite_link);
+                    setAddress(data.address);
+                }
+            };
+            fetchInvite();
+        }
+    }, [isExpanded, booking.id, inviteData]);
 
     const handleSendDetails = async () => {
         setError('');
-        setSendSuccess(false);
-
-        if (!isValidDomain(inviteLink, serviceName)) {
-            setError(`Please enter a valid invite link for ${serviceName}.`);
+        const forbiddenPattern = /(call|contact|message|msg|whatsapp|telegram|phone|email|gmail|outlook|@|\.com|\.in|\d{7,})/i;
+        if (address && forbiddenPattern.test(address)) {
+            setError('Address field cannot contain contact information.');
             return;
         }
-
-        const forbiddenPattern = /(call|contact|message|msg|whatsapp|telegram|phone|email|gmail|outlook|@|\.com|\.in|\d{7,})/i;
-        if (forbiddenPattern.test(address)) {
-            setError('Address field cannot contain contact information.');
+        if (!inviteLink.startsWith('http')) {
+            setError('Please enter a valid invite link.');
             return;
         }
 
         setIsSending(true);
-        const notificationMessage = `Your host for the ${serviceName} plan has sent the joining details.\nInvite Link: ${inviteLink}\nAddress: ${address}`;
         
-        const { error: insertError } = await supabase
-            .from('notifications')
-            .insert({ user_id: booking.buyer_id, message: notificationMessage });
+        const payload = {
+            service_id: service.id,
+            category: service.category,
+            host_id: listing.host_id,
+            listing_id: listing.id,
+            booking_id: booking.id,
+            invite_link: inviteLink,
+            address: address,
+            user_id: booking.buyer_id,
+            host_confirmation_status: {
+                status: 'shared',
+                shared_at: new Date().toISOString()
+            }
+        };
 
-        if (insertError) {
+        const { data, error: upsertError } = await supabase
+            .from('invite_link')
+            .upsert(payload, { onConflict: 'booking_id' })
+            .select()
+            .single();
+
+        if (upsertError) {
             setError('Failed to send details. Please try again.');
         } else {
-            setSendSuccess(true);
+            setInviteData(data);
         }
         setIsSending(false);
     };
-
-    const isConfirmed = connectedAccount?.account_confirmation === 'confirmed';
-    const confirmationStyles = isConfirmed ? 'text-green-500' : 'text-yellow-500';
 
     return (
         <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
@@ -102,7 +109,8 @@ const MemberCard = ({ booking, sharingMethod, serviceName }) => {
                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-white/10 space-y-3 text-sm animate-in fade-in">
                     <h4 className="font-semibold text-gray-800 dark:text-white">Send Joining Details</h4>
                     
-                    {sharingMethod === 'invite_link' ? (
+                    {/* FIX: This conditional logic now correctly shows the right UI */}
+                    {service.sharing_method === 'invite_link' ? (
                         <div className="space-y-3 p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg">
                             <input
                                 type="url"
@@ -119,29 +127,28 @@ const MemberCard = ({ booking, sharingMethod, serviceName }) => {
                                 className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
                             {error && <p className="text-xs text-red-500">{error}</p>}
-                            {sendSuccess && <p className="text-xs text-green-500">Details sent to user via notification!</p>}
+                            {inviteData && <p className="text-xs text-green-500">Details sent on {new Date(inviteData.host_confirmation_status.shared_at).toLocaleDateString()}</p>}
+                            
                             <button
                                 onClick={handleSendDetails}
-                                disabled={isSending || sendSuccess}
+                                disabled={isSending}
                                 className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-60"
                             >
                                 <Send className="w-4 h-4" />
-                                {isSending ? 'Sending...' : (sendSuccess ? 'Sent!' : 'Send')}
+                                {isSending ? 'Sending...' : (inviteData ? 'Update Details' : 'Send Details')}
                             </button>
                         </div>
                     ) : (
-                        <button className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <button onClick={() => alert('Chat feature coming soon!')} className="w-full flex items-center justify-center gap-2 bg-blue-500 text-white font-semibold py-2 rounded-lg hover:bg-blue-600 transition-colors">
                             <MessageSquare className="w-4 h-4" />
                             Send Details (Chat)
                         </button>
                     )}
-
                 </div>
             )}
         </div>
     );
 };
-
 
 const HostedPlanDetailPage = ({ session }) => {
     const { id } = useParams();
@@ -149,7 +156,6 @@ const HostedPlanDetailPage = ({ session }) => {
     const [listing, setListing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
@@ -275,12 +281,7 @@ const HostedPlanDetailPage = ({ session }) => {
                         {members.length > 0 ? (
                             <div className="space-y-4">
                                 {members.map((booking) => (
-                                    <MemberCard 
-                                        key={booking.id} 
-                                        booking={booking} 
-                                        sharingMethod={service.sharing_method}
-                                        serviceName={service.name}
-                                    />
+                                    <MemberCard key={booking.id} booking={booking} listing={listing} />
                                 ))}
                             </div>
                         ) : (
@@ -304,7 +305,36 @@ const HostedPlanDetailPage = ({ session }) => {
             </div>
 
             <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-                {/* ... (Modal content remains the same) ... */}
+                <div className="text-center">
+                    <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Are you sure?</h3>
+                    <p className="text-gray-500 dark:text-slate-400 mb-6">
+                        This will archive the listing. Existing members will continue until their subscription ends, but no new members can join.
+                    </p>
+                    <div className="space-y-2 text-left mb-6">
+                        {deletionReasons.map(reason => (
+                            <label key={reason} className="flex items-center p-3 bg-gray-100 dark:bg-slate-800 rounded-lg">
+                                <input
+                                    type="radio"
+                                    name="deleteReason"
+                                    value={reason}
+                                    checked={deleteReason === reason}
+                                    onChange={(e) => setDeleteReason(e.target.value)}
+                                    className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                                />
+                                <span className="ml-3 text-sm text-gray-800 dark:text-slate-200">{reason}</span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex gap-4">
+                        <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-semibold py-3 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button onClick={handleArchiveListing} disabled={!deleteReason || isDeleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50">
+                            {isDeleting ? 'Deleting...' : 'Archive Listing'}
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </>
     );
