@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { ArrowLeft, CheckCircle, AlertTriangle, XCircle, UserCheck, Send, Copy, Check } from 'lucide-react';
 
-// Helper component for copying details
+// --------------------- Helper: Copy field ---------------------
 const DetailItem = ({ label, value }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
@@ -29,7 +29,7 @@ const DetailItem = ({ label, value }) => {
     );
 };
 
-// Helper component for the Send Invite form
+// --------------------- Helper: Send Invite Form ---------------------
 const SendInviteForm = ({ booking, onSuccess }) => {
     const [inviteLink, setInviteLink] = useState('');
     const [address, setAddress] = useState('');
@@ -52,24 +52,43 @@ const SendInviteForm = ({ booking, onSuccess }) => {
             address: address,
             status: 'pending_user_reveal',
             details_sent_at: new Date().toISOString(),
-            host_link_send_status: 'sent' // THE FIX: Set the new status flag to 'sent'
+            host_link_send_status: 'sent'
         }, { onConflict: 'booking_id' });
 
         if (upsertError) {
             setError(upsertError.message);
             setIsSending(false);
         } else {
-            onSuccess();
+            // FIX: Wait for refresh before continuing
+            await onSuccess();
+            setIsSending(false);
         }
     };
-    
+
     return (
-         <div className="space-y-3 p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
+        <div className="space-y-3 p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
             <h3 className="font-bold text-lg text-gray-900 dark:text-white">Send Joining Details</h3>
-            <input type="url" placeholder="Paste invite link here..." value={inviteLink} onChange={(e) => setInviteLink(e.target.value)} className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
-            <textarea placeholder="Enter required address..." value={address} onChange={(e) => setAddress(e.target.value)} className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
+            <input 
+                type="url"
+                placeholder="Paste invite link here..."
+                value={inviteLink}
+                onChange={(e) => setInviteLink(e.target.value)}
+                className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required 
+            />
+            <textarea
+                placeholder="Enter required address..."
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                required 
+            />
             {error && <p className="text-xs text-red-500">{error}</p>}
-            <button onClick={handleSend} disabled={isSending} className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
+            <button 
+                onClick={handleSend}
+                disabled={isSending}
+                className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
                 <Send className="w-4 h-4" />
                 {isSending ? 'Sending...' : 'Send Details'}
             </button>
@@ -77,7 +96,7 @@ const SendInviteForm = ({ booking, onSuccess }) => {
     );
 };
 
-
+// --------------------- Main Page ---------------------
 const MemberDetailPage = ({ session }) => {
     const { bookingId } = useParams();
     const [booking, setBooking] = useState(null);
@@ -122,7 +141,7 @@ const MemberDetailPage = ({ session }) => {
             .eq('booking_id', bookingId);
         
         if (error) alert("Failed to update status.");
-        fetchData();
+        await fetchData();
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
@@ -130,12 +149,15 @@ const MemberDetailPage = ({ session }) => {
     if (!booking) return null;
 
     const { profiles: user, invite_link, connected_accounts } = booking;
-    const inviteData = (invite_link && invite_link.length > 0) ? invite_link[0] : null;
+
+    // FIX: pick the row with host_link_send_status = 'sent', else fallback
+    const inviteData = Array.isArray(invite_link)
+    ? (invite_link.find(link => link.host_link_send_status === 'sent') || invite_link[0] || null)
+    : invite_link || null;
+
     const connectedAccount = (connected_accounts && connected_accounts.length > 0) ? connected_accounts[0] : null;
     const status = inviteData?.status || 'pending_host_invite';
 
-    // THE FIX: The logic is now extremely simple.
-    // We check our new database field to decide what to show.
     const hasHostSentDetails = inviteData?.host_link_send_status === 'sent';
 
     return (
@@ -152,7 +174,13 @@ const MemberDetailPage = ({ session }) => {
 
             <main className="max-w-md mx-auto px-4 py-6 space-y-6">
                 <section className="flex items-center gap-4">
-                    {user.pfp_url ? <img src={user.pfp_url} alt={user.username} className="w-16 h-16 rounded-full object-cover" /> : <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl">{user.username.charAt(0).toUpperCase()}</div>}
+                    {user.pfp_url ? (
+                        <img src={user.pfp_url} alt={user.username} className="w-16 h-16 rounded-full object-cover" />
+                    ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-2xl">
+                            {user.username.charAt(0).toUpperCase()}
+                        </div>
+                    )}
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{user.username}</h2>
                         <p className="text-sm text-gray-500 dark:text-slate-400">Joined on {new Date(booking.joined_at).toLocaleDateString()}</p>
@@ -164,28 +192,48 @@ const MemberDetailPage = ({ session }) => {
                 ) : (
                     <>
                         <section className="p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 space-y-2 text-sm">
-                             <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">User's Account Details</h3>
-                             {connectedAccount ? (
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">User's Account Details</h3>
+                            {connectedAccount ? (
                                 <div className="space-y-2">
                                     {connectedAccount.service_profile_name && <DetailItem label="Profile Name" value={connectedAccount.service_profile_name} />}
                                     {connectedAccount.joined_email && <DetailItem label="Email" value={connectedAccount.joined_email} />}
                                     {connectedAccount.service_uid && <DetailItem label="Service UID" value={connectedAccount.service_uid} />}
                                 </div>
-                             ) : (
-                                <p className="text-center text-gray-500 dark:text-slate-400 p-4">User has not submitted their details yet.</p>
-                             )}
+                            ) : (
+                                <p className="text-center text-gray-500 dark:text-slate-400 p-4">
+                                    User has not submitted their details yet.
+                                </p>
+                            )}
                         </section>
-                        
+
                         <section className="p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
                             <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-3">Host Actions</h3>
-                            {status === 'pending_user_reveal' && <div className="text-center p-3 bg-gray-100 dark:bg-slate-800 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300">Waiting for user to reveal details.</div>}
-                            {status === 'pending_host_confirmation' && (
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleAction('mismatch_reported_once')} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg"><XCircle className="w-4 h-4" /> Mismatch</button>
-                                    <button onClick={() => handleAction('active')} className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2 rounded-lg"><UserCheck className="w-4 h-4" /> Confirm</button>
+                            {status === 'pending_user_reveal' && (
+                                <div className="text-center p-3 bg-gray-100 dark:bg-slate-800 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300">
+                                    Waiting for user to reveal details.
                                 </div>
                             )}
-                            {status === 'active' && <div className="text-center p-3 bg-green-500/10 rounded-lg text-sm font-semibold text-green-600 dark:text-green-300">User is confirmed and active.</div>}
+                            {status === 'pending_host_confirmation' && (
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => handleAction('mismatch_reported_once')}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg"
+                                    >
+                                        <XCircle className="w-4 h-4" /> Mismatch
+                                    </button>
+                                    <button 
+                                        onClick={() => handleAction('active')}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2 rounded-lg"
+                                    >
+                                        <UserCheck className="w-4 h-4" /> Confirm
+                                    </button>
+                                </div>
+                            )}
+                            {status === 'active' && (
+                                <div className="text-center p-3 bg-green-500/10 rounded-lg text-sm font-semibold text-green-600 dark:text-green-300">
+                                    User is confirmed and active.
+                                </div>
+                            )}
                         </section>
                     </>
                 )}
