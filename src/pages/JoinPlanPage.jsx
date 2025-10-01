@@ -2,56 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { Star, ShieldCheck, Users, IndianRupee, ChevronDown, ChevronUp, Crown, Flame, Zap, Baby, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, Users, IndianRupee, ChevronDown, ChevronUp, Crown, Flame, Zap, Baby, Sparkles, CheckCircle2 } from 'lucide-react';
+import Modal from '../components/common/Modal';
+import ConnectAccount from '../components/common/ConnectAccount';
 
-// --- Internal Component for Displaying Plan Age ---
-const PlanAgeInfo = ({ createdAt }) => {
-    const getAgeDetails = (creationDate) => {
-        if (!creationDate) return null;
-        
-        const now = new Date();
-        const startDate = new Date(creationDate);
-        const diffTime = Math.abs(now - startDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+// --- NEW: PlanAge details are now calculated within the main component ---
+// This allows for a more integrated and flexible UI design.
+const getAgeDetails = (creationDate) => {
+    if (!creationDate) return null;
+    
+    const now = new Date();
+    const startDate = new Date(creationDate);
+    const diffTime = Math.abs(now - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-        if (diffDays <= 7) {
-            return { text: 'Newborn', icon: Baby, color: 'text-cyan-400' };
-        }
-        if (diffDays <= 30) {
-            return { text: 'Toddler', icon: Sparkles, color: 'text-green-400' };
-        }
-        if (diffDays <= 90) {
-            return { text: 'Teen', icon: Zap, color: 'text-yellow-400' };
-        }
-        if (diffDays <= 180) {
-            return { text: 'Adult', icon: Star, color: 'text-orange-400' };
-        }
-        if (diffDays <= 365) {
-            return { text: 'Legend', icon: Flame, color: 'text-red-500' };
-        }
-        // Only Legendary gets the glow effect
-        return { text: 'Legendary', icon: Crown, color: 'text-amber-400', glow: 'text-shadow-[0_0_12px_rgba(252,211,77,0.9)]' };
-    };
-
-    const ageDetails = getAgeDetails(createdAt);
-    if (!ageDetails) return null;
-
-    const IconComponent = ageDetails.icon;
-    const months = Math.floor(Math.ceil(Math.abs(new Date() - new Date(createdAt)) / (1000 * 60 * 60 * 24)) / 30);
-
-    return (
-        <div className="flex items-center gap-4 p-2">
-            <IconComponent className={`w-6 h-6 ${ageDetails.color} flex-shrink-0`} />
-            <div>
-                <p className={`font-semibold text-gray-800 dark:text-white ${ageDetails.color} ${ageDetails.glow || ''}`}>
-                    {ageDetails.text} Plan
-                </p>
-                <p className="text-xs text-gray-500 dark:text-slate-400">
-                    {months > 0 ? `Hosted for ${months} month${months > 1 ? 's' : ''}` : 'Hosted for less than a month'}
-                </p>
-            </div>
-        </div>
-    );
+    if (diffDays <= 7) return { text: 'Newborn', icon: Baby, color: 'text-cyan-400' };
+    if (diffDays <= 30) return { text: 'Recent', icon: Sparkles, color: 'text-green-400' };
+    if (diffDays <= 90) return { text: 'Established', icon: Zap, color: 'text-yellow-400' };
+    if (diffDays <= 180) return { text: 'Veteran', icon: Star, color: 'text-orange-400' };
+    if (diffDays <= 365) return { text: 'Legend', icon: Flame, color: 'text-red-500' };
+    return { text: 'Legendary', icon: Crown, color: 'text-amber-400', glow: 'shadow-[0_0_15px_rgba(252,211,77,0.7)]' };
 };
 
 
@@ -70,6 +40,9 @@ const JoinPlanPage = ({ session }) => {
     const [priceDetails, setPriceDetails] = useState({
         base: 0, platformFee: 0, convenienceFee: 0, tax: 0, coinDiscount: 0, total: 0
     });
+
+    const [showConnectAccount, setShowConnectAccount] = useState(false);
+    const [newBookingId, setNewBookingId] = useState(null);
 
     useEffect(() => {
         const fetchAllDetails = async () => {
@@ -136,6 +109,7 @@ const JoinPlanPage = ({ session }) => {
 
             if (data && data[0].success) {
                 const newBookingId = data[0].booking_id;
+                setNewBookingId(newBookingId);
                 const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
                 
                 const { error: transactionError } = await supabase.from('transactions').insert({
@@ -151,10 +125,8 @@ const JoinPlanPage = ({ session }) => {
 
                 if (transactionError) throw transactionError;
 
-                const serviceName = listing.service.name.toLowerCase();
-                
-                if (serviceName.includes('spotify') || serviceName.includes('youtube')) {
-                    navigate(`/connect-account/${newBookingId}`);
+                if (listing.service.sharing_method === 'invite_link') {
+                    setShowConnectAccount(true);
                 } else {
                     navigate('/subscription');
                 }
@@ -175,119 +147,151 @@ const JoinPlanPage = ({ session }) => {
     
     const { service, host, average_rating = 0, created_at, seats_total, seats_available, host_id } = listing;
     const hostRating = host?.host_rating ?? 0;
-
     const isHost = session.user.id === host_id;
     const slotsFilled = seats_total - seats_available;
+    const ageDetails = getAgeDetails(created_at);
+    const AgeIcon = ageDetails?.icon;
 
     return (
-        <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
-            <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
-                <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link to={`/marketplace/${service?.name?.toLowerCase() ?? 'explore'}`} className="text-purple-500 dark:text-purple-400 text-sm">
-                        ← Back
-                    </Link>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white">Join Plan</h1>
-                    <div className="w-16"></div>
-                </div>
-            </header>
-            <main className="max-w-md mx-auto px-4 py-6 pb-48">
-                <section className="bg-white dark:bg-white/5 p-6 rounded-3xl border border-gray-200 dark:border-white/10 mb-6">
-                    <div className="text-center mb-4">
-                        <div className="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">
-                            {service?.name?.charAt(0) ?? '?'}
-                        </div>
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">{service?.name ?? 'Service'}</h2>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by {host?.username ?? 'a member'}</p>
+        <>
+            <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
+                <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
+                    <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+                        <Link to={`/marketplace/${service?.name?.toLowerCase() ?? 'explore'}`} className="text-purple-500 dark:text-purple-400 text-sm">
+                            ← Back
+                        </Link>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Join Plan</h1>
+                        <div className="w-16"></div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                        <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
-                            <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1">
-                                <Star className="w-4 h-4" /> {hostRating.toFixed(1)}
-                            </p>
+                </header>
+                <main className="max-w-md mx-auto px-4 py-6 pb-48">
+                    {/* --- IMPROVED: More dynamic and visually appealing main card --- */}
+                    <section className="bg-white dark:bg-slate-800/50 p-6 rounded-3xl border border-gray-200 dark:border-white/10 shadow-lg shadow-gray-200/50 dark:shadow-black/20 mb-6">
+                        <div className="text-center mb-6">
+                            <div className="relative w-24 h-24 mx-auto mb-4">
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-3xl blur-md opacity-50 animate-pulse"></div>
+                                <div className="relative bg-gradient-to-br from-purple-500 to-indigo-500 rounded-3xl flex items-center justify-center text-white font-bold text-5xl shadow-lg w-full h-full">
+                                    {service?.name?.charAt(0) ?? '?'}
+                                </div>
+                            </div>
+                            <h2 className="text-4xl font-bold text-gray-900 dark:text-white">{service?.name ?? 'Service'}</h2>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by <span className="font-semibold text-purple-500 dark:text-purple-300">{host?.username ?? 'a member'}</span></p>
                         </div>
-                        <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Plan Rating</p>
-                            <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
-                                <Star className="w-4 h-4" /> {average_rating.toFixed(1)}
-                            </p>
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
+                                <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1">
+                                    <Star className="w-4 h-4" /> {hostRating.toFixed(1)}
+                                </p>
+                            </div>
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Plan Rating</p>
+                                <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1">
+                                    <Star className="w-4 h-4" /> {average_rating.toFixed(1)}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </section>
-                <section className="bg-white dark:bg-white/5 p-4 rounded-3xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
-                    <div className="flex items-center gap-4 p-2">
-                        <Users className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-                        <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {seats_total} Slots Filled</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining</p>
-                        </div>
-                    </div>
+                    </section>
                     
-                    <PlanAgeInfo createdAt={created_at} />
-
-                    <div className="flex items-center gap-4 p-2">
-                        <ShieldCheck className="w-6 h-6 text-purple-500 dark:text-purple-400 flex-shrink-0" />
-                        <div>
-                            <p className="font-semibold text-gray-800 dark:text-white">DapBuddy Guarantee</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Full refund if you don't get access.</p>
+                    {/* --- IMPROVED: Combined plan details into a single, clean card --- */}
+                    <section className="bg-white dark:bg-slate-800/50 p-4 rounded-3xl border border-gray-200 dark:border-white/10 shadow-lg shadow-gray-200/50 dark:shadow-black/20 mb-6 divide-y divide-gray-100 dark:divide-white/10">
+                        <div className="flex items-center gap-4 p-3">
+                            <div className="w-10 h-10 flex-shrink-0 bg-purple-100 dark:bg-purple-500/20 rounded-full flex items-center justify-center"><Users className="w-6 h-6 text-purple-500 dark:text-purple-400" /></div>
+                            <div>
+                                <p className="font-semibold text-gray-800 dark:text-white">{slotsFilled} of {seats_total} Slots Filled</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">{seats_available} spot(s) remaining</p>
+                            </div>
+                        </div>
+                         {ageDetails && AgeIcon && (
+                            <div className="flex items-center gap-4 p-3">
+                                <div className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center ${ageDetails.glow || ''}`}><AgeIcon className={`w-6 h-6 ${ageDetails.color}`} /></div>
+                                <div>
+                                    <p className={`font-semibold ${ageDetails.color}`}>{ageDetails.text} Plan</p>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">Active for {Math.floor(Math.ceil(Math.abs(new Date() - new Date(created_at)) / (1000 * 60 * 60 * 24)) / 30)} months</p>
+                                </div>
+                            </div>
+                         )}
+                        <div className="flex items-center gap-4 p-3">
+                            <div className="w-10 h-10 flex-shrink-0 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center"><ShieldCheck className="w-6 h-6 text-green-500" /></div>
+                            <div>
+                                <p className="font-semibold text-gray-800 dark:text-white">DapBuddy Guarantee</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Full refund if you don't get access.</p>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    {/* --- IMPROVED: Payment option buttons with better visual feedback --- */}
+                    <section className="mb-6">
+                        <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-3">Payment Option</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button onClick={() => setPaymentOption('autoPay')} className={`relative p-4 rounded-xl text-left border-2 transition-all duration-300 ${paymentOption === 'autoPay' ? 'border-purple-500 bg-purple-500/10 shadow-lg' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10'}`}>
+                                {paymentOption === 'autoPay' && <CheckCircle2 className="absolute top-3 right-3 w-5 h-5 text-purple-500" />}
+                                <p className="font-semibold text-gray-900 dark:text-white">Auto Pay</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Best value, renews automatically.</p>
+                            </button>
+                            <button onClick={() => setPaymentOption('oneTime')} className={`relative p-4 rounded-xl text-left border-2 transition-all duration-300 ${paymentOption === 'oneTime' ? 'border-purple-500 bg-purple-500/10 shadow-lg' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10'}`}>
+                                {paymentOption === 'oneTime' && <CheckCircle2 className="absolute top-3 right-3 w-5 h-5 text-purple-500" />}
+                                <p className="font-semibold text-gray-900 dark:text-white">One-time</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Pay for one month only.</p>
+                            </button>
+                        </div>
+                    </section>
+                    
+                    <section className="mb-6 space-y-3">
+                        <div className="flex items-center bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/10">
+                            <input type="checkbox" id="useCoins" checked={useCoins} onChange={(e) => setUseCoins(e.target.checked)} disabled={walletBalance < 10} className="h-5 w-5 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 disabled:opacity-50" />
+                            <label htmlFor="useCoins" className="ml-3 flex-1 text-sm font-medium text-gray-800 dark:text-slate-200">
+                                Use Promo Coins <span className="text-xs text-gray-500">(Balance: {walletBalance})</span>
+                            </label>
+                            <span className="font-semibold text-green-500">-₹10.00</span>
+                        </div>
+                        <div onClick={() => setIsBreakdownVisible(!isBreakdownVisible)} className="flex justify-between items-center cursor-pointer bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10">
+                            <p className="font-semibold text-gray-800 dark:text-white">Price Breakdown</p>
+                            {isBreakdownVisible ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
+                        </div>
+                        {isBreakdownVisible && (
+                            <div className="bg-gray-100 dark:bg-slate-800/50 p-4 rounded-xl text-sm space-y-2 animate-in fade-in">
+                                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Base Price</span><span>₹{priceDetails.base}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Platform Fee</span><span>+ ₹{priceDetails.platformFee}</span></div>
+                                {paymentOption === 'oneTime' && <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Convenience Fee (10%)</span><span>+ ₹{priceDetails.convenienceFee}</span></div>}
+                                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">GST ({paymentOption === 'oneTime' ? '18%' : '12%'})</span><span>+ ₹{priceDetails.tax}</span></div>
+                                {useCoins && <div className="flex justify-between text-green-600 dark:text-green-400"><span className="">Coin Discount</span><span>- ₹{priceDetails.coinDiscount}</span></div>}
+                                <div className="flex justify-between font-bold border-t border-gray-300 dark:border-white/20 pt-2 mt-2"><span>Total Payable</span><span>₹{priceDetails.total}</span></div>
+                            </div>
+                        )}
+                    </section>
+                </main>
+                
+                {/* --- IMPROVED: More prominent and visually engaging footer --- */}
+                <footer className="fixed bottom-24 left-0 right-0 z-10">
+                    <div className="max-w-md mx-auto p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10 rounded-t-3xl shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">You Pay</p>
+                                <p className="text-3xl font-bold text-gray-900 dark:text-white flex items-center">
+                                    <IndianRupee className="w-6 h-6" />{priceDetails.total}
+                                </p>
+                            </div>
+                            <button
+                                onClick={handleJoinPlan}
+                                disabled={seats_available <= 0 || loading || isHost || isAlreadyJoined}
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-purple-500/30 hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none"
+                            >
+                                {loading ? 'Processing...' : isHost ? "This is Your Plan" : isAlreadyJoined ? "Already Joined" : (seats_available > 0 ? 'Proceed to Pay' : 'Plan Full')}
+                            </button>
                         </div>
                     </div>
-                </section>
-                <section className="mb-6">
-                    <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-3">Payment Option</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => setPaymentOption('autoPay')} className={`p-4 rounded-xl text-left border-2 transition-all ${paymentOption === 'autoPay' ? 'border-purple-500 bg-purple-500/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10'}`}>
-                            <p className="font-semibold text-gray-900 dark:text-white">Auto Pay</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Best value, renews automatically.</p>
-                        </button>
-                        <button onClick={() => setPaymentOption('oneTime')} className={`p-4 rounded-xl text-left border-2 transition-all ${paymentOption === 'oneTime' ? 'border-purple-500 bg-purple-500/10' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10'}`}>
-                            <p className="font-semibold text-gray-900 dark:text-white">One-time</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Pay for one month only.</p>
-                        </button>
-                    </div>
-                </section>
-                <section className="mb-6 space-y-3">
-                    <div className="flex items-center bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/10">
-                        <input type="checkbox" id="useCoins" checked={useCoins} onChange={(e) => setUseCoins(e.target.checked)} disabled={walletBalance < 10} className="h-5 w-5 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500 disabled:opacity-50" />
-                        <label htmlFor="useCoins" className="ml-3 flex-1 text-sm font-medium text-gray-800 dark:text-slate-200">
-                            Use Promo Coins <span className="text-xs text-gray-500">(Balance: {walletBalance})</span>
-                        </label>
-                        <span className="font-semibold text-green-500">-₹10.00</span>
-                    </div>
-                    <div onClick={() => setIsBreakdownVisible(!isBreakdownVisible)} className="flex justify-between items-center cursor-pointer bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10">
-                        <p className="font-semibold text-gray-800 dark:text-white">Price Breakdown</p>
-                        {isBreakdownVisible ? <ChevronUp className="text-gray-500"/> : <ChevronDown className="text-gray-500"/>}
-                    </div>
-                    {isBreakdownVisible && (
-                        <div className="bg-gray-100 dark:bg-slate-800/50 p-4 rounded-xl text-sm space-y-2 animate-in fade-in">
-                            <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Base Price</span><span>₹{priceDetails.base}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Platform Fee</span><span>+ ₹{priceDetails.platformFee}</span></div>
-                            {paymentOption === 'oneTime' && <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Convenience Fee (10%)</span><span>+ ₹{priceDetails.convenienceFee}</span></div>}
-                            <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">GST ({paymentOption === 'oneTime' ? '18%' : '12%'})</span><span>+ ₹{priceDetails.tax}</span></div>
-                            {useCoins && <div className="flex justify-between text-green-600 dark:text-green-400"><span className="">Coin Discount</span><span>- ₹{priceDetails.coinDiscount}</span></div>}
-                            <div className="flex justify-between font-bold border-t border-gray-300 dark:border-white/20 pt-2 mt-2"><span>Total Payable</span><span>₹{priceDetails.total}</span></div>
-                        </div>
-                    )}
-                </section>
-            </main>
-            <footer className="fixed bottom-24 left-0 right-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-200 dark:border-white/10">
-                <div className="max-w-md mx-auto p-4 flex justify-between items-center">
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">You Pay</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-                            <IndianRupee className="w-5 h-5" />{priceDetails.total}
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleJoinPlan}
-                        disabled={seats_available <= 0 || loading || isHost || isAlreadyJoined}
-                        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-8 rounded-full hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
-                    >
-                        {loading ? 'Processing...' : isHost ? "This is Your Plan" : isAlreadyJoined ? "Already Joined" : (seats_available > 0 ? 'Proceed to Pay' : 'Plan Full')}
-                    </button>
-                </div>
-            </footer>
-        </div>
+                </footer>
+            </div>
+            
+            <Modal isOpen={showConnectAccount} onClose={() => setShowConnectAccount(false)}>
+                <ConnectAccount
+                    session={session}
+                    bookingId={newBookingId}
+                    onComplete={() => setShowConnectAccount(false)}
+                />
+            </Modal>
+        </>
     );
 };
 

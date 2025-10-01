@@ -1,9 +1,7 @@
-// src/pages/ConnectAccountPage.jsx
-
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
-import Loader from '../components/common/Loader';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
+import Loader from './Loader';
 import { UserCheck, AlertTriangle, PartyPopper } from 'lucide-react';
 
 const getServiceInputConfig = (serviceName) => {
@@ -43,12 +41,8 @@ const getServiceInputConfig = (serviceName) => {
     };
 };
 
-const ConnectAccountPage = ({ session }) => {
-    const { bookingId } = useParams();
+const ConnectAccount = ({ session, bookingId, onComplete }) => {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const isEditMode = searchParams.get('edit') === 'true';
-
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -79,46 +73,22 @@ const ConnectAccountPage = ({ session }) => {
                 setBooking(data);
                 const config = getServiceInputConfig(data.listing.service.name);
                 setInputConfig(config);
+                setLoading(false);
             }
         };
 
-        const fetchExistingDetails = async () => {
-            if (isEditMode) {
-                const { data, error } = await supabase
-                    .from('connected_accounts')
-                    .select('*')
-                    .eq('booking_id', bookingId)
-                    .single();
-
-                if (data) {
-                    setInputValue(data.profile_link || data.joined_email || '');
-                    setOptionalName(data.service_profile_name || '');
-                     // Manually trigger validation on load for edit mode
-                    const config = getServiceInputConfig(booking?.listing.service.name || '');
-                    if (config?.validationRegex) {
-                        const match = (data.profile_link || data.joined_email || '').match(config.validationRegex);
-                        setExtractedValue(match ? config.extractValue(match) : null);
-                    }
-                }
-            }
-        };
-
-        const runFetches = async () => {
-            await fetchBookingInfo();
-            await fetchExistingDetails();
-            setLoading(false);
-        }
-
-        runFetches();
-
-    }, [bookingId, isEditMode, booking?.listing.service.name]);
+        fetchBookingInfo();
+    }, [bookingId]);
 
     useEffect(() => {
         if (step === 'final') {
-            const timer = setTimeout(() => navigate('/subscription'), 4000);
+            const timer = setTimeout(() => {
+                onComplete(); // Use the callback to close the modal
+                navigate('/subscription');
+            }, 4000);
             return () => clearTimeout(timer);
         }
-    }, [step, navigate]);
+    }, [step, navigate, onComplete]);
 
     const handleInputChange = (value) => {
         setInputValue(value);
@@ -174,16 +144,6 @@ const ConnectAccountPage = ({ session }) => {
 
             if (error) throw error;
 
-            if (isEditMode) {
-                await supabase
-                    .from('invite_link')
-                    .update({
-                        host_confirmation_status: { status: 'shared', shared_at: new Date().toISOString() },
-                        user_confirmation_status: { status: 'pending' }
-                    })
-                    .eq('booking_id', bookingId);
-            }
-
             setStep('final');
 
         } catch (error) {
@@ -200,29 +160,18 @@ const ConnectAccountPage = ({ session }) => {
 
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
-             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
+            <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-md mx-auto px-4 py-4 flex justify-center items-center">
                     <h1 className="text-xl font-bold text-gray-900 dark:text-white">Connect Your Account</h1>
                 </div>
             </header>
             <main className="max-w-md mx-auto px-4 py-6">
-                 {step === 'form' && (
+                {step === 'form' && (
                     <div className="p-6 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
-                        {isEditMode ? (
-                            <>
-                                <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Update Your Details</h2>
-                                <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
-                                Please correct your {serviceName} details and resubmit. The host will be notified to re-verify.
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Final Step!</h2>
-                                <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
-                                To get access, please provide your {serviceName} details.
-                                </p>
-                            </>
-                        )}
+                        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Final Step!</h2>
+                        <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
+                            To get access, please provide your {serviceName} details.
+                        </p>
                         <form onSubmit={handleProceedToConfirmation} className="space-y-4 text-left">
                             <div>
                                 <label htmlFor="verificationInput" className="text-sm font-medium text-gray-500 dark:text-slate-400">
@@ -242,29 +191,29 @@ const ConnectAccountPage = ({ session }) => {
 
                             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                             <button type="submit" disabled={!extractedValue || isSubmitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:scale-105 transition-transform disabled:opacity-50">
-                                {isSubmitting ? 'Processing...' : (isEditMode ? 'Update & Resubmit' : 'Verify & Proceed')}
+                                {isSubmitting ? 'Processing...' : 'Verify & Proceed'}
                             </button>
                         </form>
                     </div>
                 )}
                 {step === 'confirmation' && (
-                     <div className="text-center p-6 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
+                    <div className="text-center p-6 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Is this correct?</h2>
                         <div className="my-6 p-4 bg-gray-100 dark:bg-slate-800 rounded-lg space-y-2">
-                           <div>
-                             <p className="text-xs text-gray-500 dark:text-slate-400">{inputConfig.label}</p>
-                             <p className="text-lg font-mono text-purple-500 dark:text-purple-400 break-all">{extractedValue}</p>
-                           </div>
-                           {optionalName && (
-                             <div>
-                               <p className="text-xs text-gray-500 dark:text-slate-400">{inputConfig.optionalLabel}</p>
-                               <p className="text-lg font-mono text-purple-500 dark:text-purple-400 break-all">{optionalName}</p>
-                             </div>
-                           )}
+                            <div>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">{inputConfig.label}</p>
+                                <p className="text-lg font-mono text-purple-500 dark:text-purple-400 break-all">{extractedValue}</p>
+                            </div>
+                            {optionalName && (
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">{inputConfig.optionalLabel}</p>
+                                    <p className="text-lg font-mono text-purple-500 dark:text-purple-400 break-all">{optionalName}</p>
+                                </div>
+                            )}
                         </div>
-                         <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 p-3 rounded-lg flex items-start gap-2">
-                           <AlertTriangle className="w-6 h-6 flex-shrink-0" />
-                           <span>This information will be sent to the host to grant you access. Ensure it is 100% accurate.</span>
+                        <p className="text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 p-3 rounded-lg flex items-start gap-2">
+                            <AlertTriangle className="w-6 h-6 flex-shrink-0" />
+                            <span>This information will be sent to the host to grant you access. Ensure it is 100% accurate.</span>
                         </p>
                         <div className="flex gap-4 mt-6">
                             <button onClick={() => setStep('form')} className="flex-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white font-semibold py-3 rounded-lg transition-colors">
@@ -276,14 +225,14 @@ const ConnectAccountPage = ({ session }) => {
                         </div>
                     </div>
                 )}
-                 {step === 'final' && (
+                {step === 'final' && (
                     <div className="text-center p-8 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
                         <PartyPopper className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isEditMode ? 'Details Updated!' : 'Account Linked!'}</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Linked!</h2>
                         <p className="text-gray-600 dark:text-slate-300 mt-2">
-                           The host has been notified. You will receive access shortly.
+                            The host has been notified. You will receive access shortly.
                         </p>
-                         <p className="text-sm text-gray-400 mt-6 animate-pulse">Redirecting you to your subscriptions...</p>
+                        <p className="text-sm text-gray-400 mt-6 animate-pulse">Redirecting you to your subscriptions...</p>
                     </div>
                 )}
             </main>
@@ -291,4 +240,4 @@ const ConnectAccountPage = ({ session }) => {
     );
 };
 
-export default ConnectAccountPage;
+export default ConnectAccount;

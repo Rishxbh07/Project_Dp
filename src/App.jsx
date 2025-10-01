@@ -18,7 +18,6 @@ import ServiceRequestPage from './pages/ServiceRequestPage';
 import InvitePage from './pages/InvitePage';
 import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
-import ConnectAccountPage from './pages/ConnectAccountPage';
 import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 
@@ -85,7 +84,6 @@ function App() {
             <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
             <Route path="/invite" element={<InvitePage session={session} />} />
             <Route path="/achievements" element={<AchievementsPage session={session} />} />
-            <Route path="/connect-account/:bookingId" element={<ConnectAccountPage session={session} />} />
             <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
           </Route>
         </Route>
