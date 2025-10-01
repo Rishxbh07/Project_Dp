@@ -145,6 +145,7 @@ CREATE TABLE public.invite_link (
   host_identity_confirmed_at timestamp with time zone,
   host_mismatch_reported_at timestamp with time zone,
   host_action text,
+  host_link_send_status text DEFAULT 'not_sent'::text,
   CONSTRAINT invite_link_pkey PRIMARY KEY (id),
   CONSTRAINT invite_link_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT invite_link_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),

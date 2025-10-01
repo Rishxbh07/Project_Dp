@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
-
-// Import Layout and Pages
 import MainLayout from './components/layout/MainLayout';
 import HomePage from './pages/HomePage';
 import SubscriptionPage from './pages/SubscriptionPage';
@@ -22,6 +20,7 @@ import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import ConnectAccountPage from './pages/ConnectAccountPage';
 import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
+import MemberDetailPage from './pages/MemberDetailPage';
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -87,6 +86,7 @@ function App() {
             <Route path="/invite" element={<InvitePage session={session} />} />
             <Route path="/achievements" element={<AchievementsPage session={session} />} />
             <Route path="/connect-account/:bookingId" element={<ConnectAccountPage session={session} />} />
+            <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
           </Route>
         </Route>
       </Routes>
