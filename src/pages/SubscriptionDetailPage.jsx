@@ -3,11 +3,39 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight } from 'lucide-react';
+import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight, Edit, UserCheck } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
 import JoiningDetails from '../components/common/JoiningDetails';
-import AccessIssueResolver from '../components/common/AccessIssueResolver';
+import UpdateDetailsModal from '../components/common/UpdateDetailsModal';
+
+// Mismatch Resolution Component
+const MismatchResolver = ({ bookingId, serviceName, onAcknowledge, onUpdateClick }) => {
+    return (
+        <section className="bg-yellow-500/10 p-6 rounded-2xl border-2 border-dashed border-yellow-500/50 mb-6 text-center animate-in fade-in">
+            <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <h3 className="font-bold text-lg text-yellow-600 dark:text-yellow-300 mb-2">Account Mismatch Reported</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-6">
+                The host reported that you joined the {serviceName} plan with an unverified account. Please update your connected account to match the premium account you used, or confirm you will join with the correct one.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                    onClick={onUpdateClick}
+                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <Edit className="w-4 h-4" /> Update Connected Account
+                </button>
+                <button
+                    onClick={onAcknowledge}
+                    className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                    <UserCheck className="w-4 h-4" /> I will join with the correct account
+                </button>
+            </div>
+        </section>
+    );
+};
+
 
 const StarRating = ({ rating, onRatingChange, disabled = false }) => {
     return (
@@ -36,43 +64,46 @@ const SubscriptionDetailPage = ({ session }) => {
     const [isRatingEditable, setIsRatingEditable] = useState(false);
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
     const [inviteData, setInviteData] = useState(null);
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+    const fetchDetails = async () => {
+        if (!id || !session?.user?.id) return;
+        setLoading(true);
+
+        const { data: bookingData, error: bookingError } = await supabase.rpc('get_subscription_details', {
+            p_booking_id: id,
+            p_buyer_id: session.user.id
+        });
+
+        if (bookingError) {
+            setError('Could not load subscription details.');
+            setLoading(false);
+            return;
+        }
+
+        if (bookingData && bookingData.length > 0) {
+            setBookingDetails(bookingData[0]);
+            const initialRating = bookingData[0].plan_rating || 0;
+            setOriginalRating(initialRating);
+            setCurrentRating(initialRating);
+            setIsRatingEditable(initialRating === 0);
+        }
+
+        const { data: inviteData, error: inviteError } = await supabase
+            .from('invite_link')
+            .select('*')
+            .eq('booking_id', id)
+            .single();
+
+        if (inviteData) {
+            setInviteData(inviteData);
+        }
+
+        setLoading(false);
+    };
+
 
     useEffect(() => {
-        const fetchDetails = async () => {
-            if (!id || !session?.user?.id) return;
-            setLoading(true);
-
-            const { data: bookingData, error: bookingError } = await supabase.rpc('get_subscription_details', {
-                p_booking_id: id,
-                p_buyer_id: session.user.id
-            });
-
-            if (bookingError) {
-                setError('Could not load subscription details.');
-                setLoading(false);
-                return;
-            }
-
-            if (bookingData && bookingData.length > 0) {
-                setBookingDetails(bookingData[0]);
-                const initialRating = bookingData[0].plan_rating || 0;
-                setOriginalRating(initialRating);
-                setCurrentRating(initialRating);
-                setIsRatingEditable(initialRating === 0);
-            }
-
-            const { data: inviteData, error: inviteError } = await supabase
-                .from('invite_link')
-                .select('*')
-                .eq('booking_id', id)
-                .single();
-
-            if (inviteData) {
-                setInviteData(inviteData);
-            }
-
-            setLoading(false);
-        };
         fetchDetails();
     }, [id, session]);
 
@@ -100,6 +131,24 @@ const SubscriptionDetailPage = ({ session }) => {
             navigate('/subscription');
         }
     };
+
+    const handleAcknowledge = async () => {
+        if (!inviteData) {
+            alert("Could not find invite details to update.");
+            return;
+        }
+        const { error } = await supabase
+            .from('invite_link')
+            .update({ status: 'pending_host_confirmation_retry' })
+            .eq('id', inviteData.id); // <-- CORRECTED: Use the primary key 'id'
+
+        if (error) {
+            alert("Could not send acknowledgement. Please try again.");
+        } else {
+            fetchDetails();
+        }
+    };
+
 
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
@@ -182,8 +231,13 @@ const SubscriptionDetailPage = ({ session }) => {
                         </div>
                     </section>
 
-                    {inviteData?.host_confirmation_status?.status === 'mismatch_reported' ? (
-                        <AccessIssueResolver bookingId={id} />
+                    {inviteData?.status === 'mismatch_reported_once' ? (
+                        <MismatchResolver
+                            bookingId={id}
+                            serviceName={bookingDetails.service_name}
+                            onAcknowledge={handleAcknowledge}
+                            onUpdateClick={() => setShowUpdateModal(true)}
+                        />
                     ) : (
                         bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />
                     )}
@@ -220,6 +274,18 @@ const SubscriptionDetailPage = ({ session }) => {
                     </section>
                 </main>
             </div>
+            
+            <UpdateDetailsModal 
+                isOpen={showUpdateModal}
+                onClose={() => setShowUpdateModal(false)}
+                bookingId={id}
+                session={session}
+                onUpdateSuccess={() => {
+                    setShowUpdateModal(false);
+                    fetchDetails();
+                }}
+            />
+
             <Modal isOpen={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
                 <div className="text-center">
                     <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />

@@ -161,7 +161,7 @@ const MarketplacePage = ({ session }) => {
                 const { data: serviceData, error: serviceError } = await supabase
                     .from('services')
                     .select('id')
-                    .ilike('name', serviceName)
+                    .ilike('name', `%${serviceName}%`)
                     .single();
 
                 if (serviceError || !serviceData) {

@@ -10,12 +10,14 @@ const SimpleMemberCard = ({ booking }) => {
     const userProfile = booking.profiles;
     const inviteData = (booking.invite_link && booking.invite_link.length > 0) ? booking.invite_link[0] : null;
     const status = inviteData?.status || 'pending_host_invite';
+    const paymentStatus = booking.payment_status; // <-- Get payment status
 
     const getStatusBadge = () => {
         switch (status) {
             case 'pending_host_invite':
                 return <span className="flex items-center gap-1 text-xs font-semibold text-gray-500"><Clock className="w-3 h-3"/> Send Invite</span>;
             case 'pending_host_confirmation':
+                // This is the "Action Required" state
                 return <span className="flex items-center gap-1 text-xs font-semibold text-blue-500"><AlertTriangle className="w-3 h-3"/> Action Required</span>;
             case 'active':
                 return <span className="flex items-center gap-1 text-xs font-semibold text-green-500"><CheckCircle className="w-3 h-3"/> Active</span>;
@@ -41,7 +43,19 @@ const SimpleMemberCard = ({ booking }) => {
                 )}
                 <div className="flex-1">
                     <p className="font-bold text-gray-900 dark:text-white">{userProfile.username}</p>
-                    {getStatusBadge()}
+                    {/* --- MODIFIED: Container for badges --- */}
+                    <div className="flex items-center gap-2 mt-1">
+                        {getStatusBadge()}
+                        {paymentStatus && (
+                            <span className={`capitalize text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                paymentStatus.toLowerCase().includes('paid')
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
+                                    : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
+                            }`}>
+                                {paymentStatus}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <Link to={`/hosted-plan/member/${booking.id}`} className="bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 p-2 rounded-full text-gray-600 dark:text-slate-300 transition-colors">
                     <ChevronRight className="w-5 h-5" />
@@ -50,6 +64,7 @@ const SimpleMemberCard = ({ booking }) => {
         </div>
     );
 };
+
 
 const HostedPlanDetailPage = ({ session }) => {
     const { id } = useParams();
@@ -72,7 +87,7 @@ const HostedPlanDetailPage = ({ session }) => {
         if (!id) return;
         setLoading(true);
         
-        // Simplified query - we only need booking and invite_link status for the badges
+        // --- MODIFIED: Added payment_status to select and ordered bookings by joined_at ---
         const { data, error } = await supabase
             .from('listings')
             .select(`
@@ -82,10 +97,12 @@ const HostedPlanDetailPage = ({ session }) => {
                 bookings (
                     *,
                     profiles(*),
-                    invite_link(status)
+                    invite_link(status),
+                    payment_status
                 )
             `)
             .eq('id', id)
+            .order('joined_at', { foreignTable: 'bookings', ascending: true })
             .single();
 
         if (error) {
@@ -158,9 +175,9 @@ const HostedPlanDetailPage = ({ session }) => {
                         {members.length > 0 ? (
                             <div className="space-y-4">
                                 {members.map((booking) => (
-                                    <SimpleMemberCard 
-                                        key={booking.id} 
-                                        booking={booking} 
+                                    <SimpleMemberCard
+                                        key={booking.id}
+                                        booking={booking}
                                     />
                                 ))}
                             </div>
