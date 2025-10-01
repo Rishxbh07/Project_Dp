@@ -40,6 +40,8 @@ CREATE TABLE public.bookings (
   joined_at timestamp with time zone NOT NULL DEFAULT now(),
   ended_at timestamp with time zone,
   payment_status text NOT NULL DEFAULT 'not paid '::text,
+  invite_link_shared text,
+  adress_shared text,
   CONSTRAINT bookings_pkey PRIMARY KEY (id),
   CONSTRAINT bookings_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
   CONSTRAINT bookings_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
@@ -53,7 +55,6 @@ CREATE TABLE public.connected_accounts (
   service_uid text,
   service_profile_name text,
   profile_link text,
-  credentials_encrypted text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
   service_pfp_link text,
@@ -128,6 +129,29 @@ CREATE TABLE public.disputes (
   CONSTRAINT disputes_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT disputes_resolved_by_admin_id_fkey FOREIGN KEY (resolved_by_admin_id) REFERENCES public.admins(user_id)
 );
+CREATE TABLE public.invite_link (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  booking_id uuid NOT NULL UNIQUE,
+  listing_id uuid NOT NULL,
+  service_id text NOT NULL,
+  host_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  invite_link text,
+  address text,
+  status USER-DEFINED NOT NULL DEFAULT 'pending_host_invite'::invite_status,
+  details_sent_at timestamp with time zone,
+  details_revealed_at timestamp with time zone,
+  user_join_confirmed_at timestamp with time zone,
+  host_identity_confirmed_at timestamp with time zone,
+  host_mismatch_reported_at timestamp with time zone,
+  host_action text,
+  CONSTRAINT invite_link_pkey PRIMARY KEY (id),
+  CONSTRAINT invite_link_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT invite_link_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
+  CONSTRAINT invite_link_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT invite_link_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
+  CONSTRAINT invite_link_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.listings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   host_id uuid NOT NULL,
@@ -149,8 +173,11 @@ CREATE TABLE public.listings (
 CREATE TABLE public.notifications (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   user_id uuid NOT NULL,
+  type text NOT NULL,
+  title text NOT NULL,
   message text NOT NULL,
   is_read boolean NOT NULL DEFAULT false,
+  metadata jsonb,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
@@ -302,7 +329,7 @@ CREATE TABLE public.transactions (
   payout_status text NOT NULL DEFAULT 'held_by_gateway'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   payout_processed_at timestamp with time zone,
-  billing_options jsonb,
+  billing_options text,
   expires_on timestamp with time zone NOT NULL DEFAULT (now() + '30 days'::interval),
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
   CONSTRAINT transactions_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
