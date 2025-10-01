@@ -1,13 +1,14 @@
+// src/pages/ConnectAccountPage.jsx
+
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { UserCheck, AlertTriangle, PartyPopper } from 'lucide-react';
 
-// --- MODIFIED: Added 'optionalLabel' for the new input field ---
 const getServiceInputConfig = (serviceName) => {
     const name = serviceName.toLowerCase();
-    
+
     if (name.includes('spotify')) {
         return {
             label: 'Spotify Profile URL',
@@ -16,10 +17,10 @@ const getServiceInputConfig = (serviceName) => {
             validationRegex: /^(https?:\/\/)?(open\.)?spotify\.com\/user\/([a-zA-Z0-9]+)/,
             extractValue: (match) => match[3],
             errorMessage: 'Please enter a valid Spotify user profile URL.',
-            optionalLabel: 'Spotify Username (optional)' // New optional field
+            optionalLabel: 'Spotify Username (optional)'
         };
     }
-    
+
     if (name.includes('youtube')) {
         return {
             label: 'Google Account Email for YouTube',
@@ -28,7 +29,7 @@ const getServiceInputConfig = (serviceName) => {
             validationRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
             extractValue: (match) => match[0],
             errorMessage: 'Please enter a valid email address.',
-            optionalLabel: 'YouTube Channel Name (optional)' // New optional field
+            optionalLabel: 'YouTube Channel Name (optional)'
         };
     }
 
@@ -36,7 +37,7 @@ const getServiceInputConfig = (serviceName) => {
         label: 'Service Identifier',
         placeholder: 'Enter the required link, email, or ID',
         type: 'text',
-        validationRegex: /.+/, 
+        validationRegex: /.+/,
         extractValue: (match) => match[0],
         errorMessage: 'This field cannot be empty.'
     };
@@ -45,12 +46,15 @@ const getServiceInputConfig = (serviceName) => {
 const ConnectAccountPage = ({ session }) => {
     const { bookingId } = useParams();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const isEditMode = searchParams.get('edit') === 'true';
+
     const [booking, setBooking] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [step, setStep] = useState('form');
     const [inputValue, setInputValue] = useState('');
-    const [optionalName, setOptionalName] = useState(''); // --- NEW: State for the optional input ---
+    const [optionalName, setOptionalName] = useState('');
     const [extractedValue, setExtractedValue] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputConfig, setInputConfig] = useState(null);
@@ -70,16 +74,45 @@ const ConnectAccountPage = ({ session }) => {
 
             if (error) {
                 setError("Could not fetch booking details.");
+                setLoading(false);
             } else {
                 setBooking(data);
                 const config = getServiceInputConfig(data.listing.service.name);
                 setInputConfig(config);
             }
-            setLoading(false);
         };
-        fetchBookingInfo();
-    }, [bookingId]);
-    
+
+        const fetchExistingDetails = async () => {
+            if (isEditMode) {
+                const { data, error } = await supabase
+                    .from('connected_accounts')
+                    .select('*')
+                    .eq('booking_id', bookingId)
+                    .single();
+
+                if (data) {
+                    setInputValue(data.profile_link || data.joined_email || '');
+                    setOptionalName(data.service_profile_name || '');
+                     // Manually trigger validation on load for edit mode
+                    const config = getServiceInputConfig(booking?.listing.service.name || '');
+                    if (config?.validationRegex) {
+                        const match = (data.profile_link || data.joined_email || '').match(config.validationRegex);
+                        setExtractedValue(match ? config.extractValue(match) : null);
+                    }
+                }
+            }
+        };
+
+        const runFetches = async () => {
+            await fetchBookingInfo();
+            await fetchExistingDetails();
+            setLoading(false);
+        }
+
+        runFetches();
+
+    }, [bookingId, isEditMode, booking?.listing.service.name]);
+
     useEffect(() => {
         if (step === 'final') {
             const timer = setTimeout(() => navigate('/subscription'), 4000);
@@ -95,7 +128,7 @@ const ConnectAccountPage = ({ session }) => {
             setExtractedValue(match ? inputConfig.extractValue(match) : null);
         }
     };
-    
+
     const handleProceedToConfirmation = (e) => {
         e.preventDefault();
         if (!extractedValue) {
@@ -118,19 +151,18 @@ const ConnectAccountPage = ({ session }) => {
             buyer_id: session.user.id,
             host_id: booking.listing.host_id,
             service_id: booking.listing.service.id,
-            account_confirmation: 'confirmed' 
+            account_confirmation: 'confirmed'
         };
 
         const serviceName = booking.listing.service.name.toLowerCase();
 
-        // --- MODIFIED: Logic to handle the new optional field ---
         if (serviceName.includes('spotify')) {
             dataToInsert.service_uid = extractedValue;
             dataToInsert.profile_link = inputValue;
-            if (optionalName) dataToInsert.service_profile_name = optionalName; // Save optional username
+            if (optionalName) dataToInsert.service_profile_name = optionalName;
         } else if (serviceName.includes('youtube')) {
             dataToInsert.joined_email = extractedValue;
-            if (optionalName) dataToInsert.service_profile_name = optionalName; // Save optional channel name
+            if (optionalName) dataToInsert.service_profile_name = optionalName;
         } else {
             dataToInsert.profile_link = inputValue;
         }
@@ -138,9 +170,20 @@ const ConnectAccountPage = ({ session }) => {
         try {
             const { error } = await supabase
                 .from('connected_accounts')
-                .insert(dataToInsert);
+                .upsert(dataToInsert, { onConflict: 'booking_id' });
 
             if (error) throw error;
+
+            if (isEditMode) {
+                await supabase
+                    .from('invite_link')
+                    .update({
+                        host_confirmation_status: { status: 'shared', shared_at: new Date().toISOString() },
+                        user_confirmation_status: { status: 'pending' }
+                    })
+                    .eq('booking_id', bookingId);
+            }
+
             setStep('final');
 
         } catch (error) {
@@ -150,9 +193,9 @@ const ConnectAccountPage = ({ session }) => {
             setStep('form');
         }
     };
-    
+
     if (loading || !inputConfig) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
-    
+
     const serviceName = booking?.listing?.service?.name || 'the service';
 
     return (
@@ -165,12 +208,22 @@ const ConnectAccountPage = ({ session }) => {
             <main className="max-w-md mx-auto px-4 py-6">
                  {step === 'form' && (
                     <div className="p-6 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
-                        <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Final Step!</h2>
-                        <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
-                           To get access, please provide your {serviceName} details.
-                        </p>
+                        {isEditMode ? (
+                            <>
+                                <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Update Your Details</h2>
+                                <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
+                                Please correct your {serviceName} details and resubmit. The host will be notified to re-verify.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white">Final Step!</h2>
+                                <p className="text-center text-gray-600 dark:text-slate-300 mt-2 mb-6">
+                                To get access, please provide your {serviceName} details.
+                                </p>
+                            </>
+                        )}
                         <form onSubmit={handleProceedToConfirmation} className="space-y-4 text-left">
-                            {/* Required Input */}
                             <div>
                                 <label htmlFor="verificationInput" className="text-sm font-medium text-gray-500 dark:text-slate-400">
                                     {inputConfig.label}
@@ -178,7 +231,6 @@ const ConnectAccountPage = ({ session }) => {
                                 <input id="verificationInput" type={inputConfig.type} value={inputValue} onChange={(e) => handleInputChange(e.target.value)} placeholder={inputConfig.placeholder} className="w-full p-3 mt-1 bg-gray-100 dark:bg-slate-800/50 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" required />
                             </div>
 
-                            {/* --- NEW: Optional Input Field --- */}
                             {inputConfig.optionalLabel && (
                                 <div>
                                     <label htmlFor="optionalInput" className="text-sm font-medium text-gray-500 dark:text-slate-400">
@@ -190,7 +242,7 @@ const ConnectAccountPage = ({ session }) => {
 
                             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                             <button type="submit" disabled={!extractedValue || isSubmitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:scale-105 transition-transform disabled:opacity-50">
-                                {isSubmitting ? 'Processing...' : 'Verify & Proceed'}
+                                {isSubmitting ? 'Processing...' : (isEditMode ? 'Update & Resubmit' : 'Verify & Proceed')}
                             </button>
                         </form>
                     </div>
@@ -227,7 +279,7 @@ const ConnectAccountPage = ({ session }) => {
                  {step === 'final' && (
                     <div className="text-center p-8 bg-white dark:bg-white/5 rounded-2xl animate-in fade-in">
                         <PartyPopper className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Linked!</h2>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{isEditMode ? 'Details Updated!' : 'Account Linked!'}</h2>
                         <p className="text-gray-600 dark:text-slate-300 mt-2">
                            The host has been notified. You will receive access shortly.
                         </p>

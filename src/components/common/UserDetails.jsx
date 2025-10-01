@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { UserCheck, MessageSquare, Copy, Check } from 'lucide-react';
+import { UserCheck, MessageSquare, Copy, Check, AlertTriangle } from 'lucide-react';
 import Loader from './Loader';
 import SendPlanLink from './SendPlanLink';
 
@@ -24,13 +24,13 @@ const UserDetails = ({ booking, listing, service }) => {
         fetchData();
 
         const channel = supabase.channel(`invite-link-${booking.id}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'invite_link', filter: `booking_id=eq.${booking.id}`}, 
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'invite_link', filter: `booking_id=eq.${booking.id}`},
             (payload) => setInviteData(payload.new))
             .subscribe();
 
         return () => { supabase.removeChannel(channel); };
     }, [booking.id]);
-    
+
     const handleCopy = (text, fieldName) => {
         navigator.clipboard.writeText(text);
         setCopiedField(fieldName);
@@ -45,13 +45,36 @@ const UserDetails = ({ booking, listing, service }) => {
         else setInviteData(data);
         setIsConfirming(false);
     };
-    
+
+    const handleReportMismatch = async () => {
+        if (!confirm("Are you sure? This will notify the user that their details are incorrect and ask them to update it.")) return;
+
+        setIsConfirming(true);
+        const newStatus = { ...inviteData.host_confirmation_status, status: 'mismatch_reported', reported_at: new Date().toISOString() };
+
+        const { data, error } = await supabase
+            .from('invite_link')
+            .update({ host_confirmation_status: newStatus })
+            .eq('id', inviteData.id)
+            .select()
+            .single();
+
+        if (error) {
+            alert('Failed to report issue.');
+        } else {
+            setInviteData(data);
+        }
+        setIsConfirming(false);
+    };
+
     if (inviteData?.user_confirmation_status?.status === 'issue_raised') {
         return <SendPlanLink booking={booking} listing={listing} service={service} inviteData={inviteData} onSuccess={setInviteData} />;
     }
 
     const isUserRevealed = inviteData?.user_confirmation_status?.status === 'revealed' || inviteData?.user_confirmation_status?.status === 'confirmed';
     const isHostConfirmed = inviteData?.host_confirmation_status?.status === 'confirmed';
+    const isMismatchReported = inviteData?.host_confirmation_status?.status === 'mismatch_reported';
+
 
     if (loading) return <Loader />;
 
@@ -62,20 +85,19 @@ const UserDetails = ({ booking, listing, service }) => {
             </button>
         );
     }
-    
+
     if (inviteData) {
         return (
             <div className="space-y-3">
                 <h4 className="font-semibold text-gray-800 dark:text-white">Member Status</h4>
                 <div className="space-y-2 text-xs p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg">
                     <p className="text-xs text-green-500">Details sent on {new Date(inviteData.host_confirmation_status.shared_at).toLocaleDateString()}</p>
-                    
+
                     {connectedAccount ? (
                         <div className="pt-2 mt-2 border-t border-gray-200 dark:border-slate-700 space-y-2">
-                            {/* --- CORRECTED LAYOUT --- */}
                             {connectedAccount.service_profile_name && (
                                 <div className="grid grid-cols-3 gap-x-2">
-                                    <span className="text-gray-500 col-span-1 text-left">Profile Name:</span> 
+                                    <span className="text-gray-500 col-span-1 text-left">Profile Name:</span>
                                     <span className="font-semibold col-span-2 text-right truncate">{connectedAccount.service_profile_name}</span>
                                 </div>
                             )}
@@ -109,13 +131,20 @@ const UserDetails = ({ booking, listing, service }) => {
 
                 {isHostConfirmed ? (
                     <p className="text-center text-sm text-green-600 dark:text-green-400 font-semibold p-2">✓ You confirmed this user has joined.</p>
+                ) : isMismatchReported ? (
+                     <p className="text-center text-sm text-yellow-600 dark:text-yellow-400 font-semibold p-2 bg-yellow-500/10 rounded-lg">Waiting for user to update their details...</p>
                 ) : (
                     <>
-                        <button onClick={handleHostConfirm} disabled={!isUserRevealed || isConfirming} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            <UserCheck className="w-4 h-4" />
-                            {isConfirming ? 'Confirming...' : 'Confirm User Has Joined'}
-                        </button>
-                        {!isUserRevealed && <p className="text-center text-xs text-gray-500 dark:text-slate-400">Button unlocks when user reveals details.</p>}
+                        <div className="flex gap-2 mt-2">
+                            <button onClick={handleReportMismatch} disabled={!isUserRevealed || isConfirming} className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50">
+                                <AlertTriangle className="w-4 h-4" /> Mismatch
+                            </button>
+                            <button onClick={handleHostConfirm} disabled={!isUserRevealed || isConfirming} className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                <UserCheck className="w-4 h-4" />
+                                {isConfirming ? '...' : 'Confirm'}
+                            </button>
+                        </div>
+                        {!isUserRevealed && <p className="text-center text-xs text-gray-500 dark:text-slate-400 mt-2">Buttons unlock when user reveals details.</p>}
                     </>
                 )}
             </div>

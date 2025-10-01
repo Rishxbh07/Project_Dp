@@ -1,3 +1,5 @@
+// src/pages/SubscriptionDetailPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -5,6 +7,7 @@ import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, Chevro
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
 import JoiningDetails from '../components/common/JoiningDetails';
+import AccessIssueResolver from '../components/common/AccessIssueResolver';
 
 const StarRating = ({ rating, onRatingChange, disabled = false }) => {
     return (
@@ -32,24 +35,42 @@ const SubscriptionDetailPage = ({ session }) => {
     const [currentRating, setCurrentRating] = useState(0);
     const [isRatingEditable, setIsRatingEditable] = useState(false);
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+    const [inviteData, setInviteData] = useState(null);
 
     useEffect(() => {
         const fetchDetails = async () => {
             if (!id || !session?.user?.id) return;
             setLoading(true);
-            const { data, error } = await supabase.rpc('get_subscription_details', {
+
+            const { data: bookingData, error: bookingError } = await supabase.rpc('get_subscription_details', {
                 p_booking_id: id,
                 p_buyer_id: session.user.id
             });
-            if (error) {
+
+            if (bookingError) {
                 setError('Could not load subscription details.');
-            } else if (data && data.length > 0) {
-                setBookingDetails(data[0]);
-                const initialRating = data[0].plan_rating || 0;
+                setLoading(false);
+                return;
+            }
+
+            if (bookingData && bookingData.length > 0) {
+                setBookingDetails(bookingData[0]);
+                const initialRating = bookingData[0].plan_rating || 0;
                 setOriginalRating(initialRating);
                 setCurrentRating(initialRating);
                 setIsRatingEditable(initialRating === 0);
             }
+
+            const { data: inviteData, error: inviteError } = await supabase
+                .from('invite_link')
+                .select('*')
+                .eq('booking_id', id)
+                .single();
+
+            if (inviteData) {
+                setInviteData(inviteData);
+            }
+
             setLoading(false);
         };
         fetchDetails();
@@ -67,7 +88,7 @@ const SubscriptionDetailPage = ({ session }) => {
         setIsRatingEditable(false);
         setIsSubmittingRating(false);
     };
-    
+
     const handleLeavePlan = async () => {
         setShowLeaveModal(false);
         setLoading(true);
@@ -79,7 +100,7 @@ const SubscriptionDetailPage = ({ session }) => {
             navigate('/subscription');
         }
     };
-    
+
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
 
@@ -160,8 +181,12 @@ const SubscriptionDetailPage = ({ session }) => {
                             </div>
                         </div>
                     </section>
-                    
-                    {bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />}
+
+                    {inviteData?.host_confirmation_status?.status === 'mismatch_reported' ? (
+                        <AccessIssueResolver bookingId={id} />
+                    ) : (
+                        bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />
+                    )}
 
                     <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
                         <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
@@ -187,7 +212,7 @@ const SubscriptionDetailPage = ({ session }) => {
                             <span className="flex-1 font-semibold text-yellow-700 dark:text-yellow-300">Raise an Issue</span>
                             <ChevronRight className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
                         </Link>
-                        
+
                         <button onClick={() => setShowLeaveModal(true)} className="w-full text-left bg-red-500/10 flex items-center p-4 rounded-lg hover:bg-red-500/20 transition-colors">
                             <LogOut className="w-5 h-5 mr-4 text-red-500 dark:text-red-400" />
                             <span className="font-semibold text-red-500 dark:text-red-400">Leave Plan</span>
