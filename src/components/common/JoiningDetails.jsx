@@ -13,11 +13,11 @@ const JoiningDetails = ({ bookingId }) => {
     useEffect(() => {
         const fetchInvite = async () => {
             setLoading(true);
-            const { data } = await supabase.from('invite_link').select('*').eq('booking_id', bookingId).single();
+            // .maybeSingle() is safer than .single() as it allows for zero rows.
+            const { data } = await supabase.from('invite_link').select('*').eq('booking_id', bookingId).maybeSingle();
             if (data) {
                 setInviteData(data);
-                // If status is already revealed or confirmed, show details immediately
-                if (data.user_confirmation_status?.status === 'revealed' || data.user_confirmation_status?.status === 'confirmed') {
+                if (['pending_host_confirmation', 'active', 'mismatch_reported'].includes(data.status)) {
                     setIsRevealed(true);
                 }
             }
@@ -27,28 +27,47 @@ const JoiningDetails = ({ bookingId }) => {
     }, [bookingId]);
 
     const handleReveal = async () => {
-        setIsRevealed(true); // Show details immediately on the UI
-        // ** THE FIX IS HERE **
-        // Update the database to notify the host in real-time
-        if (inviteData && inviteData.user_confirmation_status?.status === 'pending') {
-            const newStatus = {
-                ...inviteData.user_confirmation_status,
-                status: 'revealed',
-                revealed_at: new Date().toISOString()
-            };
-            await supabase.from('invite_link').update({ user_confirmation_status: newStatus }).eq('id', inviteData.id);
+        if (inviteData && inviteData.status === 'pending_user_reveal') {
+            // ** THE FIX IS HERE: Removed .single() from the update call **
+            const { data, error } = await supabase
+                .from('invite_link')
+                .update({ 
+                    status: 'pending_host_confirmation',
+                    details_revealed_at: new Date().toISOString()
+                })
+                .eq('id', inviteData.id)
+                .select(); // We select to get the updated row back
+            
+            if (error) {
+                alert('Could not update status. Please try again.');
+            } else {
+                // If data is returned, update the state with the first item
+                if (data && data.length > 0) {
+                    setInviteData(data[0]);
+                }
+                setIsRevealed(true);
+            }
+        } else {
+            setIsRevealed(true);
         }
     };
 
     const handleConfirmJoin = async () => {
-        const newStatus = {
-            ...inviteData.user_confirmation_status,
-            status: 'confirmed',
-            confirmed_at: new Date().toISOString()
-        };
-        const { data, error } = await supabase.from('invite_link').update({ user_confirmation_status: newStatus }).eq('id', inviteData.id).select().single();
-        if (!error) {
-            setInviteData(data);
+        // ** THE FIX IS HERE: Removed .single() from the update call **
+        const { data, error } = await supabase
+            .from('invite_link')
+            .update({ 
+                user_join_confirmed_at: new Date().toISOString() 
+            })
+            .eq('id', inviteData.id)
+            .select();
+
+        if (error) {
+            alert('Failed to confirm. Please try again.');
+        } else {
+            if (data && data.length > 0) {
+                setInviteData(data[0]);
+            }
         }
     };
     
@@ -60,6 +79,7 @@ const JoiningDetails = ({ bookingId }) => {
 
     if (loading) return <Loader />;
 
+    // The rest of the component's JSX remains the same
     return (
         <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6">
             <h3 className="font-bold text-lg mb-4">Joining Details</h3>
@@ -90,7 +110,7 @@ const JoiningDetails = ({ bookingId }) => {
                             </div>
                         )}
 
-                        {inviteData.user_confirmation_status?.status !== 'confirmed' ? (
+                        {!inviteData.user_join_confirmed_at ? (
                             <div className="pt-4 border-t border-gray-200 dark:border-white/10 text-center">
                                 <h4 className="font-semibold mb-3">Did you join successfully?</h4>
                                 <div className="flex gap-4">

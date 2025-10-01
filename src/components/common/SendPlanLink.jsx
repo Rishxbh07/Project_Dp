@@ -7,63 +7,50 @@ const SendPlanLink = ({ booking, listing, service, inviteData, onSuccess }) => {
     const [address, setAddress] = useState(inviteData?.address || '');
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState('');
-    const [sendSuccess, setSendSuccess] = useState(false);
 
     const handleSendDetails = async () => {
         setError('');
-        setSendSuccess(false);
-
-        const forbiddenPattern = /(call|contact|dm|text|message|msg|whatsapp|telegram|phone|email|gmail|outlook|@|\.com|\.in|\d{7,})/i;
-        if (address && forbiddenPattern.test(address)) {
-            setError('Address field cannot contain any contact information.');
+        if (!inviteLink || !address) {
+            setError('Please provide both a valid invite link and an address.');
             return;
         }
-
         if (!inviteLink.startsWith('http')) {
-            setError('Please enter a valid invite link.');
-            return;
-        }
-
-        if (address.length < 10) {
-            setError('Address is too short. Please provide a full, valid address.');
+            setError('Please enter a valid URL for the invite link.');
             return;
         }
 
         setIsSending(true);
         
         const payload = {
-            service_id: service.id,
-            category: service.category,
-            host_id: listing.host_id,
-            listing_id: listing.id,
             booking_id: booking.id,
+            listing_id: listing.id,
+            service_id: service.id,
+            host_id: listing.host_id,
+            user_id: booking.buyer_id,
             invite_link: inviteLink,
             address: address,
-            user_id: booking.buyer_id,
-            host_confirmation_status: {
-                ...inviteData?.host_confirmation_status,
-                status: 'shared',
-                shared_at: new Date().toISOString()
-            },
-            // Reset user status when host sends new details
-            user_confirmation_status: {
-                status: 'pending'
-            }
+            status: 'pending_user_reveal',
+            details_sent_at: new Date().toISOString()
         };
 
+        // ** THE FIX IS HERE: .single() has been removed. **
+        // .upsert() followed by .select() returns an array.
         const { data, error: upsertError } = await supabase
             .from('invite_link')
             .upsert(payload, { onConflict: 'booking_id' })
-            .select()
-            .single();
+            .select();
 
         if (upsertError) {
-            setError('Failed to send details. Please try again.');
+            setError(`Failed to send details: ${upsertError.message}`);
+            setIsSending(false); // Keep the form visible on error
         } else {
-            setSendSuccess(true);
-            onSuccess(data); // Notify the parent component
+            // If the upsert is successful, 'data' will be an array with one item.
+            // We call onSuccess with that single, new data object.
+            if (onSuccess && data && data.length > 0) {
+                onSuccess(data[0]);
+            }
         }
-        setIsSending(false);
+        // No need to set isSending to false on success, as the component will be unmounted.
     };
 
     return (
@@ -76,6 +63,7 @@ const SendPlanLink = ({ booking, listing, service, inviteData, onSuccess }) => {
                     value={inviteLink}
                     onChange={(e) => setInviteLink(e.target.value)}
                     className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
                 />
                 <textarea
                     placeholder="Enter required address..."
@@ -83,17 +71,17 @@ const SendPlanLink = ({ booking, listing, service, inviteData, onSuccess }) => {
                     onChange={(e) => setAddress(e.target.value)}
                     maxLength="200"
                     className="w-full p-2 text-sm bg-gray-100 dark:bg-slate-800 rounded-md border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required
                 />
                 {error && <p className="text-xs text-red-500">{error}</p>}
-                {sendSuccess && <p className="text-xs text-green-500">Details sent successfully!</p>}
                 
                 <button
                     onClick={handleSendDetails}
-                    disabled={isSending || !inviteLink || address.length < 10}
+                    disabled={isSending || !inviteLink || !address}
                     className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white font-semibold py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                 >
                     <Send className="w-4 h-4" />
-                    {isSending ? 'Sending...' : (inviteData ? 'Send Again' : 'Send Details')}
+                    {isSending ? 'Sending...' : 'Send Details'}
                 </button>
             </div>
         </div>
