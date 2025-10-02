@@ -20,6 +20,8 @@ import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
 import MemberDetailPage from './pages/MemberDetailPage';
+import DisputePage from './pages/DisputePage'; 
+import DisputeStatusPage from './pages/DisputeStatusPage';
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -85,6 +87,8 @@ function App() {
             <Route path="/invite" element={<InvitePage session={session} />} />
             <Route path="/achievements" element={<AchievementsPage session={session} />} />
             <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
+            <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
+            <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
           </Route>
         </Route>
       </Routes>

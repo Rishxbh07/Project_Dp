@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { ArrowLeft, CheckCircle, AlertTriangle, XCircle, UserCheck, Send, Copy, Check, UserX } from 'lucide-react';
 
-const DetailItem = ({ label, value, noCopy = false }) => {
+const DetailItem = ({ label, value, noCopy = false, isUpdated = false }) => {
     const [copied, setCopied] = useState(false);
     const handleCopy = () => {
         if (!value) return;
@@ -15,7 +15,11 @@ const DetailItem = ({ label, value, noCopy = false }) => {
 
     return (
         <div className="grid grid-cols-3 gap-x-2 items-center">
-            <span className="text-gray-500 dark:text-slate-400 col-span-1 text-left">{label}:</span>
+            <div className="col-span-1 text-left flex items-center">
+                <span className="text-gray-500 dark:text-slate-400">{label}:</span>
+                {/* --- NEW FEATURE --- */}
+                {isUpdated && <span className="ml-2 text-xs font-bold text-blue-500">(Updated)</span>}
+            </div>
             <div className="col-span-2 flex items-center justify-end gap-2">
                 <span className="font-semibold text-gray-800 dark:text-slate-200 truncate">{value || 'Not Provided'}</span>
                 {value && !noCopy && (
@@ -27,6 +31,7 @@ const DetailItem = ({ label, value, noCopy = false }) => {
         </div>
     );
 };
+
 
 const SendInviteForm = ({ booking, onSuccess }) => {
     const [inviteLink, setInviteLink] = useState('');
@@ -159,7 +164,11 @@ const MemberDetailPage = ({ session }) => {
                     statusUpdate = { status: 'active' };
                     break;
                 case 'report_mismatch':
-                    statusUpdate = { status: 'mismatch_reported_once' };
+                     if (inviteData.status === 'pending_host_confirmation') {
+                        statusUpdate = { status: 'mismatch_reported_once', host_mismatch_reported_at: new Date().toISOString() };
+                    } else if (inviteData.status === 'pending_host_confirmation_retry') {
+                        statusUpdate = { status: 'human_intervention_required', host_mismatch_reported_at_2: new Date().toISOString() };
+                    }
                     break;
                 default:
                     setLoading(false);
@@ -168,7 +177,7 @@ const MemberDetailPage = ({ session }) => {
             const { error } = await supabase
                 .from('invite_link')
                 .update(statusUpdate)
-                .eq('id', inviteData.id); // <-- CORRECTED: Use the primary key 'id'
+                .eq('id', inviteData.id);
 
             if (error) alert("Failed to update status.");
         }
@@ -235,13 +244,23 @@ const MemberDetailPage = ({ session }) => {
                 User is confirmed and active.
             </div>
         );
-    } else {
+    } else if (status === 'human_intervention_required') {
+        hostActions = (
+            <div className="text-center p-3 bg-red-500/10 rounded-lg text-sm font-semibold text-red-600 dark:text-red-300">
+                This issue has been escalated to support.
+            </div>
+        );
+    }
+    else {
         hostActions = (
             <div className="text-center p-3 bg-gray-100 dark:bg-slate-800 rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300">
                 Waiting for user to confirm they have joined.
             </div>
         );
     }
+    
+    // --- NEW FEATURE: Check if details were recently updated ---
+    const wasRecentlyUpdated = inviteData?.user_details_updated_at && (new Date() - new Date(inviteData.user_details_updated_at)) < 5 * 60 * 1000; // 5 minutes
 
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
@@ -285,10 +304,10 @@ const MemberDetailPage = ({ session }) => {
                             <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">User's Account Details</h3>
                             {connectedAccount ? (
                                 <div className="space-y-2">
-                                    {connectedAccount.service_profile_name && <DetailItem label="Profile Name" value={connectedAccount.service_profile_name} />}
-                                    {connectedAccount.joined_email && <DetailItem label="Email" value={connectedAccount.joined_email} />}
-                                    {connectedAccount.service_uid && <DetailItem label="Service UID" value={connectedAccount.service_uid} />}
-                                    {connectedAccount.profile_link && <DetailItem label="Profile URL" value={connectedAccount.profile_link} />}
+                                    <DetailItem label="Profile Name" value={connectedAccount.service_profile_name} isUpdated={wasRecentlyUpdated} />
+                                    {connectedAccount.joined_email && <DetailItem label="Email" value={connectedAccount.joined_email} isUpdated={wasRecentlyUpdated} />}
+                                    {connectedAccount.service_uid && <DetailItem label="Service UID" value={connectedAccount.service_uid} isUpdated={wasRecentlyUpdated} />}
+                                    {connectedAccount.profile_link && <DetailItem label="Profile URL" value={connectedAccount.profile_link} isUpdated={wasRecentlyUpdated} />}
                                 </div>
                             ) : (
                                 <p className="text-center text-gray-500 dark:text-slate-400 p-4">

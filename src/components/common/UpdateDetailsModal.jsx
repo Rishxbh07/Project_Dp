@@ -12,7 +12,7 @@ const getServiceInputConfig = (serviceName) => {
             label: 'Spotify Profile URL',
             placeholder: 'https://open.spotify.com/user/your_user_id',
             type: 'url',
-            dbField: 'profile_link'
+            dbField: 'profile_link' // Correct field for URL
         };
     }
     if (name.includes('youtube')) {
@@ -20,16 +20,17 @@ const getServiceInputConfig = (serviceName) => {
             label: 'Google Account Email for YouTube',
             placeholder: 'youremail@gmail.com',
             type: 'email',
-            dbField: 'joined_email'
+            dbField: 'joined_email' // Correct field for email
         };
     }
     return {
         label: 'Service Identifier',
         placeholder: 'Enter the required link, email, or ID',
         type: 'text',
-        dbField: 'profile_link'
+        dbField: 'profile_link' // Default field
     };
 };
+
 
 const UpdateDetailsModal = ({ isOpen, onClose, bookingId, session, onUpdateSuccess }) => {
     const [account, setAccount] = useState(null);
@@ -48,7 +49,7 @@ const UpdateDetailsModal = ({ isOpen, onClose, bookingId, session, onUpdateSucce
             const fetchAccountDetails = async () => {
                 if (!bookingId || !session?.user?.id) return;
                 setLoading(true);
-                setSuccess(false); // Reset success state when modal opens
+                setSuccess(false);
 
                 const { data, error } = await supabase
                     .from('connected_accounts')
@@ -81,6 +82,9 @@ const UpdateDetailsModal = ({ isOpen, onClose, bookingId, session, onUpdateSucce
         setIsSubmitting(true);
         setError('');
 
+        // *** THIS IS THE FIX ***
+        // The [inputConfig.dbField] dynamically sets the correct column name
+        // (either 'joined_email' or 'profile_link') in the database update.
         const updateData = {
             [inputConfig.dbField]: inputValue,
             service_profile_name: optionalName,
@@ -91,10 +95,9 @@ const UpdateDetailsModal = ({ isOpen, onClose, bookingId, session, onUpdateSucce
             .update(updateData)
             .eq('id', account.id);
         
-        // Also, reset the host's action so they can verify again
         const { error: inviteError } = await supabase
             .from('invite_link')
-            .update({ status: 'pending_host_confirmation_retry' })
+            .update({ status: 'pending_host_confirmation_retry', user_details_updated_at: new Date().toISOString() })
             .eq('booking_id', bookingId);
 
 
@@ -103,7 +106,7 @@ const UpdateDetailsModal = ({ isOpen, onClose, bookingId, session, onUpdateSucce
         } else {
             setSuccess(true);
             setTimeout(() => {
-                onUpdateSuccess(); // This will close the modal and refresh the parent page
+                onUpdateSuccess();
             }, 2000);
         }
         setIsSubmitting(false);

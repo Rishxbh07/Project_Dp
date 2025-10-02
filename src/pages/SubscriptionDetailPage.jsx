@@ -3,27 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight, Edit, UserCheck } from 'lucide-react';
+import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight, Edit, UserCheck, ShieldQuestion } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
 import JoiningDetails from '../components/common/JoiningDetails';
 import UpdateDetailsModal from '../components/common/UpdateDetailsModal';
 
-// Mismatch Resolution Component
+// New Component for Human Intervention State
+const InterventionNotice = () => (
+    <section className="bg-red-500/10 p-6 rounded-2xl border-2 border-dashed border-red-500/50 mb-6 text-center animate-in fade-in">
+        <ShieldQuestion className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h3 className="font-bold text-lg text-red-600 dark:text-red-300 mb-2">Issue Escalated to Support</h3>
+        <p className="text-sm text-red-700 dark:text-red-400">
+            Our support team has been notified about the account mismatch. They will review the case and get back to you within 24-48 hours. Please check your email for updates.
+        </p>
+    </section>
+);
+
 const MismatchResolver = ({ bookingId, serviceName, onAcknowledge, onUpdateClick }) => {
     return (
         <section className="bg-yellow-500/10 p-6 rounded-2xl border-2 border-dashed border-yellow-500/50 mb-6 text-center animate-in fade-in">
             <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h3 className="font-bold text-lg text-yellow-600 dark:text-yellow-300 mb-2">Account Mismatch Reported</h3>
+            <h3 className="font-bold text-lg text-yellow-600 dark:text-yellow-300 mb-2">Action Required</h3>
             <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-6">
-                The host reported that you joined the {serviceName} plan with an unverified account. Please update your connected account to match the premium account you used, or confirm you will join with the correct one.
+                The host reported an issue with the account details you provided. They were unable to add you to the plan.
+                Please update your details or request a refund.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
                 <button
                     onClick={onUpdateClick}
                     className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                    <Edit className="w-4 h-4" /> Update Connected Account
+                    <Edit className="w-4 h-4" /> Update My Details
                 </button>
                 <button
                     onClick={onAcknowledge}
@@ -140,7 +151,7 @@ const SubscriptionDetailPage = ({ session }) => {
         const { error } = await supabase
             .from('invite_link')
             .update({ status: 'pending_host_confirmation_retry' })
-            .eq('id', inviteData.id); // <-- CORRECTED: Use the primary key 'id'
+            .eq('id', inviteData.id);
 
         if (error) {
             alert("Could not send acknowledgement. Please try again.");
@@ -231,7 +242,9 @@ const SubscriptionDetailPage = ({ session }) => {
                         </div>
                     </section>
 
-                    {inviteData?.status === 'mismatch_reported_once' ? (
+                    {inviteData?.status === 'human_intervention_required' ? (
+                        <InterventionNotice />
+                    ) : inviteData?.status === 'mismatch_reported_once' ? (
                         <MismatchResolver
                             bookingId={id}
                             serviceName={bookingDetails.service_name}

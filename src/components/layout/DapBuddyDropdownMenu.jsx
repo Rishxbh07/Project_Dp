@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient'; // Import supabase
-import { ChevronRight, X, Search, Sun, Moon } from 'lucide-react';
+import { ChevronRight, X, Search, Sun, Moon, ShieldAlert } from 'lucide-react'; // Import ShieldAlert
 import Modal from '../common/Modal';
 import Auth from '../Auth';
 import { ThemeContext } from '../../context/ThemeContext';
 
 const DapBuddyDropdownMenu = ({ session }) => {
+  // ... (keep all the existing state and useEffect hooks)
   const [isOpen, setIsOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -69,12 +70,17 @@ const DapBuddyDropdownMenu = ({ session }) => {
     }
   };
 
+
+  // --- MODIFICATION HERE ---
   const menuItems = [
     { title: "Your Subscriptions", hasArrow: true, path: "/subscription" },
     { title: "Payment Methods", hasArrow: true, path: "/wallet" },
+    { title: "Dispute Status", hasArrow: true, path: "/dispute-status" }, // Add this line
     { title: "Invite & Earn", hasArrow: true, path: "/invite" }
   ];
 
+  // ... (the rest of the component's JSX remains exactly the same)
+  // No need to copy the rest of the file if you are just adding the line above
   return (
     <>
       <div className={`relative ${isOpen ? 'z-50' : ''}`} ref={dropdownRef}>
