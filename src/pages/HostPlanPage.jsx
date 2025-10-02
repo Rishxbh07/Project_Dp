@@ -11,13 +11,11 @@ const HostPlanPage = ({ session }) => {
     const [selectedService, setSelectedService] = useState(null);
     const [availableSlots, setAvailableSlots] = useState(1);
 
-    // State for the new sensitive data inputs
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [inviteLink, setInviteLink] = useState('');
     const [hostAddress, setHostAddress] = useState('');
 
-    // --- NEW: State to track input focus for conditional warnings ---
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
     const [isAddressFocused, setIsAddressFocused] = useState(false);
 
@@ -124,6 +122,7 @@ const HostPlanPage = ({ session }) => {
                 plan_purchased_date: planPurchaseDate,
                 seats_total: selectedServiceData.max_seats_allowed,
                 seats_available: availableSlots,
+                instant_share: !shareLater && !selectedServiceData.invite_link_expiration,
             })
             .select()
             .single();
@@ -134,14 +133,14 @@ const HostPlanPage = ({ session }) => {
             return;
         }
 
-        if (listingData && !shareLater) {
+        if (listingData && !shareLater && !selectedServiceData.invite_link_expiration) {
             const { error: credentialError } = await supabase
                 .from('plan_credentials')
                 .insert({
                     listing_id: listingData.id,
                     host_id: session.user.id,
                     login_email: loginEmail || null,
-                    login_password_encrypted: loginPassword || null, // Encryption should happen server-side
+                    login_password_encrypted: loginPassword || null,
                     invite_link: inviteLink || null,
                     host_address: hostAddress || null,
                 });
@@ -160,6 +159,12 @@ const HostPlanPage = ({ session }) => {
     const isFormValid = () => {
         if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
         if (showDateWarning && !understandsDateWarning) return false;
+
+        // If the invite link expires, the form is valid without filling joining details
+        if (selectedServiceData.invite_link_expiration) {
+            return true;
+        }
+
         if (shareLater) return true;
         if (selectedServiceData.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
         if (selectedServiceData.sharing_method === 'invite_link' && inviteLink.startsWith('http')) return true;
@@ -276,69 +281,72 @@ const HostPlanPage = ({ session }) => {
                                 </div>
                             )}
 
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
-                                <div className={`space-y-4 transition-opacity ${shareLater ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                                    
-                                    {selectedServiceData.sharing_method === 'credentials' && (
-                                        <>
-                                            {isPasswordFocused && (
-                                                <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs rounded-lg animate-in fade-in">
-                                                    <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                                    <p>For security, please use a password that is different from your DapBuddy account password.</p>
+                            {/* --- Conditionally render joining details section --- */}
+                            {!selectedServiceData.invite_link_expiration && (
+                                <div>
+                                    <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
+                                    <div className={`space-y-4 transition-opacity ${shareLater ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                                        
+                                        {selectedServiceData.sharing_method === 'credentials' && (
+                                            <>
+                                                {isPasswordFocused && (
+                                                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs rounded-lg animate-in fade-in">
+                                                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                                        <p>For security, please use a password that is different from your DapBuddy account password.</p>
+                                                    </div>
+                                                )}
+                                                <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                                <input
+                                                    type="password"
+                                                    placeholder="Password for the Service"
+                                                    value={loginPassword}
+                                                    onChange={e => setLoginPassword(e.target.value)}
+                                                    onFocus={() => setIsPasswordFocused(true)}
+                                                    onBlur={() => setIsPasswordFocused(false)}
+                                                    disabled={shareLater}
+                                                    className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                />
+                                                <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 px-1">
+                                                    <Lock className="w-3 h-3"/>
+                                                    <span>Don't worry, your password is end-to-end encrypted.</span>
                                                 </div>
-                                            )}
-                                            <input type="text" placeholder="Email or Phone Number" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                                            <input
-                                                type="password"
-                                                placeholder="Password for the Service"
-                                                value={loginPassword}
-                                                onChange={e => setLoginPassword(e.target.value)}
-                                                onFocus={() => setIsPasswordFocused(true)}
-                                                onBlur={() => setIsPasswordFocused(false)}
-                                                disabled={shareLater}
-                                                className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            />
-                                            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 px-1">
-                                                <Lock className="w-3 h-3"/>
-                                                <span>Don't worry, your password is end-to-end encrypted.</span>
-                                            </div>
-                                        </>
-                                    )}
-                                    
-                                    {selectedServiceData.sharing_method === 'invite_link' && (
-                                        <input type="text" placeholder="Paste your invite link here..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
-                                    )}
+                                            </>
+                                        )}
+                                        
+                                        {selectedServiceData.sharing_method === 'invite_link' && (
+                                            <input type="text" placeholder="Paste your invite link here..." value={inviteLink} onChange={e => setInviteLink(e.target.value)} disabled={shareLater} className="w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                                        )}
 
-                                    {selectedServiceData.sharing_policy === 'restricted' && (
-                                        <>
-                                            {isAddressFocused && (
-                                                <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs rounded-lg animate-in fade-in">
-                                                    <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                                    <p>Please ensure this address matches the one on your {selectedServiceData.name} account to avoid issues.</p>
-                                                </div>
-                                            )}
-                                            <input
-                                                type="text"
-                                                placeholder="Enter the address used on your account"
-                                                value={hostAddress}
-                                                onChange={e => setHostAddress(e.target.value)}
-                                                onFocus={() => setIsAddressFocused(true)}
-                                                onBlur={() => setIsAddressFocused(false)}
-                                                disabled={shareLater}
-                                                className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                            />
-                                        </>
-                                    )}
-                                </div>
-                                
-                                <div className="mt-4">
-                                    <div className="flex items-center">
-                                        <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
-                                        <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
+                                        {selectedServiceData.sharing_policy === 'restricted' && (
+                                            <>
+                                                {isAddressFocused && (
+                                                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs rounded-lg animate-in fade-in">
+                                                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                                        <p>Please ensure this address matches the one on your {selectedServiceData.name} account to avoid issues.</p>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter the address used on your account"
+                                                    value={hostAddress}
+                                                    onChange={e => setHostAddress(e.target.value)}
+                                                    onFocus={() => setIsAddressFocused(true)}
+                                                    onBlur={() => setIsAddressFocused(false)}
+                                                    disabled={shareLater}
+                                                    className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                />
+                                            </>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="mt-4">
+                                        <div className="flex items-center">
+                                            <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
+                                            <label htmlFor="shareLater" className="ml-2 text-sm text-gray-700 dark:text-slate-300">I prefer to share details later</label>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                             
                             <div className="flex items-center">
                                 <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />

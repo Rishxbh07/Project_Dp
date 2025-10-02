@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import AgeBadge from '../components/common/AgeBadge'; // Import the new component
-import { Crown, Star, Users, BadgePercent } from 'lucide-react';
+import AgeBadge from '../components/common/AgeBadge'; 
+import { Crown, Star, Users, BadgePercent, Zap, ZapOff } from 'lucide-react'; // Import Zap and ZapOff
 import ElectricBorder from '../components/common/ElectricBorder';
 
 const CommunityPlanCard = ({ plan }) => {
@@ -19,7 +19,8 @@ const CommunityPlanCard = ({ plan }) => {
         basePrice,
         solo_plan_price,
         members,
-        createdAt
+        createdAt,
+        instant_share, // Receive the new prop
     } = plan;
 
     const averageRating = rating_count > 0 ? (total_rating / rating_count) : 0;
@@ -31,10 +32,23 @@ const CommunityPlanCard = ({ plan }) => {
         <Link to={`/join-plan/${id}`} className="block group">
             <div className="relative bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02] pt-6 overflow-visible">
 
-                {/* Age Badge Component */}
                 <AgeBadge createdAt={createdAt} />
 
-                {/* Host Info Section */}
+                {/* --- NEW: Instant Joining Badge --- */}
+                {instant_share === true && (
+                    <div className="absolute top-0 -translate-y-1/2 right-4 z-20 flex items-center gap-1.5 text-xs font-bold text-yellow-800 dark:text-yellow-200 bg-yellow-400/20 dark:bg-yellow-400/30 py-1.5 px-3 rounded-full border border-yellow-500/50">
+                        <Zap className="w-4 h-4" />
+                        <span>Instant Joining</span>
+                    </div>
+                )}
+                {instant_share === false && (
+                    <div className="absolute top-0 -translate-y-1/2 right-4 z-20 flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-200/50 dark:bg-gray-700/50 py-1.5 px-3 rounded-full">
+                        <ZapOff className="w-4 h-4" />
+                        <span>Manual Invite</span>
+                    </div>
+                )}
+
+
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         {hostPfpUrl ? (
@@ -58,7 +72,6 @@ const CommunityPlanCard = ({ plan }) => {
                     </div>
                 </div>
 
-                {/* Members Section */}
                 <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-purple-500" />
                     <div className="flex -space-x-3">
@@ -75,7 +88,6 @@ const CommunityPlanCard = ({ plan }) => {
                     </span>
                 </div>
                 
-                {/* Pricing Section */}
                 <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex items-end justify-between">
                     <div>
                         <div className="flex items-baseline gap-2">
@@ -93,7 +105,6 @@ const CommunityPlanCard = ({ plan }) => {
                     </div>
                 </div>
 
-                {/* Savings Badge */}
                 {savings > 0 && (
                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-green-600 dark:text-green-400 bg-green-500/10 py-1.5 px-3 rounded-full">
                         <BadgePercent className="w-4 h-4" />
@@ -104,6 +115,7 @@ const CommunityPlanCard = ({ plan }) => {
         </Link>
     );
 };
+
 const DapBuddyPlanCard = ({ plan }) => (
     <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
         <div className="flex items-center justify-between">
@@ -195,7 +207,8 @@ const MarketplacePage = ({ session }) => {
                     basePrice: plan.base_price,
                     solo_plan_price: plan.solo_plan_price,
                     createdAt: plan.created_at,
-                    members: plan.members || []
+                    members: plan.members || [],
+                    instant_share: plan.instant_share, // Pass the new field
                 }));
                 setCommunityPlans(formattedCommunityPlans);
 
