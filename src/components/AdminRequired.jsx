@@ -15,14 +15,13 @@ const AdminRequired = ({ session }) => {
         return;
       }
 
-      // Check if the user ID exists in the 'admins' table
-      const { data, error } = await supabase
+      // More efficient query to check for existence
+      const { count, error } = await supabase
         .from('admins')
-        .select('user_id')
-        .eq('user_id', session.user.id)
-        .single();
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', session.user.id);
       
-      if (error || !data) {
+      if (error || count === 0) {
         setIsAdmin(false);
       } else {
         setIsAdmin(true);
@@ -37,9 +36,8 @@ const AdminRequired = ({ session }) => {
     return <div className="flex h-screen w-full items-center justify-center"><Loader /></div>;
   }
 
-  // If the user is an admin, render the nested admin routes.
-  // Otherwise, redirect them to the homepage.
-  return isAdmin ? <Outlet /> : <Navigate to="/" replace />;
+  // FIX: Pass the session object down to all nested admin routes via context
+  return isAdmin ? <Outlet context={{ session }} /> : <Navigate to="/" replace />;
 };
 
 export default AdminRequired;

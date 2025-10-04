@@ -85,6 +85,44 @@ CREATE TABLE public.credit_wallets (
   CONSTRAINT credit_wallets_pkey PRIMARY KEY (user_id),
   CONSTRAINT credit_wallets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.dapbuddy_group_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  group_id uuid NOT NULL,
+  dapbuddy_subscription_id uuid NOT NULL UNIQUE,
+  member_identifier text NOT NULL,
+  buyer_id uuid NOT NULL,
+  connected_account_id uuid,
+  status text NOT NULL,
+  status_updated_at timestamp with time zone,
+  joining_details_sent boolean DEFAULT false,
+  details_sent_at timestamp with time zone,
+  user_confirmed_join boolean DEFAULT false,
+  admin_confirmed_join boolean DEFAULT false,
+  subscription_ends_on date,
+  payment_status text,
+  assigned_by_admin_id uuid,
+  CONSTRAINT dapbuddy_group_members_pkey PRIMARY KEY (id),
+  CONSTRAINT dapbuddy_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.dapbuddy_groups(id),
+  CONSTRAINT dapbuddy_group_members_dapbuddy_subscription_id_fkey FOREIGN KEY (dapbuddy_subscription_id) REFERENCES public.dapbuddy_subscriptions(id),
+  CONSTRAINT dapbuddy_group_members_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT dapbuddy_group_members_connected_account_id_fkey FOREIGN KEY (connected_account_id) REFERENCES public.connected_accounts(id),
+  CONSTRAINT dapbuddy_group_members_assigned_by_admin_id_fkey FOREIGN KEY (assigned_by_admin_id) REFERENCES public.admins(user_id)
+);
+CREATE TABLE public.dapbuddy_groups (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  service_id text NOT NULL,
+  group_identifier text NOT NULL,
+  group_number integer NOT NULL,
+  max_seats integer NOT NULL,
+  group_status text NOT NULL,
+  last_member_added_at timestamp with time zone,
+  group_status_updated_at timestamp with time zone,
+  master_account_details jsonb,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  master_account_id text,
+  CONSTRAINT dapbuddy_groups_pkey PRIMARY KEY (id),
+  CONSTRAINT dapbuddy_groups_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+);
 CREATE TABLE public.dapbuddy_plans (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   service_id text NOT NULL,
@@ -146,6 +184,8 @@ CREATE TABLE public.invite_link (
   host_mismatch_reported_at timestamp with time zone,
   host_action text,
   host_link_send_status text DEFAULT 'not_sent'::text,
+  user_details_updated_at timestamp with time zone,
+  host_mismatch_reported_at_2 timestamp with time zone,
   CONSTRAINT invite_link_pkey PRIMARY KEY (id),
   CONSTRAINT invite_link_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
   CONSTRAINT invite_link_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
@@ -167,6 +207,7 @@ CREATE TABLE public.listings (
   total_rating integer NOT NULL DEFAULT 0,
   rating_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
+  instant_share boolean,
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -307,6 +348,7 @@ CREATE TABLE public.services (
   solo_plan_price integer DEFAULT 0,
   tax_range jsonb NOT NULL DEFAULT '[0, 7, 12, 18]'::jsonb,
   seats_allowed_to_sell smallint,
+  invite_link_expiration boolean,
   CONSTRAINT services_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.super_admins (

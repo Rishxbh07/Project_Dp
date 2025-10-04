@@ -1,20 +1,22 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-// CHANGED: Replaced 'Package' with 'Briefcase' icon
+// Import useOutletContext to receive context from the parent route
+import { NavLink, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Users, ShieldAlert, BarChart3, Briefcase } from 'lucide-react';
 
 const navLinks = [
   { icon: LayoutDashboard, label: 'Dashboard', to: '/admin/dashboard' },
   { icon: Users, label: 'User Management', to: '/admin/users' },
-  { icon: Briefcase, label: 'Group Management', to: '/admin/groups' }, // <-- UPDATED ICON
+  { icon: Briefcase, label: 'Group Management', to: '/admin/groups' },
   { icon: ShieldAlert, label: 'Disputes', to: '/admin/disputes' },
   { icon: BarChart3, label: 'Analytics', to: '/admin/analytics' },
 ];
 
 const AdminLayout = () => {
+  // Receive the context from the parent route (AdminRequired)
+  const { session } = useOutletContext();
+
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-slate-900 font-sans">
-      {/* Sidebar */}
       <aside className="w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-slate-700">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-transparent">
@@ -41,9 +43,9 @@ const AdminLayout = () => {
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-6 lg:p-8">
-        <Outlet />
+        {/* Pass the session context down to the child routes (like GroupManagementPage) */}
+        <Outlet context={{ session }} />
       </main>
     </div>
   );

@@ -22,12 +22,13 @@ import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import DisputePage from './pages/DisputePage';
 import DisputeStatusPage from './pages/DisputeStatusPage';
+import JoinDapBuddyPlanPage from './pages/JoinDapBuddyPlanPage';
 
 // --- NEW IMPORTS ---
 import AdminRequired from './components/AdminRequired';
 import AdminLayout from './pages/admin/AdminLayout';
 import UserManagementPage from './pages/admin/UserManagementPage';
-
+import GroupManagementPage from './pages/admin/GroupManagementPage'; // <-- FIX IS HERE
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -101,6 +102,7 @@ function App() {
             <Route path="/explore" element={<ExplorePage session={session} />} />
             <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
             <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
+            <Route path="/join-dapbuddy-plan/:planId" element={<JoinDapBuddyPlanPage session={session} />} />
             <Route path="/host-plan" element={<HostPlanPage session={session} />} />
             <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
             <Route path="/invite" element={<InvitePage session={session} />} />
