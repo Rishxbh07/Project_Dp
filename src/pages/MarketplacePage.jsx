@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import AgeBadge from '../components/common/AgeBadge'; 
-import { Crown, Star, Users, BadgePercent, Zap, ZapOff } from 'lucide-react'; // Import Zap and ZapOff
+import { Crown, Star, Users, BadgePercent, Zap, ZapOff } from 'lucide-react';
 import ElectricBorder from '../components/common/ElectricBorder';
 
 const CommunityPlanCard = ({ plan }) => {
@@ -14,13 +14,12 @@ const CommunityPlanCard = ({ plan }) => {
         seatsTotal,
         seatsAvailable,
         hostUsername,
-        hostRating,
         hostPfpUrl,
         basePrice,
         solo_plan_price,
         members,
         createdAt,
-        instant_share, // Receive the new prop
+        instant_share,
     } = plan;
 
     const averageRating = rating_count > 0 ? (total_rating / rating_count) : 0;
@@ -34,7 +33,6 @@ const CommunityPlanCard = ({ plan }) => {
 
                 <AgeBadge createdAt={createdAt} />
 
-                {/* --- NEW: Instant Joining Badge --- */}
                 {instant_share === true && (
                     <div className="absolute top-0 -translate-y-1/2 right-4 z-20 flex items-center gap-1.5 text-xs font-bold text-yellow-800 dark:text-yellow-200 bg-yellow-400/20 dark:bg-yellow-400/30 py-1.5 px-3 rounded-full border border-yellow-500/50">
                         <Zap className="w-4 h-4" />
@@ -116,37 +114,33 @@ const CommunityPlanCard = ({ plan }) => {
     );
 };
 
+// --- START OF FIX ---
 const DapBuddyPlanCard = ({ plan }) => (
-    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-white/10 shadow-md">
-        <div className="flex items-center justify-between">
-            <div>
-                <p className="font-bold text-lg text-gray-900 dark:text-white">DapBuddy Official Plan</p>
-                <p className="text-xs text-purple-500 dark:text-purple-400 font-semibold">Guaranteed by DapBuddy</p>
-            </div>
-            <Crown className="w-8 h-8 text-yellow-400" />
-        </div>
-        <div className="mt-4 flex items-end justify-between">
-            <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Price per slot</p>
-                <p className="text-2xl font-bold text-green-500">₹{plan.platform_price}</p>
-            </div>
-            <ElectricBorder
-                        color="#8B5CF6"
-                        speed={2}
-                        chaos={1}
-                        thickness={1.5}
-                        style={{ borderRadius: '0.75rem' }}
-                    >
-                        <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
-                            Join Now
-                        </div>
-            </ElectricBorder>
-        </div>
-        <div className="text-xs text-center mt-3 text-gray-400 dark:text-slate-500">
-            {plan.seats_available} of {plan.seats_total} slots available
-        </div>
-    </div>
+    <Link to={`/join-dapbuddy-plan/${plan.id}`} className="block group">
+      <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border-2 border-transparent group-hover:border-purple-500 transition-all duration-300 shadow-md hover:shadow-purple-500/10">
+          <div className="flex items-center justify-between">
+              <div>
+                  <p className="font-bold text-lg text-gray-900 dark:text-white">DapBuddy Official Plan</p>
+                  <p className="text-xs text-purple-500 dark:text-purple-400 font-semibold">Guaranteed by DapBuddy</p>
+              </div>
+              <Crown className="w-8 h-8 text-yellow-400" />
+          </div>
+          <div className="mt-4 flex items-end justify-between">
+              <div>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Price per slot</p>
+                  <p className="text-2xl font-bold text-green-500">₹{plan.platform_price}</p>
+              </div>
+              <div className="bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-6 rounded-xl group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300">
+                  Join Now
+              </div>
+          </div>
+          <div className="text-xs text-center mt-3 text-gray-400 dark:text-slate-500">
+              {plan.seats_available} of {plan.seats_total} slots available
+          </div>
+      </div>
+    </Link>
 );
+// --- END OF FIX ---
 
 
 const MarketplacePage = ({ session }) => {
@@ -208,7 +202,7 @@ const MarketplacePage = ({ session }) => {
                     solo_plan_price: plan.solo_plan_price,
                     createdAt: plan.created_at,
                     members: plan.members || [],
-                    instant_share: plan.instant_share, // Pass the new field
+                    instant_share: plan.instant_share,
                 }));
                 setCommunityPlans(formattedCommunityPlans);
 
