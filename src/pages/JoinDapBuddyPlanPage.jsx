@@ -59,7 +59,6 @@ const JoinDapBuddyPlanPage = ({ session }) => {
     const [inputConfig, setInputConfig] = useState(null);
     const [inputError, setInputError] = useState('');
     
-    // --- NEW: State for fake payment processing ---
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     const benefits = [
@@ -126,68 +125,117 @@ const JoinDapBuddyPlanPage = ({ session }) => {
         }
     };
 
-    // --- NEW: Fake payment handler for testing ---
-    const handleFakePayment = () => {
-        return new Promise(resolve => {
-            setIsProcessingPayment(true);
-            setTimeout(() => {
-                setIsProcessingPayment(false);
-                resolve(true); // Simulate a successful payment
-            }, 3000); // 3-second delay
-        });
-    };
-
     const handleJoinPlan = async () => {
+        // 1. Basic validation to ensure the button is not clicked when it shouldn't be
         if (isPayButtonDisabled || (inputConfig && !extractedValue)) {
              if (inputConfig && !extractedValue) setInputError(inputConfig.errorMessage);
             return;
         }
-        
-        const paymentSuccess = await handleFakePayment();
-        if (!paymentSuccess) {
-            setError("Payment failed. Please try again.");
-            return;
-        }
-
-        setLoading(true);
+    
+        setIsProcessingPayment(true);
         setError('');
+    
         try {
-            const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
-                buyer_id: session.user.id,
-                original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
-                credits_used: priceDetails.coinDiscount,
-                final_amount_charged: priceDetails.total,
-                platform_fee: 0,
-                payout_to_host: 0,
-                billing_options: 'autoPay'
-            }).select().single();
-            if (transactionError) throw transactionError;
-
-            const { data: subscriptionData, error: subscriptionError } = await supabase.from('dapbuddy_subscriptions').insert({
-                plan_id: plan.id,
-                buyer_id: session.user.id,
-                transaction_id: transactionData.id,
-            }).select().single();
-            if (subscriptionError) throw subscriptionError;
-
-            if (inputConfig) {
-                const { error: connectError } = await supabase.from('connected_accounts').insert({
-                    dapbuddy_subscription_id: subscriptionData.id,
-                    buyer_id: session.user.id,
-                    service_id: plan.service.id,
-                    service_uid: extractedValue,
-                    profile_link: inputConfig.type === 'url' ? inputValue : null,
-                    joined_email: inputConfig.type === 'email' ? inputValue : null,
-                    service_profile_name: optionalName,
-                    account_confirmation: 'pending'
-                });
-                if (connectError) throw connectError;
+            // 2. Call your 'create-order' backend function.
+            // This securely creates a payment order on Razorpay's servers.
+            const orderResponse = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-order`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ amount: priceDetails.total }),
+                }
+            );
+    
+            if (!orderResponse.ok) {
+                const errorBody = await orderResponse.json();
+                throw new Error(errorBody.error || "Failed to create Razorpay order.");
             }
-            navigate('/subscription');
+    
+            const order = await orderResponse.json();
+    
+            // 3. Configure and open the Razorpay Checkout window.
+            const options = {
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Your public Key ID from .env
+                amount: order.amount,
+                currency: order.currency,
+                name: "DapBuddy",
+                description: `Payment for ${plan.service?.name}`,
+                order_id: order.id,
+                // The 'handler' function is crucial. It runs after the user completes the payment.
+                handler: async (response) => {
+                    // 4. Verify the payment's authenticity by calling your 'verify-payment' function.
+                    const verificationResponse = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-payment`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${session.access_token}`,
+                            },
+                            body: JSON.stringify(response),
+                        }
+                    );
+    
+                    if (!verificationResponse.ok) {
+                        throw new Error("Payment verification failed. Please contact support.");
+                    }
+    
+                    // 5. (ONLY after successful verification) Save everything to your database.
+                    const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
+                        buyer_id: session.user.id,
+                        original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
+                        credits_used: priceDetails.coinDiscount,
+                        final_amount_charged: priceDetails.total,
+                        platform_fee: 0,
+                        payout_to_host: 0,
+                        billing_options: 'autoPay',
+                        gateway_transaction_id: response.razorpay_payment_id // Save the Razorpay payment ID for records
+                    }).select().single();
+                    if (transactionError) throw transactionError;
+    
+                    const { data: subscriptionData, error: subscriptionError } = await supabase.from('dapbuddy_subscriptions').insert({
+                        plan_id: plan.id,
+                        buyer_id: session.user.id,
+                        transaction_id: transactionData.id,
+                    }).select().single();
+                    if (subscriptionError) throw subscriptionError;
+    
+                    if (inputConfig) {
+                        const { error: connectError } = await supabase.from('connected_accounts').insert({
+                            dapbuddy_subscription_id: subscriptionData.id,
+                            buyer_id: session.user.id,
+                            service_id: plan.service.id,
+                            service_uid: extractedValue,
+                            profile_link: inputConfig.type === 'url' ? inputValue : null,
+                            joined_email: inputConfig.type === 'email' ? inputValue : null,
+                            service_profile_name: optionalName,
+                            account_confirmation: 'pending'
+                        });
+                        if (connectError) throw connectError;
+                    }
+                    // Redirect the user to their subscriptions page on success.
+                    navigate('/subscription');
+                },
+                prefill: {
+                    email: session.user.email,
+                },
+                theme: {
+                    color: "#8b5cf6", // Sets the theme color of the Razorpay modal
+                },
+            };
+    
+            // This line creates and opens the Razorpay payment modal.
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+    
         } catch (error) {
             setError(`An error occurred: ${error.message}`);
         } finally {
-            setLoading(false);
+            setIsProcessingPayment(false); // Make sure the button is re-enabled after the process
         }
     };
     
@@ -198,7 +246,7 @@ const JoinDapBuddyPlanPage = ({ session }) => {
     const isPayButtonDisabled = loading || isAlreadyJoined || isProcessingPayment;
     
     const getButtonText = () => {
-        if (isProcessingPayment) return 'Processing Payment...';
+        if (isProcessingPayment) return 'Processing...';
         if (loading) return 'Loading...';
         if (isAlreadyJoined) return 'Already Joined';
         if (inputConfig && !extractedValue) return 'Enter Account Details';
