@@ -1,13 +1,12 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient'; // Import supabase
-import { ChevronRight, X, Search, Sun, Moon, ShieldAlert } from 'lucide-react'; // Import ShieldAlert
+import { supabase } from '../../lib/supabaseClient';
+import { ChevronRight, X, Search, Sun, Moon, Wrench, ShieldAlert } from 'lucide-react';
 import Modal from '../common/Modal';
 import Auth from '../Auth';
 import { ThemeContext } from '../../context/ThemeContext';
 
 const DapBuddyDropdownMenu = ({ session }) => {
-  // ... (keep all the existing state and useEffect hooks)
   const [isOpen, setIsOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -16,33 +15,53 @@ const DapBuddyDropdownMenu = ({ session }) => {
   const searchInputRef = useRef(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
 
+  // --- NEW: State to track if the current user is an admin ---
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const [profile, setProfile] = useState({
       username: session?.user?.email?.charAt(0).toUpperCase() || '',
       pfp_url: null
   });
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndAdminStatus = async () => {
       if (session?.user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username, pfp_url')
-          .eq('id', session.user.id)
-          .single();
+        // Fetch profile and admin status in parallel for efficiency
+        const [profileRes, adminRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('username, pfp_url')
+            .eq('id', session.user.id)
+            .single(),
+          supabase
+            .from('admins')
+            .select('user_id', { count: 'exact', head: true })
+            .eq('user_id', session.user.id)
+        ]);
         
-        if (error) {
-          console.error('Error fetching profile for dropdown:', error);
-          setProfile({
+        if (profileRes.error) {
+          console.error('Error fetching profile for dropdown:', profileRes.error);
+           setProfile({
               username: session.user.email.charAt(0).toUpperCase(),
               pfp_url: null
           });
-        } else if (data) {
-          setProfile(data);
+        } else if (profileRes.data) {
+          setProfile(profileRes.data);
         }
+
+        // --- Check the result of the admin query ---
+        if (adminRes.count > 0) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        // If there's no session, the user cannot be an admin
+        setIsAdmin(false);
       }
     };
 
-    fetchProfile();
+    fetchProfileAndAdminStatus();
   }, [session]);
 
   useEffect(() => {
@@ -70,17 +89,13 @@ const DapBuddyDropdownMenu = ({ session }) => {
     }
   };
 
-
-  // --- MODIFICATION HERE ---
   const menuItems = [
     { title: "Your Subscriptions", hasArrow: true, path: "/subscription" },
     { title: "Payment Methods", hasArrow: true, path: "/wallet" },
-    { title: "Dispute Status", hasArrow: true, path: "/dispute-status" }, // Add this line
+    { title: "Dispute Status", hasArrow: true, path: "/dispute-status", icon: ShieldAlert },
     { title: "Invite & Earn", hasArrow: true, path: "/invite" }
   ];
 
-  // ... (the rest of the component's JSX remains exactly the same)
-  // No need to copy the rest of the file if you are just adding the line above
   return (
     <>
       <div className={`relative ${isOpen ? 'z-50' : ''}`} ref={dropdownRef}>
@@ -148,12 +163,10 @@ const DapBuddyDropdownMenu = ({ session }) => {
                   <img
                     src={profile.pfp_url}
                     alt="Profile"
-                    // --- MODIFIED CLASSES FOR HIGHLIGHT ---
                     className="w-10 h-10 rounded-full object-cover border-2 border-purple-500 shadow-md shadow-purple-500/50 hover:scale-105 transition-transform"
                   />
                 ) : (
                   <div
-                    // --- MODIFIED CLASSES FOR HIGHLIGHT ---
                     className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold flex items-center justify-center border-2 border-purple-500 shadow-md shadow-purple-500/50 hover:scale-105 transition-transform"
                   >
                     {profile.username ? profile.username.charAt(0).toUpperCase() : ''}
@@ -174,9 +187,20 @@ const DapBuddyDropdownMenu = ({ session }) => {
            <div className="absolute left-0 top-14 w-[350px] max-w-[90vw] p-4 bg-white dark:bg-slate-900/80 dark:backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl z-40 animate-in fade-in slide-in-from-top-2">
             {session ? (
               <div>
+                {/* --- Conditionally render the Admin Dashboard link --- */}
+                {isAdmin && (
+                  <Link to="/admin" className="flex items-center justify-between p-3 rounded-lg text-purple-600 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors mb-2 font-bold">
+                    <span className="text-sm flex items-center gap-2"><Wrench className="w-4 h-4" /> Admin Dashboard</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                )}
+
                 {menuItems.map((item, index) => (
                    <Link to={item.path} key={index} className="flex items-center justify-between p-3 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                    <span className="text-sm font-medium">{item.title}</span>
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      {item.icon && <item.icon className="w-4 h-4 text-slate-500" />}
+                      {item.title}
+                    </span>
                     {item.hasArrow && <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
                    </Link>
                 ))}

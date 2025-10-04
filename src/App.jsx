@@ -20,8 +20,14 @@ import AchievementsPage from './pages/AchievementsPage';
 import Auth from './components/Auth';
 import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
 import MemberDetailPage from './pages/MemberDetailPage';
-import DisputePage from './pages/DisputePage'; 
+import DisputePage from './pages/DisputePage';
 import DisputeStatusPage from './pages/DisputeStatusPage';
+
+// --- NEW IMPORTS ---
+import AdminRequired from './components/AdminRequired';
+import AdminLayout from './pages/admin/AdminLayout';
+import UserManagementPage from './pages/admin/UserManagementPage';
+
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -62,6 +68,19 @@ function App() {
       <Routes>
         {/* Public route for authentication */}
         <Route path="/auth" element={<Auth />} />
+
+        {/* --- NEW: ADMIN ROUTES --- */}
+        <Route element={<AdminRequired session={session} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/users" replace />} />
+            <Route path="users" element={<UserManagementPage />} />
+            <Route path="groups" element={<GroupManagementPage />} />
+            {/* We can add placeholder routes for other admin pages */}
+            <Route path="dashboard" element={<h1>Admin Dashboard</h1>} />
+            <Route path="disputes" element={<h1>Dispute Management</h1>} />
+            <Route path="analytics" element={<h1>Analytics</h1>} />
+          </Route>
+        </Route>
 
         {/* ✅ CORRECTED: Protected Routes Structure */}
         {/* 1. The AuthRequired route checks if the user is logged in. */}
