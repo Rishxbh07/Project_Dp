@@ -23,6 +23,8 @@ import MemberDetailPage from './pages/MemberDetailPage';
 import DisputePage from './pages/DisputePage';
 import DisputeStatusPage from './pages/DisputeStatusPage';
 import JoinDapBuddyPlanPage from './pages/JoinDapBuddyPlanPage';
+import PaymentPage from './pages/PaymentPage';
+import PaymentVerificationPage from './pages/PaymentVerificationPage';
 
 // --- NEW IMPORTS ---
 import AdminRequired from './components/AdminRequired';
@@ -110,6 +112,8 @@ function App() {
             <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
             <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
             <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
+            <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
+            <Route path="/pay" element={<PaymentPage session={session} />} />
           </Route>
         </Route>
       </Routes>

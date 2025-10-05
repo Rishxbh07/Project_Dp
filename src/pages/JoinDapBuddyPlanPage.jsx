@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { ShieldCheck, Users, IndianRupee, ChevronDown, ChevronUp, Crown, CheckCircle2, Zap, LifeBuoy, Infinity } from 'lucide-react';
+import { ShieldCheck, Users, IndianRupee, ChevronDown, ChevronUp, Crown, CheckCircle2, Zap, LifeBuoy } from 'lucide-react';
 
+// This helper function remains the same
 const getServiceInputConfig = (serviceName) => {
     const name = serviceName.toLowerCase();
     if (name.includes('spotify')) {
@@ -47,18 +48,15 @@ const JoinDapBuddyPlanPage = ({ session }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isAlreadyJoined, setIsAlreadyJoined] = useState(false);
-
     const [walletBalance, setWalletBalance] = useState(0);
     const [useCoins, setUseCoins] = useState(false);
     const [isBreakdownVisible, setIsBreakdownVisible] = useState(false);
     const [priceDetails, setPriceDetails] = useState({ base: 0, tax: 0, coinDiscount: 0, total: 0 });
-    
     const [inputValue, setInputValue] = useState('');
     const [optionalName, setOptionalName] = useState('');
     const [extractedValue, setExtractedValue] = useState(null);
     const [inputConfig, setInputConfig] = useState(null);
     const [inputError, setInputError] = useState('');
-    
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
     const benefits = [
@@ -76,10 +74,9 @@ const JoinDapBuddyPlanPage = ({ session }) => {
             }
             setLoading(true);
             try {
-                const [planRes, walletRes, subscriptionRes] = await Promise.all([
+                const [planRes, walletRes] = await Promise.all([
                     supabase.from('dapbuddy_plans').select(`*, service:services(*)`).eq('id', planId).single(),
                     supabase.from('credit_wallets').select('credit_balance').eq('user_id', session.user.id).single(),
-                    supabase.from('dapbuddy_subscriptions').select('id').eq('plan_id', planId).eq('buyer_id', session.user.id).maybeSingle()
                 ]);
 
                 if (planRes.error) throw planRes.error;
@@ -91,10 +88,6 @@ const JoinDapBuddyPlanPage = ({ session }) => {
                     setInputConfig(config);
                 }
                 
-                if (subscriptionRes.data) {
-                    setIsAlreadyJoined(true);
-                }
-
                 if (walletRes.data) setWalletBalance(walletRes.data.credit_balance);
             } catch (error) {
                 setError('Could not find the requested DapBuddy plan.');
@@ -125,123 +118,56 @@ const JoinDapBuddyPlanPage = ({ session }) => {
         }
     };
 
-    const handleJoinPlan = async () => {
-        // 1. Basic validation to ensure the button is not clicked when it shouldn't be
+    // *** THIS IS THE UPDATED FUNCTION ***
+    const handleFakePayment = async () => {
         if (isPayButtonDisabled || (inputConfig && !extractedValue)) {
-             if (inputConfig && !extractedValue) setInputError(inputConfig.errorMessage);
+            if (inputConfig && !extractedValue) setInputError(inputConfig.errorMessage);
             return;
         }
     
         setIsProcessingPayment(true);
         setError('');
     
-        try {
-            // 2. Call your 'create-order' backend function.
-            // This securely creates a payment order on Razorpay's servers.
-            const orderResponse = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-order`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${session.access_token}`,
-                    },
-                    body: JSON.stringify({ amount: priceDetails.total }),
-                }
-            );
+        // Simulate a network delay
+        setTimeout(async () => {
+            try {
+                // Step 1: Create a fake transaction record. This is still needed to link to the booking.
+                const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
+                    buyer_id: session.user.id,
+                    original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
+                    credits_used: priceDetails.coinDiscount,
+                    final_amount_charged: priceDetails.total,
+                    platform_fee: 0,
+                    payout_to_host: 0,
+                    billing_options: 'autoPay', 
+                    gateway_transaction_id: `fake_${new Date().getTime()}`
+                }).select().single();
+                if (transactionError) throw transactionError;
     
-            if (!orderResponse.ok) {
-                const errorBody = await orderResponse.json();
-                throw new Error(errorBody.error || "Failed to create Razorpay order.");
+                // Step 2: Create the DapBuddy Booking. This is the only record that triggers the backend logic.
+                const { error: bookingError } = await supabase.from('dapbuddy_bookings').insert({
+                    user_id: session.user.id,
+                    plan_id: plan.id,
+                    service_id: plan.service.id,
+                    transaction_id: transactionData.id,
+                    status: 'active'
+                });
+                if (bookingError) throw bookingError;
+    
+                // THE BACKEND TRIGGER TAKES OVER FROM HERE!
+    
+                // Step 3: Redirect to the subscriptions page on success
+                navigate('/subscription');
+    
+            } catch (error) {
+                setError(`An error occurred: ${error.message}`);
+            } finally {
+                setIsProcessingPayment(false);
             }
-    
-            const order = await orderResponse.json();
-    
-            // 3. Configure and open the Razorpay Checkout window.
-            const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Your public Key ID from .env
-                amount: order.amount,
-                currency: order.currency,
-                name: "DapBuddy",
-                description: `Payment for ${plan.service?.name}`,
-                order_id: order.id,
-                prefill: {
-                    email: session.user.email,
-                    method: "upi",
-                },
-                // The 'handler' function is crucial. It runs after the user completes the payment.
-                handler: async (response) => {
-                    // 4. Verify the payment's authenticity by calling your 'verify-payment' function.
-                    const verificationResponse = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-payment`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": `Bearer ${session.access_token}`,
-                            },
-                            body: JSON.stringify(response),
-                        }
-                    );
-    
-                    if (!verificationResponse.ok) {
-                        throw new Error("Payment verification failed. Please contact support.");
-                    }
-    
-                    // 5. (ONLY after successful verification) Save everything to your database.
-                    const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
-                        buyer_id: session.user.id,
-                        original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
-                        credits_used: priceDetails.coinDiscount,
-                        final_amount_charged: priceDetails.total,
-                        platform_fee: 0,
-                        payout_to_host: 0,
-                        billing_options: 'autoPay',
-                        gateway_transaction_id: response.razorpay_payment_id // Save the Razorpay payment ID for records
-                    }).select().single();
-                    if (transactionError) throw transactionError;
-    
-                    const { data: subscriptionData, error: subscriptionError } = await supabase.from('dapbuddy_subscriptions').insert({
-                        plan_id: plan.id,
-                        buyer_id: session.user.id,
-                        transaction_id: transactionData.id,
-                    }).select().single();
-                    if (subscriptionError) throw subscriptionError;
-    
-                    if (inputConfig) {
-                        const { error: connectError } = await supabase.from('connected_accounts').insert({
-                            dapbuddy_subscription_id: subscriptionData.id,
-                            buyer_id: session.user.id,
-                            service_id: plan.service.id,
-                            service_uid: extractedValue,
-                            profile_link: inputConfig.type === 'url' ? inputValue : null,
-                            joined_email: inputConfig.type === 'email' ? inputValue : null,
-                            service_profile_name: optionalName,
-                            account_confirmation: 'pending'
-                        });
-                        if (connectError) throw connectError;
-                    }
-                    // Redirect the user to their subscriptions page on success.
-                    navigate('/subscription');
-                },
-                prefill: {
-                    email: session.user.email,
-                },
-                theme: {
-                    color: "#8b5cf6", // Sets the theme color of the Razorpay modal
-                },
-            };
-    
-            // This line creates and opens the Razorpay payment modal.
-            const rzp = new window.Razorpay(options);
-            rzp.open();
-    
-        } catch (error) {
-            setError(`An error occurred: ${error.message}`);
-        } finally {
-            setIsProcessingPayment(false); // Make sure the button is re-enabled after the process
-        }
+        }, 2000); // 2-second delay
     };
+    
+    // ... (rest of the component JSX is unchanged)
     
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !plan) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
@@ -342,7 +268,7 @@ const JoinDapBuddyPlanPage = ({ session }) => {
                             <p className="text-3xl font-bold text-gray-900 dark:text-white flex items-center"><IndianRupee className="w-6 h-6" />{priceDetails.total}</p>
                         </div>
                         <button
-                            onClick={handleJoinPlan}
+                            onClick={handleFakePayment}
                             disabled={isPayButtonDisabled || (inputConfig && !extractedValue)}
                             className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-purple-500/30 hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none"
                         >

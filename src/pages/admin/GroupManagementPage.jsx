@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Loader from '../../components/common/Loader';
-import GroupCard from './GroupCard';
+import GroupCard from './GroupCard'; // Ensure you are importing GroupCard
 
 const GroupManagementPage = () => {
   const { session } = useOutletContext();
@@ -11,49 +11,25 @@ const GroupManagementPage = () => {
   const [error, setError] = useState('');
 
   const fetchGroups = async () => {
-    if (!session?.user?.id) {
-      setError("User session not found.");
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError('');
-
     try {
-      const { data: adminList, error: adminError } = await supabase
-        .from('admins')
-        .select('user_id')
-        .order('user_id', { ascending: true });
+      const { data, error } = await supabase
+        .from('dapbuddy_groups')
+        .select(`
+          *,
+          admin_in_charge:admins ( profile:profiles ( username ) ),
+          dapbuddy_group_members (
+            *,
+            profile:profiles (username, pfp_url, loyalty_score)
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-      if (adminError) throw adminError;
-      if (!adminList || adminList.length === 0) throw new Error("No admins configured.");
-
-      const currentAdminId = session.user.id;
-      const adminIndex = adminList.findIndex(admin => admin.user_id === currentAdminId);
-
-      if (adminIndex === -1) {
-        setGroups([]);
-        throw new Error("You are not registered as an admin.");
-      }
-      
-      const totalAdmins = adminList.length;
-
-      // This is the only data fetching call now
-      const { data, error } = await supabase.rpc('get_assigned_groups', {
-        admin_index: adminIndex,
-        total_admins: totalAdmins
-      });
-
-      if (error) {
-        throw error;
-      } else {
-        setGroups(data);
-      }
-
+      if (error) throw error;
+      setGroups(data);
     } catch (e) {
       setError(e.message);
-      console.error('Error fetching groups:', e);
     } finally {
       setLoading(false);
     }
@@ -65,25 +41,21 @@ const GroupManagementPage = () => {
     }
   }, [session]);
 
-  if (loading) {
-    return <div className="flex justify-center p-8"><Loader /></div>;
-  }
+  if (loading) return <div className="flex justify-center p-8"><Loader /></div>;
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Your Assigned Groups</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Group Management</h1>
       
-      {error ? (
-        <p className="p-4 text-center text-red-500 bg-red-100 dark:bg-red-500/20 rounded-lg">{error}</p>
-      ) : (
-        <div className="space-y-8">
-          {groups.length > 0 ? (
-            groups.map(group => <GroupCard key={group.id} group={group} onUpdate={fetchGroups} />)
-          ) : (
-            <p className="text-center text-gray-500 dark:text-slate-400 p-8">No groups are currently assigned to you.</p>
-          )}
-        </div>
-      )}
+      {error && <p className="p-4 text-center text-red-500 bg-red-100 dark:bg-red-500/20 rounded-lg">{error}</p>}
+      
+      <div className="space-y-8">
+        {groups.length > 0 ? (
+          groups.map(group => <GroupCard key={group.group_id} group={group} session={session} onUpdate={fetchGroups} />)
+        ) : (
+          <p className="text-center text-gray-500 dark:text-slate-400 p-8">No groups found.</p>
+        )}
+      </div>
     </div>
   );
 };
