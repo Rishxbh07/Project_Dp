@@ -165,6 +165,10 @@ const JoinDapBuddyPlanPage = ({ session }) => {
                 name: "DapBuddy",
                 description: `Payment for ${plan.service?.name}`,
                 order_id: order.id,
+                prefill: {
+                    email: session.user.email,
+                    method: "upi",
+                },
                 // The 'handler' function is crucial. It runs after the user completes the payment.
                 handler: async (response) => {
                     // 4. Verify the payment's authenticity by calling your 'verify-payment' function.
