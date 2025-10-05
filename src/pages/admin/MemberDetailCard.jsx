@@ -1,27 +1,31 @@
+// src/pages/admin/MemberDetailCard.jsx
+
 import React from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { UserCheck, ShieldAlert } from 'lucide-react';
 
 const DetailItem = ({ label, value }) => (
-    <div>
-        <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
-        <p className="font-mono text-sm text-gray-800 dark:text-white break-words">{value || 'N/A'}</p>
+    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-700">
+        <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
+        <p className="font-mono text-sm text-gray-800 dark:text-white break-words text-right">{value || 'N/A'}</p>
     </div>
 );
 
 const MemberDetailCard = ({ member, onUpdate }) => {
     if (!member || !member.profile) return null;
 
+    const connectedAccount = member.connected_account[0];
+
     const handleStatusChange = async (newStatus) => {
         const { error } = await supabase
             .from('dapbuddy_group_members')
-            .update({ status: newStatus })
+            .update({ status: newStatus, status_updated_at: new Date().toISOString() })
             .eq('member_id', member.member_id);
 
         if (error) {
             alert(`Failed to update status: ${error.message}`);
         } else {
-            onUpdate(); // This will trigger a re-fetch on the parent page
+            onUpdate();
         }
     };
 
@@ -41,13 +45,17 @@ const MemberDetailCard = ({ member, onUpdate }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t border-gray-200 dark:border-slate-700 pt-4">
+            <div className="space-y-1 pt-4">
                 <DetailItem label="Member ID" value={member.member_identifier} />
                 <DetailItem label="Status" value={member.status.replace(/_/g, ' ')} />
                 <DetailItem label="User ID" value={member.user_id} />
                 <DetailItem label="Booking ID" value={member.booking_id} />
-                <DetailItem label="Connected Email" value={member.connected_account_details?.email} />
-                <DetailItem label="Connected UID" value={member.connected_account_details?.uid} />
+                <DetailItem label="Connected Email" value={connectedAccount?.joined_email} />
+                <DetailItem label="Connected UID" value={connectedAccount?.service_uid} />
+                <DetailItem label="Profile Name" value={connectedAccount?.service_profile_name} />
+                <DetailItem label="Profile Link" value={connectedAccount?.profile_link} />
+                <DetailItem label="Created At" value={new Date(connectedAccount?.created_at).toLocaleString()} />
+                <DetailItem label="Last Updated" value={new Date(connectedAccount?.updated_at).toLocaleString()} />
             </div>
 
             <div className="flex gap-2 border-t border-gray-200 dark:border-slate-700 pt-4">

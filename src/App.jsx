@@ -31,6 +31,7 @@ import AdminRequired from './components/AdminRequired';
 import AdminLayout from './pages/admin/AdminLayout';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import GroupManagementPage from './pages/admin/GroupManagementPage'; // <-- FIX IS HERE
+import GroupDetailPage from './pages/admin/GroupDetailPage';
 
 // ✅ NEW: A dedicated component to handle the session check.
 // Its only job is to check for a session and redirect if one doesn't exist.
@@ -78,6 +79,7 @@ function App() {
             <Route index element={<Navigate to="/admin/users" replace />} />
             <Route path="users" element={<UserManagementPage />} />
             <Route path="groups" element={<GroupManagementPage />} />
+            <Route path="group/:groupId" element={<GroupDetailPage />} />
             {/* We can add placeholder routes for other admin pages */}
             <Route path="dashboard" element={<h1>Admin Dashboard</h1>} />
             <Route path="disputes" element={<h1>Dispute Management</h1>} />
