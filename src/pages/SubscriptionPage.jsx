@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import SubscriptionCard from '../components/SubscriptionCard';
 import HostedPlanCard from '../components/HostedPlanCard';
 import { LogIn } from 'lucide-react';
-import Loader from '../components/common/Loader'; // <-- IMPORTED
+import Loader from '../components/common/Loader';
 
 const SubscriptionPage = ({ session }) => {
   const navigate = useNavigate();
@@ -24,41 +24,57 @@ const SubscriptionPage = ({ session }) => {
       try {
         setLoading(true);
 
-        // Fetch User Subscriptions (no changes needed here)
-        const { data: subsData, error: subsError } = await supabase
-          .rpc('get_user_subscriptions', { uid: session.user.id });
+        // Fetch both community and DapBuddy subscriptions in parallel
+        const [communitySubsRes, dapBuddySubsRes, hostedPlansRes] = await Promise.all([
+          supabase.rpc('get_user_subscriptions', { uid: session.user.id }),
+          supabase.rpc('get_dapbuddy_subscriptions', { p_user_id: session.user.id }),
+          supabase.rpc('get_hosted_plans', { p_host_id: session.user.id })
+        ]);
 
-        if (subsError) throw subsError;
+        if (communitySubsRes.error) throw communitySubsRes.error;
+        if (dapBuddySubsRes.error) throw dapBuddySubsRes.error;
+        if (hostedPlansRes.error) throw hostedPlansRes.error;
 
-        const formattedSubs = subsData.map(sub => ({
+        // Format community subscriptions
+        const formattedCommunitySubs = communitySubsRes.data.map(sub => ({
           id: sub.booking_id,
           serviceName: sub.service_name,
           hostName: sub.host_name,
           rate: sub.final_amount_charged,
-          renewalDate: new Date(new Date(sub.joined_at).setMonth(new Date(sub.joined_at).getMonth() + 1)).toLocaleDateString(),
+          renewalDate: new Date(sub.latest_expiry).toLocaleDateString(),
           slotsFilled: sub.seats_total - sub.seats_available,
           slotsTotal: sub.seats_total,
+          isDapBuddyPlan: false
         }));
-        setMySubscriptions(formattedSubs);
 
-        // --- MODIFIED: Fetch Hosted Plans using the updated function ---
-        const { data: hostedData, error: hostedError } = await supabase
-          .rpc('get_hosted_plans', { p_host_id: session.user.id });
+        // Format DapBuddy subscriptions
+        const formattedDapBuddySubs = dapBuddySubsRes.data.map(sub => ({
+          id: sub.booking_id,
+          serviceName: sub.service_name,
+          hostName: 'DapBuddy Official', // Official host name
+          rate: sub.platform_price,
+          renewalDate: new Date(sub.latest_expiry).toLocaleDateString(),
+          slotsFilled: sub.seats_total, // DapBuddy plans are often full from user's perspective
+          slotsTotal: sub.seats_total,
+          isDapBuddyPlan: true
+        }));
 
-        if (hostedError) throw hostedError;
-        
-        // This mapping ensures the data has the correct shape for HostedPlanCard
-        const formattedHosted = hostedData.map(plan => ({
+        // Merge and sort all subscriptions by join date
+        const allSubscriptions = [...formattedCommunitySubs, ...formattedDapBuddySubs];
+        allSubscriptions.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
+        setMySubscriptions(allSubscriptions);
+
+        // Format hosted plans (no changes here)
+        const formattedHosted = hostedPlansRes.data.map(plan => ({
           id: plan.id,
           createdAt: plan.created_at,
           seatsTotal: plan.seats_total,
           seatsAvailable: plan.seats_available,
-          total_rating: plan.total_rating, // Pass new rating data
-          rating_count: plan.rating_count, // Pass new rating data
+          total_rating: plan.total_rating,
+          rating_count: plan.rating_count,
           serviceName: plan.service_name,
           basePrice: plan.base_price
         }));
-
         setHostedPlans(formattedHosted);
 
       } catch (error) {
@@ -118,7 +134,7 @@ const SubscriptionPage = ({ session }) => {
         </div>
 
         <div className="px-4">
-          {loading && <Loader />} {/* <-- UPDATED */}
+          {loading && <Loader />}
           {error && <p className="text-red-500">{error}</p>}
           
           {activeTab === 'mySubscriptions' && !loading && (

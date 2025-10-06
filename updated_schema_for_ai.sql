@@ -94,10 +94,8 @@ CREATE TABLE public.dapbuddy_bookings (
   status text NOT NULL DEFAULT 'active'::text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT dapbuddy_bookings_pkey PRIMARY KEY (booking_id),
-  CONSTRAINT dapbuddy_bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT dapbuddy_bookings_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.dapbuddy_plans(id),
-  CONSTRAINT dapbuddy_bookings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
-  CONSTRAINT dapbuddy_bookings_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id)
+  CONSTRAINT dapbuddy_bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.dapbuddy_group_members (
   member_id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -110,10 +108,10 @@ CREATE TABLE public.dapbuddy_group_members (
   last_payment_at timestamp with time zone,
   connected_account_id uuid,
   CONSTRAINT dapbuddy_group_members_pkey PRIMARY KEY (member_id),
+  CONSTRAINT dapbuddy_group_members_connected_account_id_fkey FOREIGN KEY (connected_account_id) REFERENCES public.connected_accounts(id),
   CONSTRAINT dapbuddy_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.dapbuddy_groups(group_id),
   CONSTRAINT dapbuddy_group_members_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.dapbuddy_bookings(booking_id),
-  CONSTRAINT dapbuddy_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
-  CONSTRAINT dapbuddy_group_members_connected_account_id_fkey FOREIGN KEY (connected_account_id) REFERENCES public.connected_accounts(id)
+  CONSTRAINT dapbuddy_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.dapbuddy_groups (
   group_id uuid NOT NULL DEFAULT gen_random_uuid(),
