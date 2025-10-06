@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Loader from '../../components/common/Loader';
 import MemberDetailCard from './MemberDetailCard';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Users } from 'lucide-react';
 
 const GroupDetailPage = () => {
   const { groupId } = useParams();
@@ -16,7 +16,7 @@ const GroupDetailPage = () => {
     setLoading(true);
     try {
       // *** THIS IS THE CORRECTED QUERY ***
-      // It explicitly tells Supabase how to join through the intermediate tables.
+      // It now correctly joins through the dapbuddy_bookings table.
       const { data, error } = await supabase
         .from('dapbuddy_groups')
         .select(`
@@ -27,7 +27,9 @@ const GroupDetailPage = () => {
           dapbuddy_group_members (
             *,
             profile:profiles!user_id ( username, pfp_url, loyalty_score ),
-            connected_account:connected_accounts!connected_account_id ( * )
+            booking:dapbuddy_bookings!booking_id (
+              connected_account:connected_accounts!dapbuddy_booking_id ( * )
+            )
           )
         `)
         .eq('group_id', groupId)
@@ -48,7 +50,7 @@ const GroupDetailPage = () => {
   }, [fetchGroupDetails]);
 
   if (loading) return <div className="flex justify-center p-8"><Loader /></div>;
-  if (error) return <p className="p-4 text-center text-red-500">{error.message}</p>;
+  if (error) return <p className="p-4 text-center text-red-500">{error}</p>;
   if (!group) return <p>Group not found.</p>;
 
   const members = group.dapbuddy_group_members || [];

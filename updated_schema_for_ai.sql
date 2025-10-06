@@ -49,7 +49,7 @@ CREATE TABLE public.bookings (
 CREATE TABLE public.connected_accounts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   booking_id uuid UNIQUE,
-  dapbuddy_subscription_id uuid UNIQUE,
+  dapbuddy_booking_id uuid UNIQUE,
   host_id uuid,
   buyer_id uuid NOT NULL,
   service_uid text,
@@ -63,9 +63,9 @@ CREATE TABLE public.connected_accounts (
   joined_email text,
   CONSTRAINT connected_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT connected_accounts_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
-  CONSTRAINT connected_accounts_dapbuddy_subscription_id_fkey FOREIGN KEY (dapbuddy_subscription_id) REFERENCES public.dapbuddy_subscriptions(id),
   CONSTRAINT connected_accounts_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
-  CONSTRAINT connected_accounts_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+  CONSTRAINT connected_accounts_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT connected_accounts_dapbuddy_booking_id_fkey FOREIGN KEY (dapbuddy_booking_id) REFERENCES public.dapbuddy_bookings(booking_id)
 );
 CREATE TABLE public.credit_ledger (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -85,68 +85,60 @@ CREATE TABLE public.credit_wallets (
   CONSTRAINT credit_wallets_pkey PRIMARY KEY (user_id),
   CONSTRAINT credit_wallets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.dapbuddy_bookings (
+  booking_id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  plan_id uuid NOT NULL,
+  service_id text NOT NULL,
+  transaction_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT dapbuddy_bookings_pkey PRIMARY KEY (booking_id),
+  CONSTRAINT dapbuddy_bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT dapbuddy_bookings_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.dapbuddy_plans(id),
+  CONSTRAINT dapbuddy_bookings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT dapbuddy_bookings_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id)
+);
 CREATE TABLE public.dapbuddy_group_members (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  member_id uuid NOT NULL DEFAULT gen_random_uuid(),
   group_id uuid NOT NULL,
-  dapbuddy_subscription_id uuid NOT NULL UNIQUE,
-  member_identifier text NOT NULL,
-  buyer_id uuid NOT NULL,
+  booking_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  member_identifier text NOT NULL UNIQUE,
+  status text NOT NULL DEFAULT 'pending_invite'::text,
+  joined_at timestamp with time zone NOT NULL DEFAULT now(),
+  last_payment_at timestamp with time zone,
   connected_account_id uuid,
-  status text NOT NULL,
-  status_updated_at timestamp with time zone,
-  joining_details_sent boolean DEFAULT false,
-  details_sent_at timestamp with time zone,
-  user_confirmed_join boolean DEFAULT false,
-  admin_confirmed_join boolean DEFAULT false,
-  subscription_ends_on date,
-  payment_status text,
-  assigned_by_admin_id uuid,
-  CONSTRAINT dapbuddy_group_members_pkey PRIMARY KEY (id),
-  CONSTRAINT dapbuddy_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.dapbuddy_groups(id),
-  CONSTRAINT dapbuddy_group_members_dapbuddy_subscription_id_fkey FOREIGN KEY (dapbuddy_subscription_id) REFERENCES public.dapbuddy_subscriptions(id),
-  CONSTRAINT dapbuddy_group_members_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
-  CONSTRAINT dapbuddy_group_members_connected_account_id_fkey FOREIGN KEY (connected_account_id) REFERENCES public.connected_accounts(id),
-  CONSTRAINT dapbuddy_group_members_assigned_by_admin_id_fkey FOREIGN KEY (assigned_by_admin_id) REFERENCES public.admins(user_id)
+  CONSTRAINT dapbuddy_group_members_pkey PRIMARY KEY (member_id),
+  CONSTRAINT dapbuddy_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.dapbuddy_groups(group_id),
+  CONSTRAINT dapbuddy_group_members_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.dapbuddy_bookings(booking_id),
+  CONSTRAINT dapbuddy_group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT dapbuddy_group_members_connected_account_id_fkey FOREIGN KEY (connected_account_id) REFERENCES public.connected_accounts(id)
 );
 CREATE TABLE public.dapbuddy_groups (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  group_id uuid NOT NULL DEFAULT gen_random_uuid(),
   service_id text NOT NULL,
-  group_identifier text NOT NULL,
-  group_number integer NOT NULL,
+  group_identifier text NOT NULL UNIQUE,
   max_seats integer NOT NULL,
-  group_status text NOT NULL,
-  last_member_added_at timestamp with time zone,
-  group_status_updated_at timestamp with time zone,
-  master_account_details jsonb,
+  empty_spots integer NOT NULL,
+  master_credentials jsonb,
+  admin_in_charge_id uuid,
+  last_updated_at timestamp with time zone NOT NULL DEFAULT now(),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  master_account_id text,
-  CONSTRAINT dapbuddy_groups_pkey PRIMARY KEY (id),
-  CONSTRAINT dapbuddy_groups_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+  CONSTRAINT dapbuddy_groups_pkey PRIMARY KEY (group_id),
+  CONSTRAINT dapbuddy_groups_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT dapbuddy_groups_admin_in_charge_id_fkey FOREIGN KEY (admin_in_charge_id) REFERENCES public.admins(user_id)
 );
 CREATE TABLE public.dapbuddy_plans (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   service_id text NOT NULL,
   platform_price numeric NOT NULL,
   seats_total integer NOT NULL,
-  seats_available integer NOT NULL,
-  is_active boolean NOT NULL DEFAULT true,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone,
+  is_active text,
   CONSTRAINT dapbuddy_plans_pkey PRIMARY KEY (id),
   CONSTRAINT dapbuddy_plans_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
-);
-CREATE TABLE public.dapbuddy_subscriptions (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  plan_id uuid NOT NULL,
-  buyer_id uuid NOT NULL,
-  transaction_id uuid NOT NULL UNIQUE,
-  status text NOT NULL DEFAULT 'active'::text,
-  joined_at timestamp with time zone NOT NULL DEFAULT now(),
-  expires_at timestamp with time zone,
-  CONSTRAINT dapbuddy_subscriptions_pkey PRIMARY KEY (id),
-  CONSTRAINT dapbuddy_subscriptions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.dapbuddy_plans(id),
-  CONSTRAINT dapbuddy_subscriptions_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
-  CONSTRAINT dapbuddy_subscriptions_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transactions(id)
 );
 CREATE TABLE public.disputes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

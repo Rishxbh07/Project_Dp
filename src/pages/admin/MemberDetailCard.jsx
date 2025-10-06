@@ -1,79 +1,82 @@
-// src/pages/admin/MemberDetailCard.jsx
-
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { UserCheck, ShieldAlert } from 'lucide-react';
+import Loader from '../../components/common/Loader';
+import MemberDetailCard from './MemberDetailCard';
+import { ArrowLeft } from 'lucide-react';
 
-const DetailItem = ({ label, value }) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-slate-700">
-        <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
-        <p className="font-mono text-sm text-gray-800 dark:text-white break-words text-right">{value || 'N/A'}</p>
+const GroupDetailPage = () => {
+  const { groupId } = useParams();
+  const [group, setGroup] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchGroupDetails = useCallback(async () => {
+    if (!groupId) return;
+    setLoading(true);
+    try {
+      // *** THIS IS THE CORRECTED QUERY ***
+      // It now correctly joins through the dapbuddy_bookings table.
+      const { data, error } = await supabase
+        .from('dapbuddy_groups')
+        .select(`
+          *,
+          admins!admin_in_charge_id (
+            profile:profiles!user_id ( username )
+          ),
+          dapbuddy_group_members (
+            *,
+            profile:profiles!user_id ( username, pfp_url, loyalty_score ),
+            booking:dapbuddy_bookings!booking_id (
+              connected_account:connected_accounts!dapbuddy_booking_id ( * )
+            )
+          )
+        `)
+        .eq('group_id', groupId)
+        .single();
+
+      if (error) throw error;
+      setGroup(data);
+    } catch (e) {
+      setError(e.message);
+      console.error(e); // Log the full error for better debugging
+    } finally {
+      setLoading(false);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    fetchGroupDetails();
+  }, [fetchGroupDetails]);
+
+  if (loading) return <div className="flex justify-center p-8"><Loader /></div>;
+  if (error) return <p className="p-4 text-center text-red-500">{error}</p>;
+  if (!group) return <p>Group not found.</p>;
+
+  const members = group.dapbuddy_group_members || [];
+  const adminUsername = group.admins?.profile?.username;
+
+  return (
+    <div>
+      <Link to="/admin/groups" className="flex items-center gap-2 text-sm text-purple-500 font-semibold mb-4 hover:underline">
+        <ArrowLeft className="w-4 h-4" />
+        Back to Group Management
+      </Link>
+      
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{group.group_identifier}</h1>
+        <p className="text-gray-500 dark:text-slate-400">
+          {adminUsername ? `Managed by ${adminUsername}` : 'Unassigned'}
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {members.map(member => (
+            <MemberDetailCard key={member.member_id} member={member} onUpdate={fetchGroupDetails} />
+        ))}
+      </div>
     </div>
-);
-
-const MemberDetailCard = ({ member, onUpdate }) => {
-    if (!member || !member.profile) return null;
-
-    const connectedAccount = member.connected_account[0];
-
-    const handleStatusChange = async (newStatus) => {
-        const { error } = await supabase
-            .from('dapbuddy_group_members')
-            .update({ status: newStatus, status_updated_at: new Date().toISOString() })
-            .eq('member_id', member.member_id);
-
-        if (error) {
-            alert(`Failed to update status: ${error.message}`);
-        } else {
-            onUpdate();
-        }
-    };
-
-    return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4 space-y-4">
-            <div className="flex items-center gap-4">
-                {member.profile.pfp_url ? (
-                    <img src={member.profile.pfp_url} alt={member.profile.username} className="w-12 h-12 rounded-full object-cover" />
-                ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xl">
-                        {member.profile.username.charAt(0).toUpperCase()}
-                    </div>
-                )}
-                <div>
-                    <h4 className="font-bold text-lg text-gray-900 dark:text-white">{member.profile.username}</h4>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">Loyalty: {member.profile.loyalty_score}</p>
-                </div>
-            </div>
-
-            <div className="space-y-1 pt-4">
-                <DetailItem label="Member ID" value={member.member_identifier} />
-                <DetailItem label="Status" value={member.status.replace(/_/g, ' ')} />
-                <DetailItem label="User ID" value={member.user_id} />
-                <DetailItem label="Booking ID" value={member.booking_id} />
-                <DetailItem label="Connected Email" value={connectedAccount?.joined_email} />
-                <DetailItem label="Connected UID" value={connectedAccount?.service_uid} />
-                <DetailItem label="Profile Name" value={connectedAccount?.service_profile_name} />
-                <DetailItem label="Profile Link" value={connectedAccount?.profile_link} />
-                <DetailItem label="Created At" value={new Date(connectedAccount?.created_at).toLocaleString()} />
-                <DetailItem label="Last Updated" value={new Date(connectedAccount?.updated_at).toLocaleString()} />
-            </div>
-
-            <div className="flex gap-2 border-t border-gray-200 dark:border-slate-700 pt-4">
-                <button
-                    onClick={() => handleStatusChange('active')}
-                    className="flex-1 flex items-center justify-center gap-2 text-sm bg-green-500/10 text-green-700 dark:text-green-300 font-semibold py-2 px-4 rounded-lg hover:bg-green-500/20 transition-colors"
-                >
-                    <UserCheck className="w-4 h-4" /> Confirm
-                </button>
-                <button
-                    onClick={() => handleStatusChange('mismatch_reported')}
-                    className="flex-1 flex items-center justify-center gap-2 text-sm bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 font-semibold py-2 px-4 rounded-lg hover:bg-yellow-500/20 transition-colors"
-                >
-                    <ShieldAlert className="w-4 h-4" /> Mismatch
-                </button>
-            </div>
-        </div>
-    );
+  );
 };
 
-export default MemberDetailCard;
+export default GroupDetailPage;
