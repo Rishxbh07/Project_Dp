@@ -1,82 +1,120 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import Loader from '../../components/common/Loader';
-import MemberDetailCard from './MemberDetailCard';
-import { ArrowLeft } from 'lucide-react';
+import { Copy, Check, UserX, ShieldCheck, RefreshCw } from 'lucide-react';
 
-const GroupDetailPage = () => {
-  const { groupId } = useParams();
-  const [group, setGroup] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+// A simple component for displaying a row of details with a copy button
+const DetailRow = ({ label, value }) => {
+    const [copied, setCopied] = React.useState(false);
 
-  const fetchGroupDetails = useCallback(async () => {
-    if (!groupId) return;
-    setLoading(true);
-    try {
-      // *** THIS IS THE CORRECTED QUERY ***
-      // It now correctly joins through the dapbuddy_bookings table.
-      const { data, error } = await supabase
-        .from('dapbuddy_groups')
-        .select(`
-          *,
-          admins!admin_in_charge_id (
-            profile:profiles!user_id ( username )
-          ),
-          dapbuddy_group_members (
-            *,
-            profile:profiles!user_id ( username, pfp_url, loyalty_score ),
-            booking:dapbuddy_bookings!booking_id (
-              connected_account:connected_accounts!dapbuddy_booking_id ( * )
-            )
-          )
-        `)
-        .eq('group_id', groupId)
-        .single();
+    const handleCopy = () => {
+        if (!value) return;
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
-      if (error) throw error;
-      setGroup(data);
-    } catch (e) {
-      setError(e.message);
-      console.error(e); // Log the full error for better debugging
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId]);
-
-  useEffect(() => {
-    fetchGroupDetails();
-  }, [fetchGroupDetails]);
-
-  if (loading) return <div className="flex justify-center p-8"><Loader /></div>;
-  if (error) return <p className="p-4 text-center text-red-500">{error}</p>;
-  if (!group) return <p>Group not found.</p>;
-
-  const members = group.dapbuddy_group_members || [];
-  const adminUsername = group.admins?.profile?.username;
-
-  return (
-    <div>
-      <Link to="/admin/groups" className="flex items-center gap-2 text-sm text-purple-500 font-semibold mb-4 hover:underline">
-        <ArrowLeft className="w-4 h-4" />
-        Back to Group Management
-      </Link>
-      
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{group.group_identifier}</h1>
-        <p className="text-gray-500 dark:text-slate-400">
-          {adminUsername ? `Managed by ${adminUsername}` : 'Unassigned'}
-        </p>
-      </div>
-
-      <div className="space-y-6">
-        {members.map(member => (
-            <MemberDetailCard key={member.member_id} member={member} onUpdate={fetchGroupDetails} />
-        ))}
-      </div>
-    </div>
-  );
+    return (
+        <div className="grid grid-cols-3 gap-x-2 items-center text-sm py-1">
+            <span className="text-gray-500 dark:text-slate-400 col-span-1 text-left">{label}:</span>
+            <div className="col-span-2 flex items-center justify-end gap-2">
+                <span className="font-semibold truncate text-gray-800 dark:text-slate-200">{value || 'Not Provided'}</span>
+                {value && (
+                    <button onClick={handleCopy} className="text-gray-400 hover:text-purple-500">
+                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
 };
 
-export default GroupDetailPage;
+const MemberDetailCard = ({ member, onUpdate }) => {
+    // Correctly access the connected account from the nested data structure
+    const connectedAccount = member.booking?.connected_accounts?.[0];
+    const profile = member.profile;
+
+    const handleAction = async (action) => {
+        let updateData = {};
+        if (action === 'kick') {
+            updateData = { status: 'removed' };
+        } else if (action === 'verify') {
+            updateData = { status: 'active' };
+        }
+
+        const { error } = await supabase
+            .from('dapbuddy_group_members')
+            .update(updateData)
+            .eq('member_id', member.member_id);
+
+        if (error) {
+            alert(`Failed to ${action} member: ${error.message}`);
+        } else {
+            onUpdate(); // Re-fetch the group details to show the updated status
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4">
+            {/* --- TOP SECTION: MEMBER PROFILE (Restored) --- */}
+            <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                    {profile.pfp_url ? (
+                        <img src={profile.pfp_url} alt={profile.username} className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xl">
+                            {profile.username.charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                    <div>
+                        <h4 className="font-bold text-lg text-gray-900 dark:text-white">{profile.username}</h4>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Loyalty Score: {profile.loyalty_score}</p>
+                    </div>
+                </div>
+                <span className={`capitalize text-xs font-semibold px-2 py-1 rounded-full ${
+                    member.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' 
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300'
+                }`}>
+                    {member.status.replace(/_/g, ' ')}
+                </span>
+            </div>
+
+            {/* --- MIDDLE SECTION: MEMBER IDS (Restored) --- */}
+            <div className="space-y-2 border-t border-gray-200 dark:border-slate-700 mt-4 pt-3">
+                 <h5 className="font-semibold text-md text-gray-700 dark:text-slate-300 mb-2">Member Identifiers</h5>
+                <DetailRow label="User ID" value={member.user_id} />
+                <DetailRow label="Booking ID" value={member.booking_id} />
+                <DetailRow label="Member ID" value={member.member_id} />
+            </div>
+
+            {/* --- NEW SECTION: CONNECTED ACCOUNT DETAILS (Correctly Integrated) --- */}
+            <div className="space-y-2 border-t border-gray-200 dark:border-slate-700 mt-4 pt-3">
+                <h5 className="font-semibold text-md text-gray-700 dark:text-slate-300 mb-2">Connected Account Details</h5>
+                {connectedAccount ? (
+                    <>
+                        <DetailRow label="Profile Name" value={connectedAccount.service_profile_name} />
+                        <DetailRow label="Email" value={connectedAccount.joined_email} />
+                        <DetailRow label="Service UID" value={connectedAccount.service_uid} />
+                        <DetailRow label="Profile URL" value={connectedAccount.profile_link} />
+                    </>
+                ) : (
+                    <p className="text-center text-sm text-gray-400 dark:text-slate-500 py-4">No connected account details found.</p>
+                )}
+            </div>
+
+             {/* --- BOTTOM SECTION: ADMIN ACTIONS (Restored) --- */}
+            <div className="border-t border-gray-200 dark:border-slate-700 mt-4 pt-3 flex gap-2">
+                <button onClick={() => handleAction('kick')} className="flex-1 flex items-center justify-center gap-2 text-sm bg-red-500/10 text-red-500 font-semibold py-2 rounded-lg">
+                    <UserX className="w-4 h-4" /> Kick
+                </button>
+                <button onClick={() => handleAction('verify')} className="flex-1 flex items-center justify-center gap-2 text-sm bg-green-500/10 text-green-600 font-semibold py-2 rounded-lg">
+                    <ShieldCheck className="w-4 h-4" /> Verify
+                </button>
+                <button onClick={onUpdate} className="p-2 bg-gray-100 dark:bg-slate-700 rounded-lg text-gray-500 dark:text-slate-300">
+                    <RefreshCw className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default MemberDetailCard;

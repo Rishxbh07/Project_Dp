@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Loader from '../../components/common/Loader';
-import GroupCard from './GroupCard'; // Ensure you are importing GroupCard
+import GroupCard from './GroupCard';
 
 const GroupManagementPage = () => {
   const { session } = useOutletContext();
@@ -14,14 +14,19 @@ const GroupManagementPage = () => {
     setLoading(true);
     setError('');
     try {
+      // *** THE FIX IS HERE ***
+      // This query now explicitly tells Supabase how to join the tables,
+      // removing ambiguity and preventing the "Bad Request" error.
       const { data, error } = await supabase
         .from('dapbuddy_groups')
         .select(`
           *,
-          admin_in_charge:admins ( profile:profiles ( username ) ),
+          admin_in_charge:admins!admin_in_charge_id (
+            profile:profiles!user_id ( username )
+          ),
           dapbuddy_group_members (
             *,
-            profile:profiles (username, pfp_url, loyalty_score)
+            profile:profiles!user_id (username, pfp_url, loyalty_score)
           )
         `)
         .order('created_at', { ascending: false });

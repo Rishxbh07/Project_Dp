@@ -1,9 +1,10 @@
+// src/pages/admin/GroupDetailPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Loader from '../../components/common/Loader';
 import MemberDetailCard from './MemberDetailCard';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 const GroupDetailPage = () => {
   const { groupId } = useParams();
@@ -15,31 +16,16 @@ const GroupDetailPage = () => {
     if (!groupId) return;
     setLoading(true);
     try {
-      // *** THIS IS THE CORRECTED QUERY ***
-      // It now correctly joins through the dapbuddy_bookings table.
+      // Calling the secure RPC function
       const { data, error } = await supabase
-        .from('dapbuddy_groups')
-        .select(`
-          *,
-          admins!admin_in_charge_id (
-            profile:profiles!user_id ( username )
-          ),
-          dapbuddy_group_members (
-            *,
-            profile:profiles!user_id ( username, pfp_url, loyalty_score ),
-            booking:dapbuddy_bookings!booking_id (
-              connected_account:connected_accounts!dapbuddy_booking_id ( * )
-            )
-          )
-        `)
-        .eq('group_id', groupId)
+        .rpc('get_group_details_for_admin', { p_group_id: groupId })
         .single();
 
       if (error) throw error;
       setGroup(data);
+
     } catch (e) {
       setError(e.message);
-      console.error(e);
     } finally {
       setLoading(false);
     }

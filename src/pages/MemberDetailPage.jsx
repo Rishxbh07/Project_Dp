@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
@@ -17,7 +17,6 @@ const DetailItem = ({ label, value, noCopy = false, isUpdated = false }) => {
         <div className="grid grid-cols-3 gap-x-2 items-center">
             <div className="col-span-1 text-left flex items-center">
                 <span className="text-gray-500 dark:text-slate-400">{label}:</span>
-                {/* --- NEW FEATURE --- */}
                 {isUpdated && <span className="ml-2 text-xs font-bold text-blue-500">(Updated)</span>}
             </div>
             <div className="col-span-2 flex items-center justify-end gap-2">
@@ -104,41 +103,42 @@ const MemberDetailPage = ({ session }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const fetchData = useCallback(async () => {
-        if (!bookingId || !session?.user?.id) return;
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('bookings')
-            .select(`
-                *,
-                profiles(*),
-                listings(*, services(*)),
-                invite_link(*),
-                connected_accounts(*),
-                transactions (
-                    billing_options,
-                    expires_on
-                )
-            `)
-            .eq('id', bookingId)
-            .order('created_at', { foreignTable: 'transactions', ascending: false })
-            .limit(1, { foreignTable: 'transactions' })
-            .single();
-
-        if (error || !data) {
-            setError('Could not load member details.');
-            console.error(error);
-        } else if (session.user.id !== data.listings.host_id) {
-            setError("You don't have permission to view this page.");
-        } else {
-            setBooking(data);
-        }
-        setLoading(false);
-    }, [bookingId, session.user.id]);
-
+    // *** THE FIX IS HERE: The data fetching logic is now self-contained in the useEffect hook ***
     useEffect(() => {
+        const fetchData = async () => {
+            if (!bookingId || !session?.user?.id) return;
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('bookings')
+                .select(`
+                    *,
+                    profiles(*),
+                    listings(*, services(*)),
+                    invite_link(*),
+                    connected_accounts(*),
+                    transactions (
+                        billing_options,
+                        expires_on
+                    )
+                `)
+                .eq('id', bookingId)
+                .order('created_at', { foreignTable: 'transactions', ascending: false })
+                .limit(1, { foreignTable: 'transactions' })
+                .single();
+
+            if (error || !data) {
+                setError('Could not load member details.');
+                console.error(error);
+            } else if (session.user.id !== data.listings.host_id) {
+                setError("You don't have permission to view this page.");
+            } else {
+                setBooking(data);
+            }
+            setLoading(false);
+        };
+
         fetchData();
-    }, [fetchData]);
+    }, [bookingId, session.user.id]); // The dependencies are now the actual data points that trigger a refetch
 
     const handleAction = async (action) => {
         setLoading(true);
@@ -182,7 +182,9 @@ const MemberDetailPage = ({ session }) => {
             if (error) alert("Failed to update status.");
         }
         
-        await fetchData();
+        // This will now re-trigger the useEffect hook because the state of the data has changed,
+        // rather than being caught in a loop.
+        window.location.reload(); 
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
@@ -259,7 +261,6 @@ const MemberDetailPage = ({ session }) => {
         );
     }
     
-    // --- NEW FEATURE: Check if details were recently updated ---
     const wasRecentlyUpdated = inviteData?.user_details_updated_at && (new Date() - new Date(inviteData.user_details_updated_at)) < 5 * 60 * 1000; // 5 minutes
 
     return (
@@ -297,7 +298,7 @@ const MemberDetailPage = ({ session }) => {
                 </section>
 
                 {!hasHostSentDetails ? (
-                    <SendInviteForm booking={booking} onSuccess={fetchData} />
+                    <SendInviteForm booking={booking} onSuccess={() => window.location.reload()} />
                 ) : (
                     <>
                         <section className="p-4 bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 space-y-2 text-sm">

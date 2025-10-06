@@ -118,75 +118,63 @@ const JoinDapBuddyPlanPage = ({ session }) => {
         }
     };
 
-    // *** THIS IS THE UPDATED FUNCTION ***
-const handleFakePayment = async () => {
-    if (isPayButtonDisabled || (inputConfig && !extractedValue)) {
-        if (inputConfig && !extractedValue) setInputError(inputConfig.errorMessage);
-        return;
-    }
-
-    setIsProcessingPayment(true);
-    setError('');
-
-    setTimeout(async () => {
-        try {
-            // Step 1: Create a fake transaction record
-            const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
-                buyer_id: session.user.id,
-                original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
-                credits_used: priceDetails.coinDiscount,
-                final_amount_charged: priceDetails.total,
-                platform_fee: 0, 
-                payout_to_host: 0,
-                gateway_transaction_id: `fake_${new Date().getTime()}`
-            }).select().single();
-            if (transactionError) throw transactionError;
-
-            // Step 2: Create the DapBuddy subscription, linking the transaction
-            const { data: subscriptionData, error: subscriptionError } = await supabase.from('dapbuddy_subscriptions').insert({
-                plan_id: plan.id,
-                buyer_id: session.user.id,
-                transaction_id: transactionData.id,
-                status: 'active'
-            }).select().single();
-            if (subscriptionError) throw subscriptionError;
-
-            // Step 3: Create the connected account, linking the new subscription ID
-            if (inputConfig) {
-                const { error: connectError } = await supabase.from('connected_accounts').insert({
-                    dapbuddy_subscription_id: subscriptionData.id, // <-- THIS IS THE FIX
-                    buyer_id: session.user.id,
-                    service_id: plan.service.id,
-                    service_uid: extractedValue,
-                    profile_link: inputConfig.type === 'url' ? inputValue : null,
-                    joined_email: inputConfig.type === 'email' ? inputValue : null,
-                    service_profile_name: optionalName
-                });
-                if (connectError) throw connectError;
-            }
-
-            // Step 4: Create the booking, which will fire the group assignment trigger
-            const { error: bookingError } = await supabase.from('dapbuddy_bookings').insert({
-                user_id: session.user.id,
-                plan_id: plan.id,
-                service_id: plan.service.id,
-                transaction_id: transactionData.id,
-                status: 'active'
-            });
-            if (bookingError) throw bookingError;
-
-            // The backend trigger takes over from here!
-            navigate('/subscription');
-
-        } catch (error) {
-            setError(`An error occurred: ${error.message}`);
-        } finally {
-            setIsProcessingPayment(false);
+    const handleFakePayment = async () => {
+        if (isPayButtonDisabled || (inputConfig && !extractedValue)) {
+            if (inputConfig && !extractedValue) setInputError(inputConfig.errorMessage);
+            return;
         }
-    }, 2000);
-};
     
-    // ... (rest of the component JSX is unchanged)
+        setIsProcessingPayment(true);
+        setError('');
+    
+        setTimeout(async () => {
+            try {
+                // Step 1: Create a fake transaction record
+                const { data: transactionData, error: transactionError } = await supabase.from('transactions').insert({
+                    buyer_id: session.user.id,
+                    original_amount: (parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount)).toFixed(2),
+                    credits_used: priceDetails.coinDiscount,
+                    final_amount_charged: priceDetails.total,
+                    platform_fee: 0, 
+                    payout_to_host: 0,
+                    gateway_transaction_id: `fake_${new Date().getTime()}`
+                }).select().single();
+                if (transactionError) throw transactionError;
+    
+                // Step 2: Create the DapBuddy booking, linking the transaction
+                const { data: bookingData, error: bookingError } = await supabase.from('dapbuddy_bookings').insert({
+                    plan_id: plan.id,
+                    user_id: session.user.id, // Corrected column
+                    service_id: plan.service.id,
+                    transaction_id: transactionData.id,
+                    status: 'active'
+                }).select().single();
+                if (bookingError) throw bookingError;
+    
+                // Step 3: Create the connected account, linking the new booking ID
+                if (inputConfig) {
+                    const { error: connectError } = await supabase.from('connected_accounts').insert({
+                        dapbuddy_booking_id: bookingData.booking_id, // Corrected column
+                        buyer_id: session.user.id,
+                        service_id: plan.service.id,
+                        service_uid: extractedValue,
+                        profile_link: inputConfig.type === 'url' ? inputValue : null,
+                        joined_email: inputConfig.type === 'email' ? inputValue : null,
+                        service_profile_name: optionalName
+                    });
+                    if (connectError) throw connectError;
+                }
+    
+                // The backend trigger for group assignment will take over from here!
+                navigate('/subscription');
+    
+            } catch (error) {
+                setError(`An error occurred: ${error.message}`);
+            } finally {
+                setIsProcessingPayment(false);
+            }
+        }, 2000);
+    };
     
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !plan) return <p className="text-center text-red-500 mt-8">{error || 'Plan details could not be loaded.'}</p>;
