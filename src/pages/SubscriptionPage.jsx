@@ -1,3 +1,5 @@
+// src/pages/SubscriptionPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
@@ -35,7 +37,7 @@ const SubscriptionPage = ({ session }) => {
         if (dapBuddySubsRes.error) throw dapBuddySubsRes.error;
         if (hostedPlansRes.error) throw hostedPlansRes.error;
 
-        // Format community subscriptions
+        // --- MODIFIED: Added 'path' property ---
         const formattedCommunitySubs = communitySubsRes.data.map(sub => ({
           id: sub.booking_id,
           serviceName: sub.service_name,
@@ -44,19 +46,21 @@ const SubscriptionPage = ({ session }) => {
           renewalDate: new Date(sub.latest_expiry).toLocaleDateString(),
           slotsFilled: sub.seats_total - sub.seats_available,
           slotsTotal: sub.seats_total,
-          isDapBuddyPlan: false
+          isDapBuddyPlan: false,
+          path: `/subscription/${sub.booking_id}` // Link to community detail page
         }));
 
-        // Format DapBuddy subscriptions
+        // --- MODIFIED: Added 'path' property ---
         const formattedDapBuddySubs = dapBuddySubsRes.data.map(sub => ({
           id: sub.booking_id,
           serviceName: sub.service_name,
-          hostName: 'DapBuddy Official', // Official host name
+          hostName: 'DapBuddy Official',
           rate: sub.platform_price,
           renewalDate: new Date(sub.latest_expiry).toLocaleDateString(),
-          slotsFilled: sub.seats_total, // DapBuddy plans are often full from user's perspective
+          slotsFilled: sub.seats_total,
           slotsTotal: sub.seats_total,
-          isDapBuddyPlan: true
+          isDapBuddyPlan: true,
+          path: `/dapbuddy-subscription/${sub.booking_id}` // Link to NEW DapBuddy detail page
         }));
 
         // Merge and sort all subscriptions by join date

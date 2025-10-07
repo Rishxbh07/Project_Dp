@@ -1,8 +1,11 @@
+// src/components/SubscriptionCard.jsx
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 
 const SubscriptionCard = ({ subscription }) => {
-  const { id, serviceName, hostName, rate, renewalDate, slotsFilled, slotsTotal } = subscription;
+  // --- MODIFIED: Destructure the new 'path' property ---
+  const { id, serviceName, hostName, rate, renewalDate, slotsFilled, slotsTotal, path } = subscription;
   const initial = serviceName ? serviceName.charAt(0).toUpperCase() : '?';
 
   // --- NEW: Dynamic calculation logic using existing props ---
@@ -34,8 +37,9 @@ const SubscriptionCard = ({ subscription }) => {
   };
 
   return (
+    // --- MODIFIED: Use the dynamic 'path' prop for the Link ---
     <Link
-      to={`/subscription/${id}`}
+      to={path} // Use the path from the subscription object
       className="group block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-purple-400/50"
     >
       <div className={`w-full h-28 flex items-center justify-center bg-gradient-to-br ${getServiceColor(serviceName)}`}>

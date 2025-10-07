@@ -9,7 +9,7 @@ import Loader from '../components/common/Loader';
 import JoiningDetails from '../components/common/JoiningDetails';
 import UpdateDetailsModal from '../components/common/UpdateDetailsModal';
 
-// --- No changes to these sub-components ---
+// --- Sub-components remain unchanged ---
 const InterventionNotice = () => (
     <section className="bg-red-500/10 p-6 rounded-2xl border-2 border-dashed border-red-500/50 mb-6 text-center animate-in fade-in">
         <ShieldQuestion className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -51,7 +51,6 @@ const SubscriptionDetailPage = ({ session }) => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [bookingDetails, setBookingDetails] = useState(null);
-    const [isDapBuddyPlan, setIsDapBuddyPlan] = useState(false); // State to track plan type
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -62,41 +61,17 @@ const SubscriptionDetailPage = ({ session }) => {
     const [inviteData, setInviteData] = useState(null);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-    // This function now handles both plan types correctly.
+    // --- MODIFIED: Simplified fetchDetails function ---
     const fetchDetails = async () => {
         if (!id || !session?.user?.id) return;
         setLoading(true);
-        setError(''); // Reset error on new fetch
+        setError('');
 
-        // First, check if the ID corresponds to a DapBuddy booking.
-        const { data: dapBuddyBooking } = await supabase
-            .from('dapbuddy_bookings')
-            .select('booking_id')
-            .eq('booking_id', id)
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-
-        let details, detailsError;
-        const isOfficialPlan = !!dapBuddyBooking;
-        setIsDapBuddyPlan(isOfficialPlan);
-
-        if (isOfficialPlan) {
-            // It's a DapBuddy Plan, use the specific RPC for it.
-            const { data, error } = await supabase.rpc('get_dapbuddy_subscription_details', {
-                p_booking_id: id,
-                p_user_id: session.user.id
-            });
-            details = data;
-            detailsError = error;
-        } else {
-            // It's a Community Plan, use the original RPC.
-            const { data, error } = await supabase.rpc('get_subscription_details', {
-                p_booking_id: id,
-                p_buyer_id: session.user.id
-            });
-            details = data;
-            detailsError = error;
-        }
+        // It's a Community Plan, use the original RPC.
+        const { data: details, error: detailsError } = await supabase.rpc('get_subscription_details', {
+            p_booking_id: id,
+            p_buyer_id: session.user.id
+        });
 
         if (detailsError) {
             setError('Could not load subscription details.');
@@ -105,17 +80,14 @@ const SubscriptionDetailPage = ({ session }) => {
             const initialRating = details[0].plan_rating || 0;
             setOriginalRating(initialRating);
             setCurrentRating(initialRating);
-            setIsRatingEditable(initialRating === 0 && !isOfficialPlan); // Rating is only editable for community plans
+            setIsRatingEditable(initialRating === 0);
         } else {
              setError('Subscription not found or you do not have access.');
         }
 
-        // *** FIX for 406 Error ***
         // Fetch invite data separately and use .maybeSingle() to safely handle 0 or 1 result.
-        if (!isOfficialPlan) {
-            const { data: inviteRes } = await supabase.from('invite_link').select('*').eq('booking_id', id).maybeSingle();
-            if (inviteRes) setInviteData(inviteRes);
-        }
+        const { data: inviteRes } = await supabase.from('invite_link').select('*').eq('booking_id', id).maybeSingle();
+        if (inviteRes) setInviteData(inviteRes);
 
         setLoading(false);
     };
@@ -125,7 +97,6 @@ const SubscriptionDetailPage = ({ session }) => {
     }, [id, session]);
 
     const submitRating = async () => {
-        if (isDapBuddyPlan) return; // Should not be possible to call this for DapBuddy plans
         setIsSubmittingRating(true);
         const { error } = await supabase.from('bookings').update({ service_rating: currentRating }).eq('id', id);
         if (error) {
@@ -138,14 +109,12 @@ const SubscriptionDetailPage = ({ session }) => {
         setIsSubmittingRating(false);
     };
 
+    // --- MODIFIED: Simplified handleLeavePlan function ---
     const handleLeavePlan = async () => {
         setShowLeaveModal(false);
         setLoading(true);
-        // This now correctly targets the right table based on the plan type
-        const tableName = isDapBuddyPlan ? 'dapbuddy_bookings' : 'bookings';
-        const idColumn = isDapBuddyPlan ? 'booking_id' : 'id';
 
-        const { error } = await supabase.from(tableName).update({ status: 'left' }).eq(idColumn, id);
+        const { error } = await supabase.from('bookings').update({ status: 'left' }).eq('id', id);
         if (error) {
             setLoading(false);
             alert('Could not leave the plan.');
@@ -154,7 +123,6 @@ const SubscriptionDetailPage = ({ session }) => {
         }
     };
     
-    // This function remains the same as your old code
     const handleAcknowledge = async () => {
         if (!inviteData) {
             alert("Could not find invite details to update.");
@@ -175,7 +143,6 @@ const SubscriptionDetailPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
     
-    // These calculations remain the same from your old code
     const joinDate = new Date(bookingDetails.joined_on);
     const monthsJoined = Math.max(1, Math.floor(Math.abs(new Date() - joinDate) / (1000 * 60 * 60 * 24 * 30)));
     const savingsPerMonth = (bookingDetails.solo_plan_price || 0) - (bookingDetails.base_price || 0);
@@ -195,48 +162,34 @@ const SubscriptionDetailPage = ({ session }) => {
                     </div>
                 </header>
                 <main className="max-w-md mx-auto px-4 py-6 pb-24">
-                    {/* --- CONDITIONAL HOST/BRANDING SECTION --- */}
-                    {!isDapBuddyPlan ? (
-                         <section className="flex flex-col items-center text-center mb-8">
-                             {bookingDetails.host_pfp_url ? (
-                                <img src={bookingDetails.host_pfp_url} alt={bookingDetails.host_name} className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-white dark:border-slate-700 shadow-lg" />
-                            ) : (
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-3xl mb-3">
-                                    {bookingDetails.host_name.charAt(0).toUpperCase()}
-                                </div>
-                            )}
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{bookingDetails.host_name}</h2>
-                            <p className="text-sm text-gray-500 dark:text-slate-400">Community Host</p>
-                        </section>
-                    ) : (
-                        <section className="flex flex-col items-center text-center mb-8">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center text-white mb-3 shadow-lg">
-                                <ShieldCheck className="w-10 h-10" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">DapBuddy Official</h2>
-                            <p className="text-sm text-purple-500 dark:text-purple-400 font-semibold">Verified & Managed Plan</p>
-                        </section>
-                    )}
-
-                    <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
-                        {/* --- CONDITIONAL RATING DETAILS --- */}
-                        {!isDapBuddyPlan && (
-                             <div className="grid grid-cols-2 gap-4 text-center">
-                                <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
-                                    <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
-                                    <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {bookingDetails.host_rating.toFixed(1)}</p>
-                                </div>
-                                <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
-                                    <p className="text-xs text-gray-500 dark:text-slate-400">Your Plan Rating</p>
-                                    <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {(currentRating || 0).toFixed(1)}</p>
-                                </div>
+                    {/* --- MODIFIED: Removed conditional branding section, now always shows host details --- */}
+                    <section className="flex flex-col items-center text-center mb-8">
+                         {bookingDetails.host_pfp_url ? (
+                            <img src={bookingDetails.host_pfp_url} alt={bookingDetails.host_name} className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-white dark:border-slate-700 shadow-lg" />
+                        ) : (
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold text-3xl mb-3">
+                                {bookingDetails.host_name.charAt(0).toUpperCase()}
                             </div>
                         )}
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{bookingDetails.host_name}</h2>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">Community Host</p>
+                    </section>
+
+                    <section className="bg-white dark:bg-white/5 p-6 rounded-2xl border border-gray-200 dark:border-white/10 mb-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4 text-center">
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Host Rating</p>
+                                <p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {bookingDetails.host_rating.toFixed(1)}</p>
+                            </div>
+                            <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-xl">
+                                <p className="text-xs text-gray-500 dark:text-slate-400">Your Plan Rating</p>
+                                <p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {(currentRating || 0).toFixed(1)}</p>
+                            </div>
+                        </div>
                         <div className="text-center border-t border-b border-gray-200 dark:border-white/10 py-4">
                             <p className="text-4xl font-bold text-purple-500 dark:text-purple-400 flex items-center justify-center"><IndianRupee className="w-7 h-7" />{bookingDetails.monthly_rate}</p>
                             <p className="text-sm text-gray-500 dark:text-slate-400">per month</p>
                         </div>
-                        {/* This section now works for both plan types */}
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <p className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Joined On</p>
@@ -249,41 +202,36 @@ const SubscriptionDetailPage = ({ session }) => {
                         </div>
                     </section>
                     
-                    {/* --- CONDITIONAL RENDERING for Community Plan specific components --- */}
-                    {!isDapBuddyPlan && (
-                        <>
-                            {inviteData?.status === 'human_intervention_required' && <InterventionNotice />}
-                            {inviteData?.status === 'mismatch_reported_once' && <MismatchResolver bookingId={id} onUpdateClick={() => setShowUpdateModal(true)} onAcknowledge={handleAcknowledge} />}
-                            {bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />}
-                            
-                            <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
-                                <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
-                                <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
-                                <div className="mt-4 h-10 flex items-center justify-center">
-                                    {isSubmittingRating ? <Loader /> : isRatingEditable ? (
-                                        <button onClick={submitRating} disabled={currentRating === originalRating} className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                            Submit Rating
-                                        </button>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            <p className="text-sm text-green-600 dark:text-green-400">Your rating has been submitted!</p>
-                                            <button onClick={() => setIsRatingEditable(true)} className="text-xs font-semibold text-purple-500 hover:underline">Change Rating</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        </>
-                    )}
+                    {/* --- MODIFIED: Removed conditional rendering wrapper --- */}
+                    <>
+                        {inviteData?.status === 'human_intervention_required' && <InterventionNotice />}
+                        {inviteData?.status === 'mismatch_reported_once' && <MismatchResolver bookingId={id} onUpdateClick={() => setShowUpdateModal(true)} onAcknowledge={handleAcknowledge} />}
+                        {bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />}
+                        
+                        <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
+                            <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
+                            <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
+                            <div className="mt-4 h-10 flex items-center justify-center">
+                                {isSubmittingRating ? <Loader /> : isRatingEditable ? (
+                                    <button onClick={submitRating} disabled={currentRating === originalRating} className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Submit Rating
+                                    </button>
+                                ) : (
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-green-600 dark:text-green-400">Your rating has been submitted!</p>
+                                        <button onClick={() => setIsRatingEditable(true)} className="text-xs font-semibold text-purple-500 hover:underline">Change Rating</button>
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+                    </>
                     
                     <section className="space-y-3">
-                        {/* Dispute button only shows for community plans */}
-                        {!isDapBuddyPlan && (
-                            <Link to={`/dispute/${id}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
-                                <AlertTriangle className="w-5 h-5 mr-4 text-yellow-600 dark:text-yellow-400" />
-                                <span className="flex-1 font-semibold text-yellow-700 dark:text-yellow-300">Raise an Issue</span>
-                                <ChevronRight className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                            </Link>
-                        )}
+                        <Link to={`/dispute/${id}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
+                            <AlertTriangle className="w-5 h-5 mr-4 text-yellow-600 dark:text-yellow-400" />
+                            <span className="flex-1 font-semibold text-yellow-700 dark:text-yellow-300">Raise an Issue</span>
+                            <ChevronRight className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                        </Link>
                         <button onClick={() => setShowLeaveModal(true)} className="w-full text-left bg-red-500/10 flex items-center p-4 rounded-lg hover:bg-red-500/20 transition-colors">
                             <LogOut className="w-5 h-5 mr-4 text-red-500 dark:text-red-400" />
                             <span className="font-semibold text-red-500 dark:text-red-400">Leave Plan</span>

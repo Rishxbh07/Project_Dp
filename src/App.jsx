@@ -25,6 +25,7 @@ import DisputeStatusPage from './pages/DisputeStatusPage';
 import JoinDapBuddyPlanPage from './pages/JoinDapBuddyPlanPage';
 import PaymentPage from './pages/PaymentPage';
 import PaymentVerificationPage from './pages/PaymentVerificationPage';
+import DapBuddySubDetailsPage from './pages/DapBuddySubDetailsPage';
 
 // --- NEW IMPORTS ---
 import AdminRequired from './components/AdminRequired';
@@ -97,6 +98,7 @@ function App() {
             <Route path="/" element={<HomePage session={session} />} />
             <Route path="/subscription" element={<SubscriptionPage session={session} />} />
             <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
+            <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
             <Route path="/hosted-plan/:id" element={<HostedPlanDetailPage session={session} />} />
             <Route path="/wallet" element={<WalletPage session={session} />} />
             <Route path="/profile" element={<ProfilePage session={session} />} />
