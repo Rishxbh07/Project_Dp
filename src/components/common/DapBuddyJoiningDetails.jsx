@@ -126,4 +126,3 @@ const DapBuddyJoiningDetails = ({ bookingId }) => {
 };
 
 export default DapBuddyJoiningDetails;
-
