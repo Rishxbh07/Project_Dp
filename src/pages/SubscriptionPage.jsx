@@ -27,9 +27,10 @@ const SubscriptionPage = ({ session }) => {
         setLoading(true);
 
         // Fetch both community and DapBuddy subscriptions in parallel
+        // MODIFIED: Added 'status' to the select list for both RPC calls
         const [communitySubsRes, dapBuddySubsRes, hostedPlansRes] = await Promise.all([
-          supabase.rpc('get_user_subscriptions', { uid: session.user.id }),
-          supabase.rpc('get_dapbuddy_subscriptions', { p_user_id: session.user.id }),
+          supabase.rpc('get_user_subscriptions', { uid: session.user.id }), // Ensure this RPC returns the 'status' column
+          supabase.rpc('get_dapbuddy_subscriptions', { p_user_id: session.user.id }), // Ensure this RPC returns the 'status' column
           supabase.rpc('get_hosted_plans', { p_host_id: session.user.id })
         ]);
 
@@ -37,7 +38,6 @@ const SubscriptionPage = ({ session }) => {
         if (dapBuddySubsRes.error) throw dapBuddySubsRes.error;
         if (hostedPlansRes.error) throw hostedPlansRes.error;
 
-        // --- MODIFIED: Added 'path' property ---
         const formattedCommunitySubs = communitySubsRes.data.map(sub => ({
           id: sub.booking_id,
           serviceName: sub.service_name,
@@ -47,10 +47,10 @@ const SubscriptionPage = ({ session }) => {
           slotsFilled: sub.seats_total - sub.seats_available,
           slotsTotal: sub.seats_total,
           isDapBuddyPlan: false,
-          path: `/subscription/${sub.booking_id}` // Link to community detail page
+          status: sub.status, // <-- Pass status
+          path: `/subscription/${sub.booking_id}`
         }));
 
-        // --- MODIFIED: Added 'path' property ---
         const formattedDapBuddySubs = dapBuddySubsRes.data.map(sub => ({
           id: sub.booking_id,
           serviceName: sub.service_name,
@@ -60,15 +60,14 @@ const SubscriptionPage = ({ session }) => {
           slotsFilled: sub.seats_total,
           slotsTotal: sub.seats_total,
           isDapBuddyPlan: true,
-          path: `/dapbuddy-subscription/${sub.booking_id}` // Link to NEW DapBuddy detail page
+          status: sub.status, // <-- Pass status
+          path: `/dapbuddy-subscription/${sub.booking_id}`
         }));
 
-        // Merge and sort all subscriptions by join date
         const allSubscriptions = [...formattedCommunitySubs, ...formattedDapBuddySubs];
         allSubscriptions.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
         setMySubscriptions(allSubscriptions);
 
-        // Format hosted plans (no changes here)
         const formattedHosted = hostedPlansRes.data.map(plan => ({
           id: plan.id,
           createdAt: plan.created_at,

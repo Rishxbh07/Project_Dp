@@ -51,6 +51,7 @@ const JoinDapBuddyPlanPage = ({ session }) => {
     const [walletBalance, setWalletBalance] = useState(0);
     const [useCoins, setUseCoins] = useState(false);
     const [isBreakdownVisible, setIsBreakdownVisible] = useState(false);
+    const [rejoiningFee, setRejoiningFee] = useState(0);
     const [priceDetails, setPriceDetails] = useState({ base: 0, tax: 0, coinDiscount: 0, total: 0 });
     const [inputValue, setInputValue] = useState('');
     const [optionalName, setOptionalName] = useState('');
@@ -83,6 +84,15 @@ const JoinDapBuddyPlanPage = ({ session }) => {
                 const planData = planRes.data;
                 setPlan(planData);
 
+                const { data: statusData, error: statusError } = await supabase.rpc('get_user_plan_status', {
+                    p_user_id: session.user.id,
+                    p_plan_id: planId
+                });
+
+                if (statusData === 'grace_period_expired') {
+                    setRejoiningFee(10); // Set your rejoining fee, e.g., 50
+                }
+
                 if (planData?.service?.name) {
                     const config = getServiceInputConfig(planData.service.name);
                     setInputConfig(config);
@@ -105,9 +115,9 @@ const JoinDapBuddyPlanPage = ({ session }) => {
         const tax = base * taxRate;
         const maxCoinsToUse = 10;
         const coinDiscount = useCoins && walletBalance >= maxCoinsToUse ? maxCoinsToUse : 0;
-        const total = base + tax - coinDiscount;
-        setPriceDetails({ base: base.toFixed(2), tax: tax.toFixed(2), coinDiscount: coinDiscount.toFixed(2), total: total.toFixed(2) });
-    }, [plan, useCoins, walletBalance]);
+        const total = base + tax - coinDiscount + rejoiningFee; // <-- Add rejoining fee to total
+        setPriceDetails({ base: base.toFixed(2), tax: tax.toFixed(2), coinDiscount: coinDiscount.toFixed(2), rejoiningFee: rejoiningFee.toFixed(2), total: total.toFixed(2) });
+    }, [plan, useCoins, walletBalance, rejoiningFee]);
 
     const handleInputChange = (value) => {
         setInputValue(value);
