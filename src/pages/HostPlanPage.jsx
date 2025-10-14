@@ -1,24 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Info, LogIn, Plus, Minus, Loader2, PartyPopper, AlertTriangle, Lock } from 'lucide-react';
+import { Info, LogIn, Plus, Minus, Loader2, PartyPopper, AlertTriangle, Lock, Eye, EyeOff } from 'lucide-react'; // Added Eye and EyeOff icons
 
 const HostPlanPage = ({ session }) => {
     const navigate = useNavigate();
+    // ... (All existing state variables are kept)
     const [services, setServices] = useState([]);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [selectedService, setSelectedService] = useState(null);
     const [availableSlots, setAvailableSlots] = useState(1);
-
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [inviteLink, setInviteLink] = useState('');
     const [hostAddress, setHostAddress] = useState('');
-
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
     const [isAddressFocused, setIsAddressFocused] = useState(false);
-
     const [shareLater, setShareLater] = useState(false);
     const [agreeToTerms, setAgreeToTerms] = useState(false);
     const [planPurchaseDate, setPlanPurchaseDate] = useState('');
@@ -26,12 +24,15 @@ const HostPlanPage = ({ session }) => {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
-
     const [showDateWarning, setShowDateWarning] = useState(false);
     const [understandsDateWarning, setUnderstandsDateWarning] = useState(false);
     const [serviceEndDate, setServiceEndDate] = useState('');
     const [payoutDate, setPayoutDate] = useState('');
 
+    // --- NEW STATE for the public/private toggle ---
+    const [isPublic, setIsPublic] = useState(true);
+
+    // ... (All existing useEffect hooks and functions are kept)
     useEffect(() => {
         if (success) {
             const timer = setTimeout(() => {
@@ -57,7 +58,7 @@ const HostPlanPage = ({ session }) => {
         };
         fetchServicesAndCategories();
     }, []);
-
+    
     const selectedServiceData = services.find(s => s.id === selectedService);
 
     const calculatePayout = () => {
@@ -105,6 +106,18 @@ const HostPlanPage = ({ session }) => {
         }
     };
 
+    const isFormValid = () => {
+        if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
+        if (showDateWarning && !understandsDateWarning) return false;
+        if (selectedServiceData.invite_link_expiration) return true;
+        if (shareLater) return true;
+        if (selectedServiceData.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
+        if (selectedServiceData.sharing_method === 'invite_link' && inviteLink.startsWith('http')) return true;
+        if (selectedServiceData.sharing_policy === 'restricted' && hostAddress) return true;
+        if (selectedServiceData.sharing_method === null && selectedServiceData.sharing_policy !== 'restricted') return true;
+        return false;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!isFormValid()) {
@@ -123,6 +136,8 @@ const HostPlanPage = ({ session }) => {
                 seats_total: selectedServiceData.max_seats_allowed,
                 seats_available: availableSlots,
                 instant_share: !shareLater && !selectedServiceData.invite_link_expiration,
+                // --- NEW FIELD being sent to the database ---
+                is_public: isPublic,
             })
             .select()
             .single();
@@ -156,24 +171,7 @@ const HostPlanPage = ({ session }) => {
         setSuccess(true);
     };
 
-    const isFormValid = () => {
-        if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
-        if (showDateWarning && !understandsDateWarning) return false;
-
-        // If the invite link expires, the form is valid without filling joining details
-        if (selectedServiceData.invite_link_expiration) {
-            return true;
-        }
-
-        if (shareLater) return true;
-        if (selectedServiceData.sharing_method === 'credentials' && loginEmail && loginPassword) return true;
-        if (selectedServiceData.sharing_method === 'invite_link' && inviteLink.startsWith('http')) return true;
-        if (selectedServiceData.sharing_policy === 'restricted' && hostAddress) return true;
-        if (selectedServiceData.sharing_method === null && selectedServiceData.sharing_policy !== 'restricted') return true;
-
-        return false;
-    };
-
+    // ... (The rest of the component's JSX remains the same until the final section)
     const filteredServices = selectedCategory === 'All' ? services : services.filter(service => service.category === selectedCategory);
 
     if (!session) {
@@ -188,7 +186,7 @@ const HostPlanPage = ({ session }) => {
             </div>
         );
     }
-
+    
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white">
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
@@ -196,7 +194,7 @@ const HostPlanPage = ({ session }) => {
                     <button onClick={() => navigate(-1)} className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 transition-colors text-2xl font-bold w-10 text-left">
                         ←
                     </button>
-                    <h1 className="text-xl font-bold text-center">Host a New Plan</h1>
+                    <h1 className="text-xl font-bold text-center">Host a New Group</h1>
                     <div className="w-10"></div>
                 </div>
             </header>
@@ -205,8 +203,8 @@ const HostPlanPage = ({ session }) => {
                 <div className="max-w-md mx-auto px-4 py-6 text-center animate-in fade-in">
                     <div className="p-8 bg-white dark:bg-white/5 rounded-2xl">
                         <PartyPopper className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Listing Successful!</h2>
-                        <p className="text-gray-600 dark:text-slate-300 mt-2">Your plan is now live on the marketplace.</p>
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Group Listed Successfully!</h2>
+                        <p className="text-gray-600 dark:text-slate-300 mt-2">Your group is now live on the marketplace.</p>
                         <p className="text-sm text-gray-400 mt-6 animate-pulse">Redirecting you now...</p>
                     </div>
                 </div>
@@ -235,7 +233,8 @@ const HostPlanPage = ({ session }) => {
 
                     {selectedServiceData && (
                         <section className="animate-in fade-in space-y-6">
-                            <div>
+                            {/* ... Unchanged sections 3 and 4 ... */}
+                             <div>
                                 <label className="font-semibold text-lg mb-4 block">3. Configure your plan</label>
                                 <div className="bg-white dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-transparent space-y-4">
                                     <div>
@@ -281,10 +280,12 @@ const HostPlanPage = ({ session }) => {
                                 </div>
                             )}
 
-                            {/* --- Conditionally render joining details section --- */}
+                            {/* --- Start of modified section --- */}
+                            
                             {!selectedServiceData.invite_link_expiration && (
                                 <div>
                                     <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
+                                    {/* ... (rest of the joining details form is unchanged) ... */}
                                     <div className={`space-y-4 transition-opacity ${shareLater ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                                         
                                         {selectedServiceData.sharing_method === 'credentials' && (
@@ -338,7 +339,6 @@ const HostPlanPage = ({ session }) => {
                                             </>
                                         )}
                                     </div>
-                                    
                                     <div className="mt-4">
                                         <div className="flex items-center">
                                             <input type="checkbox" id="shareLater" checked={shareLater} onChange={() => setShareLater(!shareLater)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
@@ -347,6 +347,30 @@ const HostPlanPage = ({ session }) => {
                                     </div>
                                 </div>
                             )}
+                            
+                            {/* --- NEW CHECKBOX SECTION --- */}
+                            <div>
+                                <h3 className="font-semibold text-lg mb-2">6. Group Privacy</h3>
+                                <div className="flex items-center p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-transparent">
+                                    <input
+                                        type="checkbox"
+                                        id="isPublic"
+                                        checked={isPublic}
+                                        onChange={() => setIsPublic(!isPublic)}
+                                        className="h-5 w-5 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 focus:ring-purple-500"
+                                    />
+                                    <label htmlFor="isPublic" className="ml-3 flex-1">
+                                        <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-slate-200">
+                                            {isPublic ? <Eye className="w-4 h-4 text-green-500"/> : <EyeOff className="w-4 h-4 text-red-500"/>}
+                                            <span>{isPublic ? 'Public Group' : 'Private Group'}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                                            {isPublic ? 'Your group will be visible to everyone on the marketplace.' : 'Your group will only be accessible via a direct link.'}
+                                        </p>
+                                    </label>
+                                </div>
+                            </div>
+                            {/* --- END NEW CHECKBOX SECTION --- */}
                             
                             <div className="flex items-center">
                                 <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
@@ -357,7 +381,7 @@ const HostPlanPage = ({ session }) => {
 
                             <button type="submit" disabled={!isFormValid() || submitting} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-4 px-10 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                                 {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                                {submitting ? 'Posting...' : 'Host Plan'}
+                                {submitting ? 'Posting...' : 'Host Group'}
                             </button>
                         </section>
                     )}

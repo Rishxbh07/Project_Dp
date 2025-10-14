@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import AgeBadge from '../components/common/AgeBadge'; 
+import AgeBadge from '../components/common/AgeBadge';
 import { Crown, Star, Users, BadgePercent, Zap, ZapOff } from 'lucide-react';
 import ElectricBorder from '../components/common/ElectricBorder';
 
@@ -114,7 +114,6 @@ const CommunityPlanCard = ({ plan }) => {
     );
 };
 
-// --- START OF FIX ---
 const DapBuddyPlanCard = ({ plan }) => (
     <Link to={`/join-dapbuddy-plan/${plan.id}`} className="block group">
       <div className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border-2 border-transparent group-hover:border-purple-500 transition-all duration-300 shadow-md hover:shadow-purple-500/10">
@@ -140,7 +139,6 @@ const DapBuddyPlanCard = ({ plan }) => (
       </div>
     </Link>
 );
-// --- END OF FIX ---
 
 
 const MarketplacePage = ({ session }) => {
@@ -175,12 +173,35 @@ const MarketplacePage = ({ session }) => {
                 }
                 const serviceId = serviceData.id;
 
+                // --- MODIFICATION START ---
+
+                // DapBuddy plans fetch remains the same
+                const dapBuddyPromise = supabase.from('dapbuddy_plans').select('*').eq('service_id', serviceId);
+
+                // Community plans fetch is now a direct query with the 'is_public' filter
+                const communityPromise = supabase
+                    .from('listings')
+                    .select(`
+                        id,
+                        total_rating,
+                        rating_count,
+                        seats_total,
+                        seats_available,
+                        created_at,
+                        instant_share,
+                        host_profile:host_id ( username, pfp_url, host_rating ),
+                        service_details:service_id ( base_price, solo_plan_price ),
+                        members:bookings ( member_profile:buyer_id ( username ) )
+                    `)
+                    .eq('service_id', serviceId)
+                    .eq('is_public', true) // Only fetch public listings
+                    .eq('status', 'active')
+                    .neq('host_id', session?.user?.id || '00000000-0000-0000-0000-000000000000');
+
+
                 const [dapBuddyRes, communityRes] = await Promise.all([
-                    supabase.from('dapbuddy_plans').select('*').eq('service_id', serviceId),
-                    supabase.rpc('get_community_plans_for_service', {
-                        p_service_id: serviceId,
-                        p_user_id: session?.user?.id 
-                    })
+                    dapBuddyPromise,
+                    communityPromise
                 ]);
 
                 if (dapBuddyRes.error) throw dapBuddyRes.error;
@@ -188,23 +209,26 @@ const MarketplacePage = ({ session }) => {
 
                 if (communityRes.error) throw communityRes.error;
 
+                // New formatting logic to match the direct query's data structure
                 const formattedCommunityPlans = communityRes.data.map(plan => ({
                     id: plan.id,
                     total_rating: plan.total_rating,
                     rating_count: plan.rating_count,
-                    user_count: plan.user_count,
+                    user_count: plan.members.length,
                     seatsTotal: plan.seats_total,
                     seatsAvailable: plan.seats_available,
-                    hostUsername: plan.host_username,
-                    hostRating: plan.host_rating,
-                    hostPfpUrl: plan.host_pfp_url,
-                    basePrice: plan.base_price,
-                    solo_plan_price: plan.solo_plan_price,
+                    hostUsername: plan.host_profile.username,
+                    hostRating: plan.host_profile.host_rating,
+                    hostPfpUrl: plan.host_profile.pfp_url,
+                    basePrice: plan.service_details.base_price,
+                    solo_plan_price: plan.service_details.solo_plan_price,
                     createdAt: plan.created_at,
-                    members: plan.members || [],
+                    members: plan.members.map(m => m.member_profile) || [],
                     instant_share: plan.instant_share,
                 }));
                 setCommunityPlans(formattedCommunityPlans);
+
+                // --- MODIFICATION END ---
 
             } catch (error) {
                 setError(error.message);
@@ -262,7 +286,7 @@ const MarketplacePage = ({ session }) => {
                             {activeTab === 'community' && (
                                 communityPlans.length === 0 ? (
                                     <div className="text-center text-gray-500 dark:text-slate-400 mt-8 p-8 bg-gray-100 dark:bg-slate-800 rounded-lg">
-                                        <p className="font-semibold text-lg">No community plans available yet. Be the first to host one!</p>
+                                        <p className="font-semibold text-lg">No public community groups available yet. Be the first to host one!</p>
                                     </div>
                                 ) : (
                                     communityPlans.map(plan => <CommunityPlanCard key={plan.id} plan={plan} />)

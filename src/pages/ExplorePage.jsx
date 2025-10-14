@@ -5,56 +5,22 @@ import { Search, ChevronRight, Inbox } from 'lucide-react';
 import Loader from '../components/common/Loader';
 
 
-const ServiceCard = ({ service }) => {
-    const [stats, setStats] = useState({ listings: 0, hasDapBuddyPlan: false });
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchStats = async () => {
-            setLoading(true);
-            
-            const { count, error: listingError } = await supabase
-                .from('listings')
-                .select('id', { count: 'exact', head: true })
-                .eq('service_id', service.id);
-
-            const { data: dapBuddyData, error: dapBuddyError } = await supabase
-                .from('dapbuddy_plans')
-                .select('id')
-                .eq('service_id', service.id)
-                .limit(1);
-
-            if (listingError || dapBuddyError) {
-                console.error(`Error fetching stats for ${service.name}:`, listingError || dapBuddyError);
-            } else {
-                setStats({
-                    listings: count,
-                    hasDapBuddyPlan: dapBuddyData && dapBuddyData.length > 0
-                });
-            }
-            setLoading(false);
-        };
-        fetchStats();
-    }, [service.id, service.name]);
-
+const ServiceCard = ({ service, stats }) => {
+    // This component no longer fetches its own data, making it much faster.
     return (
         <Link to={`/marketplace/${service.name.toLowerCase()}`} className="group block w-full">
             <div className="flex items-center justify-between bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 group-hover:border-purple-400 dark:group-hover:border-purple-500 transition-all group-hover:shadow-lg">
                 <div className="flex-1">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white">{service.name}</h3>
-                    {loading ? (
-                        <div className="h-12 w-3/4 animate-pulse bg-gray-200 dark:bg-slate-700 rounded mt-2"></div>
-                    ) : (
-                        <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 space-y-0.5">
-                            <span>{stats.listings} listings</span>
-                            <span className="mx-2">|</span>
-                            <span>From ₹{service.base_price || 'N/A'}</span>
-                            <span className="mx-2">|</span>
-                            <span className={`font-semibold ${stats.hasDapBuddyPlan ? 'text-purple-500' : 'text-gray-400'}`}>
-                                {stats.hasDapBuddyPlan ? 'DapBuddy Plan ✓' : 'Community Only'}
-                            </span>
-                        </div>
-                    )}
+                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 space-y-0.5">
+                        <span>{stats.listings_count_out} public groups</span>
+                        <span className="mx-2">|</span>
+                        <span>From ₹{service.base_price || 'N/A'}</span>
+                        <span className="mx-2">|</span>
+                        <span className={`font-semibold ${stats.has_dapbuddy_plan_out ? 'text-purple-500' : 'text-gray-400'}`}>
+                            {stats.has_dapbuddy_plan_out ? 'DapBuddy Plan ✓' : 'Community Only'}
+                        </span>
+                    </div>
                 </div>
                 <ChevronRight className="w-6 h-6 text-gray-400 dark:text-slate-500 group-hover:text-purple-500 transition-colors" />
             </div>
@@ -62,10 +28,11 @@ const ServiceCard = ({ service }) => {
     );
 };
 
-const ExplorePage = () => {
+const ExplorePage = ({ session }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [services, setServices] = useState([]);
+    const [serviceStats, setServiceStats] = useState({});
     const [categories, setCategories] = useState(['All']);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -74,19 +41,57 @@ const ExplorePage = () => {
     useEffect(() => {
         const fetchServices = async () => {
             setLoading(true);
-            const { data, error } = await supabase.from('services').select('*');
-            if (error) {
-                setError('Could not fetch services.');
-                console.error(error);
-            } else {
-                setServices(data);
-                const uniqueCategories = ['All', ...new Set(data.map(s => s.category).filter(Boolean))];
+            
+            // --- MODIFICATION START ---
+            try {
+                // 1. Call the new RPC function to get stats for all services
+                const { data: statsData, error: statsError } = await supabase.rpc('get_explore_page_stats', {
+                    p_user_id: session?.user?.id || '00000000-0000-0000-0000-000000000000'
+                });
+
+                if (statsError) throw statsError;
+                
+                // 2. Filter out services that have no available plans at all
+                const availableServiceIds = statsData
+                    .filter(stat => stat.listings_count_out > 0 || stat.has_dapbuddy_plan_out)
+                    .map(stat => stat.service_id_out);
+
+                const statsMap = statsData.reduce((acc, stat) => {
+                    acc[stat.service_id_out] = stat;
+                    return acc;
+                }, {});
+
+                setServiceStats(statsMap);
+
+                if (availableServiceIds.length === 0) {
+                    setServices([]);
+                    setLoading(false);
+                    return;
+                }
+
+                // 3. Fetch full details for ONLY the available services
+                const { data: servicesData, error: servicesError } = await supabase
+                    .from('services')
+                    .select('*')
+                    .in('id', availableServiceIds);
+
+                if (servicesError) throw servicesError;
+
+                setServices(servicesData);
+                const uniqueCategories = ['All', ...new Set(servicesData.map(s => s.category).filter(Boolean))];
                 setCategories(uniqueCategories);
+
+            } catch (err) {
+                setError('Could not fetch available services.');
+                console.error(err);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
+            // --- MODIFICATION END ---
         };
+
         fetchServices();
-    }, []);
+    }, [session]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -137,12 +142,19 @@ const ExplorePage = () => {
                         </section>
                         <section>
                             <h2 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4">{selectedCategory} Services</h2>
-                            {/* --- REMOVED: pb-24 from this div --- */}
-                            <div className="flex flex-col gap-3">
-                                {filteredServices.map(service => (
-                                    <ServiceCard key={service.id} service={service} />
-                                ))}
-                            </div>
+                            {filteredServices.length > 0 ? (
+                                <div className="flex flex-col gap-3">
+                                    {filteredServices.map(service => (
+                                        <ServiceCard key={service.id} service={service} stats={serviceStats[service.id]} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-16 px-4">
+                                     <Inbox className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
+                                     <h3 className="font-semibold text-gray-800 dark:text-white">No Available Plans</h3>
+                                     <p className="text-sm text-gray-500 dark:text-slate-400">There are no available public plans in this category right now.</p>
+                                </div>
+                            )}
                         </section>
                         <section className="text-center py-8">
                             <Inbox className="w-12 h-12 text-purple-400 mx-auto mb-4" />
@@ -156,7 +168,6 @@ const ExplorePage = () => {
                         </section>
                     </>
                 )}
-                {/* --- ADDED: Spacer div for the bottom nav bar --- */}
                 <div className="h-24"></div>
             </main>
         </div>
