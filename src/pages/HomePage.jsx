@@ -5,8 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
 import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
-import { Search, ShieldCheck, Smile, YoutubeIcon, InstagramIcon, TwitterIcon, GlobeIcon } from 'lucide-react';
+import { YoutubeIcon, InstagramIcon, TwitterIcon, GlobeIcon } from 'lucide-react';
 import HowItWorks from '../components/HowItWorks';
+import StarBorder from '../components/common/StarBorder';
 
 const HomePage = ({ session }) => {
   const [popularPlans, setPopularPlans] = useState([]);
@@ -18,9 +19,8 @@ const HomePage = ({ session }) => {
   useEffect(() => {
     const fetchAllServiceNames = async () => {
       const { data, error } = await supabase.from('services').select('name');
-      if (error) {
-        console.error('Error fetching all service names:', error);
-      } else {
+      if (error) console.error('Error fetching all service names:', error);
+      else {
         setAllServiceNames(data.map(s => s.name));
         if (session && !sessionStorage.getItem('hasAnimatedText')) {
           setTimeout(() => setRunAnimation(true), 3500);
@@ -34,7 +34,6 @@ const HomePage = ({ session }) => {
         const cachedTimestamp = localStorage.getItem('popularPlansTimestamp');
         const sixHours = 6 * 60 * 60 * 1000;
 
-        // Use cache if it's still valid (less than 6 hours old)
         if (cachedPlans && cachedTimestamp && Date.now() - cachedTimestamp < sixHours) {
           setPopularPlans(JSON.parse(cachedPlans));
           setLoading(false);
@@ -59,8 +58,6 @@ const HomePage = ({ session }) => {
           }));
 
           setPopularPlans(formattedPlans);
-
-          // Cache results and timestamp
           localStorage.setItem('popularPlansCache', JSON.stringify(formattedPlans));
           localStorage.setItem('popularPlansTimestamp', Date.now());
         }
@@ -88,6 +85,10 @@ const HomePage = ({ session }) => {
   const handleAnimationEnd = () => {
     sessionStorage.setItem('hasAnimatedText', 'true');
     setRunAnimation(false);
+  };
+
+  const glowMap = {
+    purple: '#8747d1',
   };
 
   return (
@@ -131,33 +132,19 @@ const HomePage = ({ session }) => {
                 { value: "20+", label: "Services", color: "sky", desktopOnly: true },
                 { value: "500+", label: "Groups Hosted", color: "amber", desktopOnly: true },
                 { value: "80%", label: "Avg. Savings", color: "rose", desktopOnly: true },
-              ].map((stat, index) => {
-                const colorClassMap = {
-                  purple: 'dark:border-t-purple-500/80',
-                  blue: 'dark:border-t-blue-500/80',
-                  green: 'dark:border-t-green-500/80',
-                  sky: 'dark:border-t-sky-500/80',
-                  amber: 'dark:border-t-amber-500/80',
-                  rose: 'dark:border-t-rose-500/80',
-                };
-
-                return (
-                  <div 
-                    key={index}
-                    className={`
-                      ${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} 
-                      flex-1 lg:flex-auto flex-col justify-center
-                      bg-white dark:bg-slate-800/70 backdrop-blur-md 
-                      border border-slate-200 dark:border-x-transparent dark:border-b-transparent 
-                      ${colorClassMap[stat.color]} rounded-2xl px-4 py-3 lg:py-6 
-                      transform hover:scale-105 hover:shadow-lg transition-all duration-300 ease-out
-                    `}
-                  >
-                    <div className="text-slate-800 dark:text-white font-bold text-lg lg:text-2xl">{stat.value}</div>
-                    <div className="text-slate-500 dark:text-slate-200 text-xs lg:text-sm font-medium">{stat.label}</div>
-                  </div>
-                );
-              })}
+              ].map((stat, index) => (
+                <StarBorder
+                  key={index}
+                  color={glowMap[stat.color]}
+                  speed="8s"
+                  thickness={2}
+                  as="div"
+                  className={`${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} flex-1 lg:flex-auto flex-col justify-center text-center rounded-2xl px-4 py-3 lg:py-6 transform hover:scale-105 transition-all duration-300 ease-out`}
+                >
+                  <div className="text-slate-800 dark:text-white font-bold text-lg lg:text-2xl">{stat.value}</div>
+                  <div className="text-slate-500 dark:text-slate-200 text-xs lg:text-sm font-medium">{stat.label}</div>
+                </StarBorder>
+              ))}
             </div>
           </div>
 
@@ -204,9 +191,7 @@ const HomePage = ({ session }) => {
             )}
           </section>
 
-          {/* Extracted How It Works Component */}
           <HowItWorks />
-
           <HostPlanCTA />
 
           {/* Footer */}
@@ -222,7 +207,6 @@ const HomePage = ({ session }) => {
               © 2025 DapBuddy. All Rights Reserved.
             </p>
 
-            {/* --- Social Media Links Section --- */}
             <div className="flex justify-center gap-8 my-8">
               <a href="#" className="text-slate-500 hover:text-purple-500 dark:text-slate-400 dark:hover:text-purple-400 transition-colors">
                 <YoutubeIcon className="w-6 h-6" />
