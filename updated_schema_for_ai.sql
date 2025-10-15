@@ -33,7 +33,7 @@ CREATE TABLE public.bookings (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   listing_id uuid NOT NULL,
   buyer_id uuid NOT NULL,
-  status text NOT NULL DEFAULT 'active'::text,
+  status USER-DEFINED NOT NULL DEFAULT 'active'::subscription_status,
   service_rating integer CHECK (service_rating >= 1 AND service_rating <= 5),
   is_access_confirmed_by_host boolean DEFAULT false,
   host_confirmation_timestamp timestamp with time zone,
@@ -42,6 +42,8 @@ CREATE TABLE public.bookings (
   payment_status text NOT NULL DEFAULT 'not paid '::text,
   invite_link_shared text,
   adress_shared text,
+  paid_until date,
+  agent_notes text,
   CONSTRAINT bookings_pkey PRIMARY KEY (id),
   CONSTRAINT bookings_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
   CONSTRAINT bookings_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
@@ -91,8 +93,10 @@ CREATE TABLE public.dapbuddy_bookings (
   plan_id uuid NOT NULL,
   service_id text NOT NULL,
   transaction_id uuid NOT NULL,
-  status text NOT NULL DEFAULT 'active'::text,
+  status USER-DEFINED NOT NULL DEFAULT 'active'::subscription_status,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  paid_until date,
+  agent_notes text,
   CONSTRAINT dapbuddy_bookings_pkey PRIMARY KEY (booking_id),
   CONSTRAINT dapbuddy_bookings_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.dapbuddy_plans(id),
   CONSTRAINT dapbuddy_bookings_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
@@ -198,6 +202,7 @@ CREATE TABLE public.listings (
   rating_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
   instant_share boolean,
+  is_public boolean NOT NULL DEFAULT true,
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -213,6 +218,16 @@ CREATE TABLE public.notifications (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.one_time_join_tokens (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  booking_id uuid NOT NULL,
+  token text NOT NULL UNIQUE,
+  is_used boolean NOT NULL DEFAULT false,
+  expires_at timestamp with time zone NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT one_time_join_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT one_time_join_tokens_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id)
 );
 CREATE TABLE public.ops_queue (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
