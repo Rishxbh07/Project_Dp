@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Globe, Lock } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
   if (status === 'pending_renewal') {
@@ -14,7 +15,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const SubscriptionCard = ({ subscription }) => {
-  const { id, serviceName, hostName, rate, renewalDate, slotsFilled, slotsTotal, path, status } = subscription;
+  const { id, serviceName, hostName, rate, renewalDate, slotsFilled, slotsTotal, path, status, isPublic } = subscription;
   const initial = serviceName ? serviceName.charAt(0).toUpperCase() : '?';
 
   const getProgressInfo = () => {
@@ -47,8 +48,19 @@ const SubscriptionCard = ({ subscription }) => {
   return (
     <Link
       to={path}
-      className="group block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-purple-400/50"
+      className="group relative block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:border-purple-400/50"
     >
+      {isPublic !== undefined && (
+        <div className={`absolute top-3 right-3 flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full border z-10 ${
+            isPublic
+            ? 'bg-green-100/50 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30'
+            : 'bg-gray-100/50 dark:bg-slate-700/50 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600/50'
+        }`}>
+            {isPublic ? <Globe size={12} /> : <Lock size={12} />}
+            <span>{isPublic ? 'Public' : 'Private'}</span>
+        </div>
+      )}
+
       <div className={`w-full h-28 flex items-center justify-center bg-gradient-to-br ${getServiceColor(serviceName)}`}>
         <span className="text-white font-bold text-5xl opacity-80 group-hover:opacity-100 transition-opacity">{initial}</span>
       </div>

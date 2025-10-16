@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star } from 'lucide-react';
+import { Star, Globe, Lock } from 'lucide-react';
 
 const HostedPlanCard = ({ plan }) => {
     const {
         id,
         serviceName,
-        total_rating, // Receive total_rating
-        rating_count, // Receive rating_count
+        total_rating,
+        rating_count,
         createdAt,
         seatsTotal,
-        basePrice
+        basePrice,
+        isPublic // Now receiving this prop
     } = plan;
 
-    // --- NEW: Dynamically calculate average rating ---
     const averageRating = rating_count > 0 ? (total_rating / rating_count) : 0;
 
     const [members, setMembers] = useState([]);
@@ -54,7 +54,6 @@ const HostedPlanCard = ({ plan }) => {
             } else {
                 setMembers(data);
                 const seatsSold = data.length;
-                // Payout calculation is now more robust
                 const payout = seatsSold > 0 ? (basePrice * seatsSold).toFixed(2) : "0.00";
                 setExpectedPayout(payout);
             }
@@ -79,8 +78,17 @@ const HostedPlanCard = ({ plan }) => {
     return (
         <Link
             to={`/hosted-plan/${id}`}
-            className="group block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+            className="group relative block bg-white dark:bg-slate-800/50 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
         >
+            <div className={`absolute top-3 right-3 flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-full border z-10 ${
+                isPublic
+                ? 'bg-green-100/50 dark:bg-green-500/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30'
+                : 'bg-gray-100/50 dark:bg-slate-700/50 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-600/50'
+            }`}>
+                {isPublic ? <Globe size={12} /> : <Lock size={12} />}
+                <span>{isPublic ? 'Public' : 'Private'}</span>
+            </div>
+            
             <div className={`w-full h-28 flex items-center justify-center bg-gradient-to-br ${getServiceColor(serviceName)}`}>
                 <span className="text-white font-bold text-5xl opacity-80 group-hover:opacity-100 transition-opacity">
                     {serviceName?.charAt(0).toUpperCase()}
@@ -93,7 +101,6 @@ const HostedPlanCard = ({ plan }) => {
                 <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                         <Star className="w-4 h-4 text-yellow-400" />
-                        {/* --- UPDATED: Display dynamic average rating --- */}
                         <span className="font-semibold text-gray-700 dark:text-slate-300">Rating: {averageRating.toFixed(1)}</span>
                     </div>
                     <div className="flex items-center gap-2">
