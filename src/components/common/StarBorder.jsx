@@ -1,112 +1,61 @@
 import React from 'react';
 
-/**
- * StarBorder Component - Elegant Rotating Border Effect
- * ------------------------------------------------------------
- * Creates a subtle, sophisticated animated border with soft glowing spots
- */
-
 const StarBorder = ({
   as: Component = 'div',
   className = '',
   innerClassName = '',
   color = '#A855F7',
   speed = '8s',
-  thickness = 1.5,
+  thickness = 1,
   children,
   ...rest
 }) => {
   return (
     <Component
-      className={`relative ${className}`}
-      style={{ borderRadius: '18px' }}
+      // Added `group` for hover effects and removed `overflow-hidden`
+      className={`relative group rounded-2xl ${className}`}
+      style={{
+        padding: `${thickness}px`,
+      }}
       {...rest}
     >
-      {/* Animated border container */}
+      {/* NEW: Background glow "platform" effect */}
+      <div
+        className="absolute -inset-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl opacity-10 blur-lg group-hover:opacity-20 group-hover:blur-xl transition-all duration-300"
+      />
+
+      {/* Animated rotating gradient border */}
       <div 
-        className="absolute inset-0 overflow-hidden pointer-events-none"
-        style={{ 
-          borderRadius: '18px',
-          padding: `${thickness}px`,
-        }}
+        className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none"
       >
-        {/* First light spot */}
         <div
-          className="absolute inset-0"
+          className="absolute"
           style={{
-            background: `conic-gradient(from 0deg at 50% 50%, 
-              transparent 0deg, 
-              transparent 60deg,
-              ${color}90 85deg,
-              ${color} 90deg,
-              ${color}90 95deg,
-              transparent 120deg, 
-              transparent 360deg)`,
+            width: '200%',
+            height: '200%',
+            left: '-50%',
+            top: '-50%',
+            background: `conic-gradient(from 0deg, transparent 0%, transparent 30%, ${color} 50%, transparent 70%, transparent 100%)`,
             animation: `spin ${speed} linear infinite`,
-            borderRadius: '18px',
-          }}
-        />
-        
-        {/* Second light spot (opposite side) */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `conic-gradient(from 180deg at 50% 50%, 
-              transparent 0deg, 
-              transparent 60deg,
-              ${color}90 85deg,
-              ${color} 90deg,
-              ${color}90 95deg,
-              transparent 120deg, 
-              transparent 360deg)`,
-            animation: `spin ${speed} linear infinite`,
-            borderRadius: '18px',
-          }}
-        />
-        
-        {/* Soft glow effect underneath */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(circle at 50% 0%, ${color}20 0%, transparent 50%)`,
-            animation: `spin ${speed} linear infinite`,
-            filter: 'blur(12px)',
-            borderRadius: '18px',
-          }}
-        />
-        
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `radial-gradient(circle at 50% 100%, ${color}20 0%, transparent 50%)`,
-            animation: `spin ${speed} linear infinite`,
-            filter: 'blur(12px)',
-            borderRadius: '18px',
           }}
         />
       </div>
 
-      {/* Solid inner content with proper background */}
+      {/* MODIFIED: Inner container now has a solid background and a subtle shadow */}
       <div 
-        className={`relative z-10 h-full rounded-2xl ${innerClassName}`}
-        style={{
-          background: 'linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%)',
-          boxShadow: 'inset 0 1px 2px rgba(168, 85, 247, 0.08)',
-        }}
+        className={`relative z-10 h-full rounded-xl bg-white dark:bg-slate-900 shadow-lg shadow-black/5 ${innerClassName}`}
       >
         {children}
       </div>
-      
-      {/* Dark mode background override */}
+
       <style>{`
         @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        .dark [style*="background: linear-gradient(135deg, rgba(248"] {
-          background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%) !important;
-          box-shadow: inset 0 1px 2px rgba(168, 85, 247, 0.1) !important;
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
     </Component>

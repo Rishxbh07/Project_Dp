@@ -67,6 +67,7 @@ function App() {
     // You can replace this with a proper loading spinner component
     return <div>Loading...</div>;
   }
+  <div className="animate-scroll-x bg-purple-500 h-4 w-32"></div>
 
   return (
     <Router>

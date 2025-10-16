@@ -8,6 +8,9 @@ import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
 import { YoutubeIcon, InstagramIcon, TwitterIcon, GlobeIcon } from 'lucide-react';
 import HowItWorks from '../components/HowItWorks';
 import StarBorder from '../components/common/StarBorder';
+import PopularPlansDesktop from '../components/PopularPlansDesktop';
+import FAQSection from '../components/FAQSection'; 
+import Footer from '../components/layout/Footer';
 
 const HomePage = ({ session }) => {
   const [popularPlans, setPopularPlans] = useState([]);
@@ -89,6 +92,11 @@ const HomePage = ({ session }) => {
 
   const glowMap = {
     purple: '#8747d1',
+    blue: '#3b82f6',
+    green: '#22c55e',
+    sky: '#0ea5e9',
+    amber: '#f59e0b',
+    rose: '#f43f5e',
   };
 
   return (
@@ -97,7 +105,7 @@ const HomePage = ({ session }) => {
       <DapBuddyDropdownMenu session={session} />
       
       <div className="relative z-10">
-        <div className="max-w-md mx-auto px-4 lg:max-w-7xl">
+        <div className="w-full px-6 lg:px-12">
 
           {/* Hero Section */}
           <div className="text-center mb-8 px-4 lg:flex lg:text-left lg:items-center lg:py-16">
@@ -124,7 +132,7 @@ const HomePage = ({ session }) => {
             </div>
 
             {/* Stats Section */}
-            <div className="flex justify-center gap-3 mt-6 lg:w-1/2 lg:grid lg:grid-cols-3 lg:gap-4">
+            <div className="grid grid-cols-3 gap-3 mt-6 lg:w-1/2 lg:gap-4">
               {[
                 { value: "2.5K+", label: "Active Users", color: "purple" },
                 { value: "₹50K+", label: "Saved Monthly", color: "blue" },
@@ -139,10 +147,11 @@ const HomePage = ({ session }) => {
                   speed="8s"
                   thickness={2}
                   as="div"
-                  className={`${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} flex-1 lg:flex-auto flex-col justify-center text-center rounded-2xl px-4 py-3 lg:py-6 transform hover:scale-105 transition-all duration-300 ease-out`}
+                  className={`${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} h-full flex-col justify-center text-center transform hover:-translate-y-1.5 transition-transform duration-300 ease-out`}
+                  innerClassName="px-4 py-5 lg:py-6"
                 >
-                  <div className="text-slate-800 dark:text-white font-bold text-lg lg:text-2xl">{stat.value}</div>
-                  <div className="text-slate-500 dark:text-slate-200 text-xs lg:text-sm font-medium">{stat.label}</div>
+                  <div className="text-slate-800 dark:text-white font-bold text-xl lg:text-3xl">{stat.value}</div>
+                  <div className="text-slate-500 dark:text-slate-400 text-sm lg:text-base font-medium mt-1">{stat.label}</div>
                 </StarBorder>
               ))}
             </div>
@@ -166,6 +175,7 @@ const HomePage = ({ session }) => {
               </div>
             ) : (
               <>
+                {/* --- MOBILE CAROUSEL --- */}
                 <div className="relative h-[380px] flex items-center justify-center overflow-hidden lg:hidden">
                   {popularPlans.map((service, index) => {
                     let position = 'next';
@@ -182,46 +192,17 @@ const HomePage = ({ session }) => {
                   })}
                 </div>
 
-                <div className="hidden lg:flex flex-wrap justify-center gap-8">
-                  {popularPlans.slice(0, 4).map((service) => (
-                    <PlanCard key={service.id} service={service} />
-                  ))}
+                {/* --- DESKTOP INFINITE SCROLL --- */}
+                <div className="hidden lg:block">
+                    <PopularPlansDesktop popularPlans={popularPlans} />
                 </div>
               </>
             )}
           </section>
-
           <HowItWorks />
           <HostPlanCTA />
-
-          {/* Footer */}
-          <footer className="text-center py-10 border-t border-slate-200 dark:border-white/10 mt-10">
-            <div className="flex justify-center gap-6 mb-4">
-              <Link to="/about" className="text-sm text-slate-600 dark:text-slate-300 hover:text-purple-500">About Us</Link>
-              <Link to="/contact" className="text-sm text-slate-600 dark:text-slate-300 hover:text-purple-500">Contact</Link>
-              <Link to="/terms" className="text-sm text-slate-600 dark:text-slate-300 hover:text-purple-500">Terms</Link>
-              <Link to="/privacy" className="text-sm text-slate-600 dark:text-slate-300 hover:text-purple-500">Privacy</Link>
-            </div>
-
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              © 2025 DapBuddy. All Rights Reserved.
-            </p>
-
-            <div className="flex justify-center gap-8 my-8">
-              <a href="#" className="text-slate-500 hover:text-purple-500 dark:text-slate-400 dark:hover:text-purple-400 transition-colors">
-                <YoutubeIcon className="w-6 h-6" />
-              </a>
-              <a href="#" className="text-slate-500 hover:text-purple-500 dark:text-slate-400 dark:hover:text-purple-400 transition-colors">
-                <InstagramIcon className="w-6 h-6" />
-              </a>
-              <a href="#" className="text-slate-500 hover:text-purple-500 dark:text-slate-400 dark:hover:text-purple-400 transition-colors">
-                <GlobeIcon className="w-6 h-6" />
-              </a>
-              <a href="#" className="text-slate-500 hover:text-purple-500 dark:text-slate-400 dark:hover:text-purple-400 transition-colors">
-                <TwitterIcon className="w-6 h-6" />
-              </a>
-            </div>
-          </footer>
+          <FAQSection/>
+          <Footer />
 
           <div className="h-24"></div>
         </div>
