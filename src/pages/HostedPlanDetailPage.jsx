@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star, IndianRupee, Trash2, AlertTriangle, Clock, CheckCircle, ChevronRight } from 'lucide-react';
+import { Star, IndianRupee, Trash2, AlertTriangle, Clock, CheckCircle, ChevronRight, UserPlus } from 'lucide-react';
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
+import InviteFriend from '../components/common/InviteFriend'; // Import the new component
 
 // A new, simpler card component just for this page
 const SimpleMemberCard = ({ booking }) => {
@@ -75,6 +76,8 @@ const HostedPlanDetailPage = ({ session }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
 
     const deletionReasons = [
         "The subscription plan has expired.",
@@ -146,55 +149,72 @@ const HostedPlanDetailPage = ({ session }) => {
         <>
             <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
                 <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
-                    <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+                    <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
                         <Link to="/subscription" className="text-purple-500 dark:text-purple-400 text-sm">&larr; Back</Link>
                         <h1 className="text-xl font-bold text-gray-900 dark:text-white">{service.name}</h1>
                         <div className="w-16"></div>
                     </div>
                 </header>
-                <main className="max-w-md mx-auto px-4 py-6">
-                    <section className="flex items-center gap-4 mb-6">
-                        <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">{service.name.charAt(0)}</div>
-                        <div className="flex-1 grid grid-cols-2 gap-2 text-center">
-                            <div className="bg-white dark:bg-white/5 p-2 rounded-lg"><p className="text-xs text-gray-500 dark:text-slate-400">Your Host Rating</p><p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {host.host_rating.toFixed(1)}</p></div>
-                            <div className="bg-white dark:bg-white/5 p-2 rounded-lg"><p className="text-xs text-gray-500 dark:text-slate-400">This Plan's Rating</p><p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {averageRating.toFixed(1)}</p></div>
-                        </div>
-                    </section>
-                    <section className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 mb-8">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><IndianRupee className="w-5 h-5 text-green-500" /> Earning Breakdown</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Potential Earning</span><span className="font-semibold text-gray-800 dark:text-slate-200">₹{potentialEarning}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Platform charges ({service.platform_commission_rate}%)</span><span className="font-semibold text-red-500">- ₹{platformCut}</span></div>
-                            <div className="border-t border-gray-200 dark:border-white/10 my-1"></div>
-                            <div className="flex justify-between"><span className="text-gray-600 dark:text-slate-300 font-bold">Final Payout</span><span className="font-bold text-green-600 dark:text-green-400">₹{finalPayout}</span></div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Plan Members ({members.length}/{listing.seats_total})</h2>
-                        {members.length > 0 ? (
-                            <div className="space-y-4">
-                                {members.map((booking) => (
-                                    <SimpleMemberCard
-                                        key={booking.id}
-                                        booking={booking}
-                                    />
-                                ))}
+                <main className="max-w-4xl mx-auto px-4 py-6 grid grid-cols-1 md:grid-cols-2 md:gap-8">
+                    {/* Left Column */}
+                    <div className="md:col-span-1">
+                        <section className="flex items-center gap-4 mb-6">
+                            <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">{service.name.charAt(0)}</div>
+                            <div className="flex-1 grid grid-cols-2 gap-2 text-center">
+                                <div className="bg-white dark:bg-white/5 p-2 rounded-lg"><p className="text-xs text-gray-500 dark:text-slate-400">Your Host Rating</p><p className="font-bold text-lg text-yellow-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {host.host_rating.toFixed(1)}</p></div>
+                                <div className="bg-white dark:bg-white/5 p-2 rounded-lg"><p className="text-xs text-gray-500 dark:text-slate-400">This Plan's Rating</p><p className="font-bold text-lg text-blue-500 flex items-center justify-center gap-1"><Star className="w-4 h-4" /> {averageRating.toFixed(1)}</p></div>
                             </div>
-                        ) : (
-                            <p className="text-center text-gray-500 dark:text-slate-400 p-8 bg-white dark:bg-white/5 rounded-2xl border border-dashed dark:border-white/10">No one has joined your plan yet.</p>
-                        )}
-                    </section>
-                    
-                    <section className="mt-8">
-                        <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-semibold py-3 rounded-xl transition-colors">
-                            <Trash2 className="w-5 h-5" /> Delete Listing
-                        </button>
-                    </section>
-                    <div className="h-24"></div>
+                        </section>
+                        <section className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10 mb-8">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><IndianRupee className="w-5 h-5 text-green-500" /> Earning Breakdown</h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Potential Earning</span><span className="font-semibold text-gray-800 dark:text-slate-200">₹{potentialEarning}</span></div>
+                                <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Platform charges ({service.platform_commission_rate}%)</span><span className="font-semibold text-red-500">- ₹{platformCut}</span></div>
+                                <div className="border-t border-gray-200 dark:border-white/10 my-1"></div>
+                                <div className="flex justify-between"><span className="text-gray-600 dark:text-slate-300 font-bold">Final Payout</span><span className="font-bold text-green-600 dark:text-green-400">₹{finalPayout}</span></div>
+                            </div>
+                        </section>
+                        <section>
+                            <button onClick={() => setIsInviteModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 font-semibold py-3 rounded-xl transition-colors mb-4">
+                                <UserPlus className="w-5 h-5" /> Invite a Friend
+                            </button>
+                            <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-semibold py-3 rounded-xl transition-colors">
+                                <Trash2 className="w-5 h-5" /> Delete Listing
+                            </button>
+                        </section>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="md:col-span-1 mt-8 md:mt-0">
+                        <section>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Plan Members ({members.length}/{listing.seats_total})</h2>
+                            {members.length > 0 ? (
+                                <div className="space-y-4">
+                                    {members.map((booking) => (
+                                        <SimpleMemberCard
+                                            key={booking.id}
+                                            booking={booking}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-500 dark:text-slate-400 p-8 bg-white dark:bg-white/5 rounded-2xl border border-dashed dark:border-white/10">No one has joined your plan yet.</p>
+                            )}
+                        </section>
+                    </div>
                 </main>
             </div>
-            {/* Modal remains the same */}
+            
+            <InviteFriend
+                isOpen={isInviteModalOpen}
+                onClose={() => setIsInviteModalOpen(false)}
+                serviceName={service.name}
+                hostUsername={host.username}
+            />
+
+            <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+                {/* Modal content remains the same */}
+            </Modal>
         </>
     );
 };
