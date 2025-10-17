@@ -15,18 +15,21 @@ const AdminRequired = ({ session }) => {
         return;
       }
 
-      // More efficient query to check for existence
-      const { count, error } = await supabase
-        .from('admins')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', session.user.id);
-      
-      if (error || count === 0) {
+      try {
+        // Securely call the server-side function
+        const { data, error } = await supabase.functions.invoke('check-admin-status');
+        
+        if (error) {
+          throw error;
+        }
+
+        setIsAdmin(data.isAdmin);
+      } catch (e) {
+        console.error("Admin check failed:", e);
         setIsAdmin(false);
-      } else {
-        setIsAdmin(true);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAdminStatus();
@@ -36,7 +39,7 @@ const AdminRequired = ({ session }) => {
     return <div className="flex h-screen w-full items-center justify-center"><Loader /></div>;
   }
 
-  // FIX: Pass the session object down to all nested admin routes via context
+  // Pass the session object down to all nested admin routes via context
   return isAdmin ? <Outlet context={{ session }} /> : <Navigate to="/" replace />;
 };
 

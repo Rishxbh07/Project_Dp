@@ -1,0 +1,27 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.services (
+  id text NOT NULL,
+  name text NOT NULL UNIQUE,
+  category text,
+  is_active boolean NOT NULL DEFAULT true,
+  base_price numeric NOT NULL CHECK (base_price >= 0::numeric),
+  solo_plan_price numeric,
+  platform_commission_rate numeric NOT NULL DEFAULT 10.0 CHECK (platform_commission_rate >= 0::numeric),
+  tax_range jsonb NOT NULL DEFAULT '[0, 7, 12, 18]'::jsonb,
+  max_seats_allowed integer NOT NULL CHECK (max_seats_allowed > 0),
+  seats_allowed_to_sell integer NOT NULL CHECK (seats_allowed_to_sell > 0),
+  has_manager_seat boolean NOT NULL DEFAULT false,
+  sharing_policy USER-DEFINED NOT NULL DEFAULT 'allowed'::sharing_policy_enum,
+  sharing_method USER-DEFINED,
+  invite_link_expiration boolean,
+  billing_cycle_days integer NOT NULL DEFAULT 30,
+  payout_schedule_days integer NOT NULL DEFAULT 31,
+  host_config jsonb,
+  user_config jsonb,
+  service_metadata jsonb,
+  internal_notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT services_pkey PRIMARY KEY (id)
+);
