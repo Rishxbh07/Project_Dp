@@ -105,12 +105,12 @@ const HomePage = ({ session }) => {
       <DapBuddyDropdownMenu session={session} />
       
       <div className="relative z-10">
-        <div className="w-full px-6 lg:px-12">
+        <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
 
           {/* Hero Section */}
-          <div className="text-center mb-8 px-4 lg:flex lg:text-left lg:items-center lg:py-16">
-            <div className="mb-6 lg:w-1/2 lg:pr-16">
-              <h1 className="text-4xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-4 leading-tight">
+          <div className="text-center mb-8 px-2 sm:px-4 lg:flex lg:text-left lg:items-center lg:py-12 xl:py-16">
+            <div className="mb-6 lg:w-1/2 lg:pr-12 xl:pr-16">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-tight">
                 Share & Save on
                 {runAnimation ? (
                   <SlotMachineAnimation
@@ -119,20 +119,20 @@ const HomePage = ({ session }) => {
                   />
                 ) : (
                   <span
-                    className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse cursor-pointer"
+                    className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse cursor-pointer hover:scale-105 transition-transform duration-300"
                     onClick={() => setRunAnimation(true)}
                   >
                     Premium Plans
                   </span>
                 )}
               </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-lg lg:text-xl font-light">
+              <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg lg:text-xl xl:text-2xl font-light">
                 Split costs, multiply savings with friends
               </p>
             </div>
 
             {/* Stats Section */}
-            <div className="grid grid-cols-3 gap-3 mt-6 lg:w-1/2 lg:gap-4">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-6 lg:w-1/2 lg:gap-4 xl:gap-5">
               {[
                 { value: "2.5K+", label: "Active Users", color: "purple" },
                 { value: "₹50K+", label: "Saved Monthly", color: "blue" },
@@ -147,36 +147,36 @@ const HomePage = ({ session }) => {
                   speed="8s"
                   thickness={2}
                   as="div"
-                  className={`${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} h-full flex-col justify-center text-center transform hover:-translate-y-1.5 transition-transform duration-300 ease-out`}
-                  innerClassName="px-4 py-5 lg:py-6"
+                  className={`${stat.desktopOnly ? 'hidden lg:flex' : 'flex'} h-full flex-col justify-center text-center transform hover:-translate-y-1 lg:hover:-translate-y-2 transition-all duration-300 ease-out hover:shadow-lg`}
+                  innerClassName="px-3 py-4 sm:px-4 sm:py-5 lg:py-6 xl:py-7"
                 >
-                  <div className="text-slate-800 dark:text-white font-bold text-xl lg:text-3xl">{stat.value}</div>
-                  <div className="text-slate-500 dark:text-slate-400 text-sm lg:text-base font-medium mt-1">{stat.label}</div>
+                  <div className="text-slate-800 dark:text-white font-bold text-lg sm:text-xl lg:text-2xl xl:text-3xl">{stat.value}</div>
+                  <div className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm lg:text-base font-medium mt-0.5 sm:mt-1">{stat.label}</div>
                 </StarBorder>
               ))}
             </div>
           </div>
 
           {/* Popular Plans Section */}
-          <section className="mt-10">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-slate-900 dark:text-white text-3xl font-bold">
+          <section className="mt-8 sm:mt-10 lg:mt-12">
+            <div className="flex items-center justify-between mb-5 sm:mb-6 lg:mb-8">
+              <h2 className="text-slate-900 dark:text-white text-2xl sm:text-3xl lg:text-4xl font-bold">
                 Popular Plans
-                <span className="block w-16 h-1 bg-gradient-to-r from-purple-400 to-blue-400 mt-2 rounded-full"></span>
+                <span className="block w-12 sm:w-16 h-0.5 sm:h-1 bg-gradient-to-r from-purple-400 to-blue-400 mt-2 rounded-full"></span>
               </h2>
-              <Link to="/explore" className="text-purple-500 dark:text-purple-300 text-sm font-semibold hover:text-purple-600 dark:hover:text-purple-200 transition-colors">
+              <Link to="/explore" className="text-purple-500 dark:text-purple-300 text-xs sm:text-sm lg:text-base font-semibold hover:text-purple-600 dark:hover:text-purple-200 transition-colors hover:underline underline-offset-4">
                 View All
               </Link>
             </div>
 
             {loading ? (
               <div className="flex justify-center">
-                <div className="flex-shrink-0 w-[240px] h-[320px] bg-gray-200 dark:bg-white/5 rounded-3xl p-6 animate-pulse"></div>
+                <div className="flex-shrink-0 w-[220px] sm:w-[240px] lg:w-[260px] h-[300px] sm:h-[320px] lg:h-[340px] bg-gray-200 dark:bg-white/5 rounded-2xl sm:rounded-3xl p-5 sm:p-6 animate-pulse"></div>
               </div>
             ) : (
               <>
-                {/* --- MOBILE CAROUSEL --- */}
-                <div className="relative h-[380px] flex items-center justify-center overflow-hidden lg:hidden">
+                {/* --- MOBILE/TABLET CAROUSEL --- */}
+                <div className="relative h-[360px] sm:h-[380px] md:h-[400px] flex items-center justify-center overflow-hidden lg:hidden">
                   {popularPlans.map((service, index) => {
                     let position = 'next';
                     if (index === currentIndex) position = 'active';
@@ -204,7 +204,7 @@ const HomePage = ({ session }) => {
           <FAQSection/>
           <Footer />
 
-          <div className="h-24"></div>
+          <div className="h-20 sm:h-24 lg:h-28"></div>
         </div>
       </div>
     </div>

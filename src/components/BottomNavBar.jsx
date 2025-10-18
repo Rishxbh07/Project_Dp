@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Home, CalendarDays, Wallet, Compass, Users, Bell } from "lucide-react";
 
 const navItems = [
     {
@@ -83,6 +84,11 @@ const navItems = [
         )
     },
     {
+        label: "Friends",
+        path: "/friends",
+        icon: (isActive) => <Users strokeWidth={isActive ? 2.5 : 2} />,
+    },
+    {
         label: "Notifications",
         path: "/notifications",
         icon: (isActive) => (
@@ -107,7 +113,7 @@ export default function BottomNavBar() {
     const location = useLocation();
     const [hoveredItem, setHoveredItem] = useState(null);
     const [clickedItem, setClickedItem] = useState(null);
-    const [notificationCount, setNotificationCount] = useState(6); // Example state
+    const [notificationCount, setNotificationCount] = useState(6);
 
     const handleNavClick = (path) => {
         setClickedItem(path);
@@ -115,11 +121,76 @@ export default function BottomNavBar() {
     };
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 safe-area-bottom">
-            <div className="relative">
-                <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200/50 dark:border-gray-700/50" />
+        <>
+            {/* MOBILE & TABLET: Bottom Navigation Bar (hidden on lg+) */}
+            <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white dark:bg-gray-900 safe-area-bottom">
+                <div className="relative">
+                    <div className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200/50 dark:border-gray-700/50" />
+                    
+                    <div className="relative flex items-center justify-around px-2 py-2">
+                        {navItems.map((item) => {
+                            const isActive = location.pathname === item.path;
+                            const isHovered = hoveredItem === item.path;
+                            const isClicked = clickedItem === item.path;
+                            
+                            return (
+                                <Link
+                                    key={item.path}
+                                    to={item.path}
+                                    onClick={() => handleNavClick(item.path)}
+                                    onMouseEnter={() => setHoveredItem(item.path)}
+                                    onMouseLeave={() => setHoveredItem(null)}
+                                    className="relative flex flex-col items-center justify-center w-full max-w-[80px] py-2 px-1 group transition-all duration-200"
+                                    aria-label={item.label}
+                                >
+                                    {isActive && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl animate-in fade-in duration-300" />
+                                        </div>
+                                    )}
+                                    
+                                    {isClicked && (
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            <div className="w-12 h-12 bg-purple-400/20 rounded-full animate-ping" />
+                                        </div>
+                                    )}
+                                    
+                                    <div className={`relative flex items-center justify-center w-12 h-12 transition-all duration-300 ${isActive ? 'scale-110' : 'scale-100'} ${isHovered && !isActive ? 'scale-105' : ''}`}>
+                                        <div className={`transition-all duration-300 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
+                                            {item.icon(isActive)}
+                                        </div>
+                                        
+                                        {item.path === '/notifications' && notificationCount > 0 && (
+                                            <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full flex items-center justify-center px-1 animate-in zoom-in duration-200">
+                                                <span className="text-white text-[10px] font-bold">
+                                                    {notificationCount > 99 ? '99+' : notificationCount}
+                                                </span>
+                                            </div>
+                                        )}
+                                        
+                                        {isActive && (
+                                            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-purple-600 dark:bg-purple-400 rounded-full" />
+                                        )}
+                                    </div>
+                                    
+                                    {(isHovered || isActive) && (
+                                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white text-xs font-medium rounded-md whitespace-nowrap opacity-0 animate-in fade-in slide-in-from-bottom-2 duration-200 fill-mode-forwards pointer-events-none">
+                                            {item.label}
+                                            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 dark:bg-gray-700 rotate-45" />
+                                        </div>
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
                 
-                <div className="relative flex items-center justify-around px-2 py-2">
+                <div className="h-[env(safe-area-inset-bottom,0px)] bg-white dark:bg-gray-900" />
+            </nav>
+
+            {/* DESKTOP: Left Sidebar Navigation (visible on lg+) */}
+            <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 z-40 w-20 xl:w-24 flex-col items-center py-8 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-r border-gray-200/50 dark:border-gray-700/50">
+                <div className="flex flex-col items-center gap-2 xl:gap-3 w-full px-2 xl:px-3">
                     {navItems.map((item) => {
                         const isActive = location.pathname === item.path;
                         const isHovered = hoveredItem === item.path;
@@ -132,52 +203,50 @@ export default function BottomNavBar() {
                                 onClick={() => handleNavClick(item.path)}
                                 onMouseEnter={() => setHoveredItem(item.path)}
                                 onMouseLeave={() => setHoveredItem(null)}
-                                className="relative flex flex-col items-center justify-center w-full max-w-[80px] py-2 px-1 group transition-all duration-200"
+                                className="relative flex items-center justify-center w-full aspect-square max-w-[64px] xl:max-w-[72px] group transition-all duration-200"
                                 aria-label={item.label}
                             >
                                 {isActive && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl animate-in fade-in duration-300" />
+                                        <div className="w-full h-full bg-purple-100 dark:bg-purple-900/30 rounded-2xl animate-in fade-in duration-300" />
                                     </div>
                                 )}
                                 
                                 {isClicked && (
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <div className="w-12 h-12 bg-purple-400/20 rounded-full animate-ping" />
+                                        <div className="w-full h-full bg-purple-400/20 rounded-2xl animate-ping" />
                                     </div>
                                 )}
                                 
-                                <div className={`relative flex items-center justify-center w-12 h-12 transition-all duration-300 ${isActive ? 'scale-110' : 'scale-100'} ${isHovered && !isActive ? 'scale-105' : ''}`}>
+                                <div className={`relative flex items-center justify-center w-full h-full transition-all duration-300 ${isActive ? 'scale-110' : 'scale-100'} ${isHovered && !isActive ? 'scale-105' : ''}`}>
                                     <div className={`transition-all duration-300 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`}>
                                         {item.icon(isActive)}
                                     </div>
                                     
                                     {item.path === '/notifications' && notificationCount > 0 && (
-                                        <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full flex items-center justify-center px-1 animate-in zoom-in duration-200">
-                                            <span className="text-white text-[10px] font-bold">
+                                        <div className="absolute -top-1 -right-1 min-w-[20px] h-[20px] bg-red-500 rounded-full flex items-center justify-center px-1 animate-in zoom-in duration-200">
+                                            <span className="text-white text-[11px] font-bold">
                                                 {notificationCount > 99 ? '99+' : notificationCount}
                                             </span>
                                         </div>
                                     )}
                                     
                                     {isActive && (
-                                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-purple-600 dark:bg-purple-400 rounded-full" />
+                                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-purple-600 dark:bg-purple-400 rounded-r-full" />
                                     )}
                                 </div>
                                 
-                                {(isHovered || isActive) && (
-                                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white text-xs font-medium rounded-md whitespace-nowrap opacity-0 animate-in fade-in slide-in-from-bottom-2 duration-200 fill-mode-forwards pointer-events-none">
+                                {isHovered && (
+                                    <div className="absolute left-full ml-4 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-sm font-medium rounded-lg whitespace-nowrap opacity-0 animate-in fade-in slide-in-from-left-2 duration-200 fill-mode-forwards pointer-events-none">
                                         {item.label}
-                                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 dark:bg-gray-700 rotate-45" />
+                                        <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-gray-800 dark:bg-gray-700 rotate-45" />
                                     </div>
                                 )}
                             </Link>
                         );
                     })}
                 </div>
-            </div>
-            
-            <div className="h-[env(safe-area-inset-bottom,0px)] bg-white dark:bg-gray-900" />
-        </nav>
+            </aside>
+        </>
     );
 }

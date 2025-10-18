@@ -26,6 +26,7 @@ import JoinDapBuddyPlanPage from './pages/JoinDapBuddyPlanPage';
 import PaymentPage from './pages/PaymentPage';
 import PaymentVerificationPage from './pages/PaymentVerificationPage';
 import DapBuddySubDetailsPage from './pages/DapBuddySubDetailsPage';
+import FriendsPage from './pages/FriendsPage';
 
 // --- NEW IMPORTS ---
 import AdminRequired from './components/AdminRequired';
@@ -105,6 +106,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage session={session} />} />
             <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
             <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
+            <Route path="/friends" element={<FriendsPage session={session} />} />
             <Route path="/notifications" element={<NotificationsPage session={session} />} />
             <Route path="/explore" element={<ExplorePage session={session} />} />
             <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
