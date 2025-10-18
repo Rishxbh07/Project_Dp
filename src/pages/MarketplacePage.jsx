@@ -10,16 +10,21 @@ import ExplanationGuide from '../components/common/ExplanationGuide';
 const PlanCard = ({ plan }) => {
     const {
         id, isDapBuddyPlan, total_rating, rating_count, seatsTotal, seatsAvailable,
-        hostUsername, hostPfpUrl, basePrice, soloPrice, createdAt, instant_share
+        hostUsername, hostPfpUrl, basePrice, soloPrice, createdAt, instant_share,
+        seatsOriginallyOffered // Receive the new prop
     } = plan;
     const averageRating = rating_count > 0 ? (total_rating / rating_count) : (isDapBuddyPlan ? 5 : 0);
-    const slotsFilled = seatsTotal - seatsAvailable;
+    
+    // CORRECTED LOGIC: Calculate filled slots based on what was offered for sale
+    const slotsFilled = seatsOriginallyOffered - seatsAvailable;
+    
     const savings = soloPrice && basePrice > 0 ? Math.round(((soloPrice - basePrice) / soloPrice) * 100) : 0;
 
     return (
         <Link to={isDapBuddyPlan ? `/join-dapbuddy-plan/${id}` : `/join-plan/${id}`} className="block group">
             <div className="relative bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02] pt-6 overflow-visible">
-                {!isDapBuddyPlan && <AgeBadge createdAt={createdAt} />}
+                {/* ... (rest of the card is unchanged) ... */}
+                 {!isDapBuddyPlan && <AgeBadge createdAt={createdAt} />}
                 {isDapBuddyPlan ? (
                     <div className="absolute top-0 -translate-y-1/2 right-4 z-20 flex items-center gap-1.5 text-xs font-bold text-purple-800 dark:text-purple-200 bg-purple-400/20 dark:bg-purple-400/30 py-1.5 px-3 rounded-full border border-purple-500/50">
                         <ShieldCheck className="w-4 h-4" />
@@ -57,7 +62,8 @@ const PlanCard = ({ plan }) => {
                 </div>
                 <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-purple-500" />
-                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">{slotsFilled} of {seatsTotal} slots filled</span>
+                    {/* Display the corrected "slots filled" and "originally offered" counts */}
+                    <span className="text-sm font-medium text-gray-600 dark:text-slate-300">{slotsFilled} of {seatsOriginallyOffered} slots filled</span>
                 </div>
                 <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex items-end justify-between">
                     <div>
@@ -82,7 +88,6 @@ const PlanCard = ({ plan }) => {
     );
 };
 
-
 const MarketplacePage = ({ session }) => {
     const { serviceName } = useParams();
     const pageTitle = serviceName ? `${serviceName.charAt(0).toUpperCase() + serviceName.slice(1)} Public Groups` : 'Marketplace';
@@ -99,24 +104,72 @@ const MarketplacePage = ({ session }) => {
 
     useEffect(() => {
         const fetchAllPlans = async () => {
-            if (!serviceName) { setError("Service name is missing."); setLoading(false); return; }
-            setLoading(true); setError(null);
+            if (!serviceName) {
+                setError("Service name is missing.");
+                setLoading(false);
+                return;
+            }
+            setLoading(true);
+            setError(null);
             try {
-                const { data: serviceData, error: serviceError } = await supabase.from('services').select('id, solo_plan_price').ilike('name', `%${serviceName}%`).single();
-                if (serviceError || !serviceData) throw new Error(`Service "${serviceName}" not found.`);
-                const { id: serviceId, solo_plan_price: soloPrice } = serviceData;
-                
-                const [dapBuddyRes, communityRes] = await Promise.all([
-                    supabase.from('dapbuddy_plans').select('*').eq('service_id', serviceId),
-                    supabase.from('listings').select(`*, host_profile:host_id(username, pfp_url, host_rating), service_details:service_id(base_price), members:bookings(count)`).eq('service_id', serviceId).eq('is_public', true).eq('status', 'active').neq('host_id', session?.user?.id || '00000000-0000-0000-0000-000000000000')
-                ]);
+                const { data: serviceData, error: serviceError } = await supabase
+                    .from('services')
+                    .select('id, solo_plan_price, base_price')
+                    .ilike('name', `%${serviceName}%`)
+                    .single();
 
-                if (dapBuddyRes.error) throw dapBuddyRes.error; if (communityRes.error) throw communityRes.error;
+                if (serviceError || !serviceData) throw new Error(`Service "${serviceName}" not found.`);
+                const { id: serviceId, solo_plan_price: soloPrice, base_price: serviceBasePrice } = serviceData;
+
+                const { data: allListings, error: listingsError } = await supabase
+                    .from('listings')
+                    .select(`
+                        *,
+                        host_profile:host_id ( username, pfp_url, host_rating, host_tier )
+                    `)
+                    .eq('service_id', serviceId)
+                    .eq('is_public', true)
+                    .eq('status', 'active')
+                    .neq('host_id', session?.user?.id || '00000000-0000-0000-0000-000000000000');
+
+                if (listingsError) throw listingsError;
+
+                const formattedPlans = (allListings || []).map(plan => {
+                    const hostTier = plan.host_profile?.host_tier;
+                    let hostUsername;
+
+                    switch (hostTier) {
+                        case 'standard':
+                            hostUsername = plan.host_profile.username;
+                            break;
+                        case 'dapbuddy_featured':
+                            hostUsername = 'DapBuddy';
+                            break;
+                        default:
+                            hostUsername = plan.alias_name || plan.host_profile.username;
+                            break;
+                    }
+
+                    return {
+                        id: plan.id,
+                        isDapBuddyPlan: hostTier === 'dapbuddy_featured',
+                        total_rating: plan.total_rating,
+                        rating_count: plan.rating_count,
+                        seatsTotal: plan.seats_total,
+                        seatsAvailable: plan.seats_available,
+                        seatsOriginallyOffered: plan.seats_originally_offered, // Pass the new prop
+                        hostUsername: hostUsername,
+                        hostRating: plan.host_profile.host_rating,
+                        hostPfpUrl: plan.host_profile.pfp_url,
+                        basePrice: serviceBasePrice,
+                        soloPrice: soloPrice,
+                        createdAt: plan.created_at,
+                        instant_share: plan.instant_share 
+                    };
+                });
                 
-                const formattedDapBuddyPlans = (dapBuddyRes.data || []).map(plan => ({ id: plan.id, isDapBuddyPlan: true, total_rating: 5, rating_count: 1, seatsTotal: plan.seats_total, seatsAvailable: plan.seats_available, hostUsername: 'DapBuddy', hostPfpUrl: null, basePrice: plan.platform_price, soloPrice: soloPrice, createdAt: plan.created_at, instant_share: true }));
-                const formattedCommunityPlans = (communityRes.data || []).map(plan => ({ id: plan.id, isDapBuddyPlan: false, total_rating: plan.total_rating, rating_count: plan.rating_count, seatsTotal: plan.seats_total, seatsAvailable: plan.seats_available, hostUsername: plan.host_profile.username, hostRating: plan.host_profile.host_rating, hostPfpUrl: plan.host_profile.pfp_url, basePrice: plan.service_details.base_price, soloPrice: soloPrice, createdAt: plan.created_at, instant_share: plan.instant_share }));
-                
-                setAllPlans([...formattedDapBuddyPlans, ...formattedCommunityPlans]);
+                setAllPlans(formattedPlans);
+
             } catch (error) {
                 setError(error.message);
             } finally {
@@ -126,6 +179,7 @@ const MarketplacePage = ({ session }) => {
         fetchAllPlans();
     }, [serviceName, session]);
     
+    // ... (rest of the component is unchanged) ...
     const handleRatingSort = () => {
         setPriceSort('none');
         setRatingSort(prev => (prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none'));
@@ -204,7 +258,7 @@ const MarketplacePage = ({ session }) => {
                             filteredAndSortedPlans.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {filteredAndSortedPlans.map(plan => (
-                                        <PlanCard key={`${plan.id}-${plan.isDapBuddyPlan}`} plan={plan} />
+                                        <PlanCard key={plan.id} plan={plan} />
                                     ))}
                                 </div>
                             ) : (

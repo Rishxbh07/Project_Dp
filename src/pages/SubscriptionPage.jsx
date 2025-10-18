@@ -25,18 +25,16 @@ const SubscriptionPage = ({ session }) => {
     setError(null);
 
     try {
-      const [communitySubsRes, dapBuddySubsRes, hostedPlansRes] = await Promise.all([
-        supabase.rpc("get_user_subscriptions", { uid: session.user.id }),
-        supabase.rpc("get_dapbuddy_subscriptions", { p_user_id: session.user.id }),
+      // Single, efficient call to our new function
+      const [allSubsRes, hostedPlansRes] = await Promise.all([
+        supabase.rpc("get_all_user_subscriptions", { p_user_id: session.user.id }),
         supabase.rpc("get_hosted_plans", { p_host_id: session.user.id })
       ]);
 
-      if (communitySubsRes.error) throw communitySubsRes.error;
-      if (dapBuddySubsRes.error) throw dapBuddySubsRes.error;
+      if (allSubsRes.error) throw allSubsRes.error;
       if (hostedPlansRes.error) throw hostedPlansRes.error;
 
-      // --- Format Joined Subscriptions ---
-      const formattedCommunitySubs = (communitySubsRes.data || []).map(sub => ({
+      const formattedSubscriptions = (allSubsRes.data || []).map(sub => ({
         id: sub.booking_id,
         serviceName: sub.service_name,
         hostName: sub.host_name,
@@ -45,28 +43,15 @@ const SubscriptionPage = ({ session }) => {
         slotsFilled: sub.seats_total - sub.seats_available,
         slotsTotal: sub.seats_total,
         status: sub.status,
-        isPublic: sub.is_public ?? true, // fallback
-        path: `/subscription/${sub.booking_id}`,
+        isPublic: sub.is_public,
+        path: sub.is_dapbuddy_plan
+          ? `/dapbuddy-subscription/${sub.booking_id}`
+          : `/subscription/${sub.booking_id}`,
       }));
 
-      const formattedDapBuddySubs = (dapBuddySubsRes.data || []).map(sub => ({
-        id: sub.booking_id,
-        serviceName: sub.service_name,
-        hostName: "DapBuddy Official",
-        rate: sub.platform_price,
-        renewalDate: new Date(sub.latest_expiry).toLocaleDateString(),
-        slotsFilled: sub.seats_total,
-        slotsTotal: sub.seats_total,
-        status: sub.status,
-        isPublic: true,
-        path: `/dapbuddy-subscription/${sub.booking_id}`,
-      }));
+      formattedSubscriptions.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
+      setMySubscriptions(formattedSubscriptions);
 
-      const allSubscriptions = [...formattedCommunitySubs, ...formattedDapBuddySubs];
-      allSubscriptions.sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
-      setMySubscriptions(allSubscriptions);
-
-      // --- Format Hosted Plans ---
       const formattedHosted = (hostedPlansRes.data || []).map(plan => ({
         id: plan.id,
         createdAt: plan.created_at,
@@ -79,6 +64,7 @@ const SubscriptionPage = ({ session }) => {
         isPublic: plan.is_public ?? true,
       }));
       setHostedPlans(formattedHosted);
+
     } catch (err) {
       console.error("Error fetching subscriptions:", err);
       setError("Something went wrong while loading your plans.");
@@ -89,8 +75,6 @@ const SubscriptionPage = ({ session }) => {
 
   useEffect(() => {
     fetchData();
-
-    // Auto-refresh when new plan is created
     const handleRefresh = () => fetchData();
     window.addEventListener("refreshHostedPlans", handleRefresh);
     return () => window.removeEventListener("refreshHostedPlans", handleRefresh);
@@ -122,7 +106,6 @@ const SubscriptionPage = ({ session }) => {
 
   return (
     <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-gray-900 dark:text-white transition-all duration-300">
-      {/* --- HEADER --- */}
       <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 text-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-indigo-500 bg-clip-text text-transparent">
@@ -132,7 +115,6 @@ const SubscriptionPage = ({ session }) => {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* --- TABS --- */}
         <div className="max-w-md mx-auto relative flex p-1 bg-gray-200 dark:bg-slate-800/80 backdrop-blur-md rounded-full mb-10 shadow-inner">
           <div
             className={`absolute top-1 bottom-1 w-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full transition-transform duration-300 ease-in-out ${
@@ -161,7 +143,6 @@ const SubscriptionPage = ({ session }) => {
           </button>
         </div>
 
-        {/* --- CONTENT --- */}
         {loading && <Loader />}
         {error && (
           <p className="text-red-500 text-center font-medium mb-4">{error}</p>

@@ -1,24 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star, IndianRupee, Trash2, AlertTriangle, Clock, CheckCircle, ChevronRight, UserPlus } from 'lucide-react';
+import { Star, IndianRupee, Trash2, AlertTriangle, Clock, CheckCircle, ChevronRight, UserPlus, Users, Tag, Lock, ShoppingCart } from 'lucide-react';
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
-import InviteFriend from '../components/common/InviteFriend'; // Import the new component
+import InviteFriend from '../components/common/InviteFriend';
 
-// A new, simpler card component just for this page
 const SimpleMemberCard = ({ booking }) => {
     const userProfile = booking.profiles;
     const inviteData = (booking.invite_link && booking.invite_link.length > 0) ? booking.invite_link[0] : null;
     const status = inviteData?.status || 'pending_host_invite';
-    const paymentStatus = booking.payment_status; // <-- Get payment status
+    const paymentStatus = booking.payment_status;
 
     const getStatusBadge = () => {
         switch (status) {
             case 'pending_host_invite':
                 return <span className="flex items-center gap-1 text-xs font-semibold text-gray-500"><Clock className="w-3 h-3"/> Send Invite</span>;
             case 'pending_host_confirmation':
-                // This is the "Action Required" state
                 return <span className="flex items-center gap-1 text-xs font-semibold text-blue-500"><AlertTriangle className="w-3 h-3"/> Action Required</span>;
             case 'active':
                 return <span className="flex items-center gap-1 text-xs font-semibold text-green-500"><CheckCircle className="w-3 h-3"/> Active</span>;
@@ -44,7 +42,6 @@ const SimpleMemberCard = ({ booking }) => {
                 )}
                 <div className="flex-1">
                     <p className="font-bold text-gray-900 dark:text-white">{userProfile.username}</p>
-                    {/* --- MODIFIED: Container for badges --- */}
                     <div className="flex items-center gap-2 mt-1">
                         {getStatusBadge()}
                         {paymentStatus && (
@@ -71,13 +68,13 @@ const HostedPlanDetailPage = ({ session }) => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [listing, setListing] = useState(null);
+    const [activeMembers, setActiveMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteReason, setDeleteReason] = useState('');
     const [isDeleting, setIsDeleting] = useState(false);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-
 
     const deletionReasons = [
         "The subscription plan has expired.",
@@ -90,20 +87,9 @@ const HostedPlanDetailPage = ({ session }) => {
         if (!id) return;
         setLoading(true);
         
-        // --- MODIFIED: Added payment_status to select and ordered bookings by joined_at ---
         const { data, error } = await supabase
             .from('listings')
-            .select(`
-                *,
-                services(*),
-                profiles(*),
-                bookings (
-                    *,
-                    profiles(*),
-                    invite_link(status),
-                    payment_status
-                )
-            `)
+            .select(`*, services(*), profiles(*), bookings(*, profiles(*), invite_link(status), payment_status)`)
             .eq('id', id)
             .order('joined_at', { foreignTable: 'bookings', ascending: true })
             .single();
@@ -113,6 +99,8 @@ const HostedPlanDetailPage = ({ session }) => {
             console.error(error);
         } else {
             setListing(data);
+            const active = (data.bookings || []).filter(m => m.status === 'active');
+            setActiveMembers(active);
         }
         setLoading(false);
     }, [id]);
@@ -133,14 +121,18 @@ const HostedPlanDetailPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Listing not found.'}</p>;
     
-    const { services: service, profiles: host, bookings: members = [] } = listing;
+    const { services: service, profiles: host } = listing;
     
     if (!service || !host) {
         return <p className="text-center text-red-500 mt-8">Essential plan data is missing.</p>;
     }
 
-    const seatsSold = members.length;
-    const potentialEarning = (service.base_price * seatsSold).toFixed(2);
+    const soldSeats = activeMembers.length;
+    const totalCapacity = listing.seats_total;
+    const originallyOffered = listing.seats_originally_offered || 0;
+    const reservedByHost = totalCapacity - originallyOffered;
+
+    const potentialEarning = (service.base_price * soldSeats).toFixed(2);
     const platformCut = (potentialEarning * (service.platform_commission_rate / 100)).toFixed(2);
     const finalPayout = (potentialEarning - platformCut).toFixed(2);
     const averageRating = listing.rating_count > 0 ? (listing.total_rating / listing.rating_count) : 0;
@@ -185,16 +177,34 @@ const HostedPlanDetailPage = ({ session }) => {
                     </div>
 
                     {/* Right Column */}
-                    <div className="md:col-span-1 mt-8 md:mt-0">
+                    <div className="md:col-span-1 mt-8 md:mt-0 space-y-6">
+                        <section className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Reserved by You ({reservedByHost})</h3>
+                                <button 
+                                    onClick={() => alert('Coming Soon! This feature will allow you to add members who are not on DapBuddy.')}
+                                    className="flex items-center gap-1.5 bg-blue-500/10 text-blue-500 dark:text-blue-400 text-xs font-semibold py-2 px-3 rounded-lg hover:bg-blue-500/20 transition-colors"
+                                >
+                                    <UserPlus className="w-4 h-4"/> Add Member
+                                </button>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">These are the spots you've kept for yourself or friends outside DapBuddy.</p>
+                        </section>
+                        
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Plan Members ({members.length}/{listing.seats_total})</h2>
-                            {members.length > 0 ? (
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Plan Overview</h2>
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Total Capacity</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Users className="w-4 h-4"/> {totalCapacity} Seats</p></div>
+                                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Offered for Sale</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Tag className="w-4 h-4 text-green-500"/> {originallyOffered} Seats</p></div>
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Reserved by Host</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Lock className="w-4 h-4 text-blue-500"/> {reservedByHost} Seats</p></div>
+                                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Sold on DapBuddy</p><p className="font-bold text-lg flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4 text-purple-500"/> {soldSeats} Seats</p></div>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">DapBuddy Members ({soldSeats})</h3>
+                            {activeMembers.length > 0 ? (
                                 <div className="space-y-4">
-                                    {members.map((booking) => (
-                                        <SimpleMemberCard
-                                            key={booking.id}
-                                            booking={booking}
-                                        />
+                                    {activeMembers.map((booking) => (
+                                        <SimpleMemberCard key={booking.id} booking={booking} />
                                     ))}
                                 </div>
                             ) : (

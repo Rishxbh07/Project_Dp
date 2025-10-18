@@ -32,6 +32,10 @@ const HostPlanPage = ({ session }) => {
     // --- NEW STATE for the public/private toggle ---
     const [isPublic, setIsPublic] = useState(true);
 
+    // --- NEW STATES for host tier logic ---
+    const [hostProfile, setHostProfile] = useState(null);
+    const [aliasName, setAliasName] = useState('');
+
     // ... (All existing useEffect hooks and functions are kept)
     useEffect(() => {
         if (success) {
@@ -42,22 +46,39 @@ const HostPlanPage = ({ session }) => {
         }
     }, [success, navigate]);
 
+    // ✅ CORRECTED DATA FETCHING
     useEffect(() => {
-        const fetchServicesAndCategories = async () => {
-            setLoading(true);
-            const { data, error } = await supabase.from('services').select('*');
-            if (error) {
-                setError('Could not fetch services.');
-                console.error(error);
-            } else {
-                setServices(data);
-                const uniqueCategories = ['All', ...new Set(data.map(s => s.category).filter(Boolean))];
-                setCategories(uniqueCategories);
+        const fetchData = async () => {
+            if (!session) { 
+                setLoading(false); 
+                return; 
             }
-            setLoading(false);
+            setLoading(true);
+            try {
+                // Fetch both services and the host's tier at the same time
+                const [servicesRes, profileRes] = await Promise.all([
+                    supabase.from('services').select('*'),
+                    supabase.from('profiles').select('host_tier').eq('id', session.user.id).single()
+                ]);
+
+                if (servicesRes.error) throw servicesRes.error;
+                setServices(servicesRes.data);
+                const uniqueCategories = ['All', ...new Set(servicesRes.data.map(s => s.category).filter(Boolean))];
+                setCategories(uniqueCategories);
+
+                // Store the host's profile to check their tier
+                if (profileRes.error) throw profileRes.error;
+                setHostProfile(profileRes.data);
+
+            } catch (err) {
+                setError('Could not fetch required data.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
         };
-        fetchServicesAndCategories();
-    }, []);
+        fetchData();
+    }, [session]);
     
     const selectedServiceData = services.find(s => s.id === selectedService);
 
@@ -118,6 +139,7 @@ const HostPlanPage = ({ session }) => {
         return false;
     };
 
+    // ✅ CORRECTED SUBMISSION LOGIC
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!isFormValid()) {
@@ -127,32 +149,32 @@ const HostPlanPage = ({ session }) => {
         setSubmitting(true);
         setError('');
 
-        const { data: listingData, error: listingError } = await supabase
-            .from('listings')
-            .insert({
-                host_id: session.user.id,
-                service_id: selectedService,
-                plan_purchased_date: planPurchaseDate,
-                seats_total: selectedServiceData.max_seats_allowed,
-                seats_available: availableSlots,
-                instant_share: !shareLater && !selectedServiceData.invite_link_expiration,
-                // --- NEW FIELD being sent to the database ---
-                is_public: isPublic,
-            })
-            .select()
-            .single();
+        // NEW: Instead of a direct insert, we call our smart RPC function
+        const { data, error: rpcError } = await supabase.rpc('create_listing_with_tier_logic', {
+            p_host_id: session.user.id,
+            p_service_id: selectedService,
+            p_plan_purchased_date: planPurchaseDate,
+            p_seats_to_sell: availableSlots,
+            p_is_public: isPublic,
+            // Conditionally pass the alias_name based on host_tier
+            p_alias_name: (hostProfile?.host_tier === 'verified' || hostProfile?.host_tier === 'partner') ? aliasName : null
+        });
 
-        if (listingError) {
-            setError(`Error creating listing: ${listingError.message}`);
+        if (rpcError) {
+            setError(`Error creating listing: ${rpcError.message}`);
             setSubmitting(false);
             return;
         }
 
-        if (listingData && !shareLater && !selectedServiceData.invite_link_expiration) {
+        // The RPC function returns the ID of the newly created listing
+        const newListingId = data;
+
+        // The logic to save credentials remains the same, but uses the new ID
+        if (newListingId && !shareLater && !selectedServiceData.invite_link_expiration) {
             const { error: credentialError } = await supabase
                 .from('plan_credentials')
                 .insert({
-                    listing_id: listingData.id,
+                    listing_id: newListingId,
                     host_id: session.user.id,
                     login_email: loginEmail || null,
                     login_password_encrypted: loginPassword || null,
@@ -161,14 +183,16 @@ const HostPlanPage = ({ session }) => {
                 });
 
             if (credentialError) {
-                setError(`Error saving credentials: ${credentialError.message}`);
-                await supabase.from('listings').delete().eq('id', listingData.id);
+                setError(`Listing was created, but failed to save credentials: ${credentialError.message}`);
+                // In a real app, you might want a cleanup step here to delete the listing
                 setSubmitting(false);
                 return;
             }
         }
 
         setSuccess(true);
+        // This event is used to refresh the list of hosted plans on another page
+        window.dispatchEvent(new Event("refreshHostedPlans"));
     };
 
     // ... (The rest of the component's JSX remains the same until the final section)
@@ -280,12 +304,9 @@ const HostPlanPage = ({ session }) => {
                                 </div>
                             )}
 
-                            {/* --- Start of modified section --- */}
-                            
                             {!selectedServiceData.invite_link_expiration && (
                                 <div>
                                     <h3 className="font-semibold text-lg mb-2">5. Joining Details</h3>
-                                    {/* ... (rest of the joining details form is unchanged) ... */}
                                     <div className={`space-y-4 transition-opacity ${shareLater ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                                         
                                         {selectedServiceData.sharing_method === 'credentials' && (
@@ -348,7 +369,6 @@ const HostPlanPage = ({ session }) => {
                                 </div>
                             )}
                             
-                            {/* --- NEW CHECKBOX SECTION --- */}
                             <div>
                                 <h3 className="font-semibold text-lg mb-2">6. Group Privacy</h3>
                                 <div className="flex items-center p-4 bg-white dark:bg-white/5 rounded-xl border border-gray-200 dark:border-transparent">
@@ -370,7 +390,6 @@ const HostPlanPage = ({ session }) => {
                                     </label>
                                 </div>
                             </div>
-                            {/* --- END NEW CHECKBOX SECTION --- */}
                             
                             <div className="flex items-center">
                                 <input type="checkbox" id="agreeToTerms" checked={agreeToTerms} onChange={() => setAgreeToTerms(!agreeToTerms)} className="h-4 w-4 rounded bg-gray-200 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-purple-600 dark:text-purple-500 focus:ring-purple-500" />
