@@ -1,34 +1,37 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
+// Create the context
 export const ThemeContext = createContext();
 
+// Create a provider component
 export const ThemeProvider = ({ children }) => {
-  // Initialize state from localStorage, defaulting to 'light'
   const [theme, setTheme] = useState(() => {
+    // 1. Check local storage first for a saved user preference
     const savedTheme = localStorage.getItem('theme');
-    // If a theme is saved in localStorage, use it. Otherwise, default to 'light'.
-    return savedTheme || 'light';
+    if (savedTheme) {
+      return savedTheme;
+    }
+    // 2. If no saved theme, fall back to the system preference
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
-  // This effect applies the 'dark' class to the <html> tag
   useEffect(() => {
     const root = window.document.documentElement;
-
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
     
-    // Save the user's choice to localStorage anytime it changes
+    // This logic correctly adds/removes the 'dark' class from the <html> tag
+    root.classList.remove(theme === 'dark' ? 'light' : 'dark');
+    root.classList.add(theme);
+
+    // Save the user's choice so it persists across sessions
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // The 'toggleTheme' function that your button correctly calls
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
+  // Provide the correct values to the rest of the app
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
