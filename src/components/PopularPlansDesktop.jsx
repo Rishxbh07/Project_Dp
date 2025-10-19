@@ -24,8 +24,8 @@ const PopularPlansDesktop = ({ popularPlans }) => {
       </div>
 
       {/* Fade edges for aesthetics */}
-      <div className="pointer-events-none absolute top-0 left-0 h-full w-32 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
-      <div className="pointer-events-none absolute top-0 right-0 h-full w-32 bg-gradient-to-l from-white dark:from-slate-900 to-transparent"></div>
+      <div className="pointer-events-none absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-white dark:from-slate-900 to-transparent"></div>
+      <div className="pointer-events-none absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-white dark:from-slate-900 to-transparent"></div>
     </div>
   );
 };

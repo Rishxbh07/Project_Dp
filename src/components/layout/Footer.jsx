@@ -1,12 +1,12 @@
 // src/components/layout/Footer.jsx
 import React from "react";
-import {
-  Youtube,
-  Instagram,
-  Globe,
-  MessageCircle,
-  Twitter,
-} from "lucide-react"; // Replace MessageCircle with Reddit icon later
+import { 
+  FaInstagram, 
+  FaRedditAlien, 
+  FaTwitter, 
+  FaGlobeAsia, 
+  FaYoutube // <-- CORRECTED: Use the Font Awesome version
+} from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 const Footer = () => {
@@ -20,7 +20,7 @@ const Footer = () => {
             DapBuddy
           </h3>
           <p className="text-slate-600 dark:text-slate-300 text-sm mt-3 max-w-xs">
-            Split premium plans, save together.  
+            Split premium plans, save together.   
             Built to keep your subscriptions smarter, safer, and more affordable.
           </p>
           <p className="text-slate-400 dark:text-slate-500 text-xs mt-3">
@@ -95,36 +95,37 @@ const Footer = () => {
               title="YouTube"
               className="text-slate-500 hover:text-red-500 transition-colors"
             >
-              <Youtube className="w-5 h-5" />
+              {/* CORRECTED: Use the Font Awesome component */}
+              <FaYoutube className="w-5 h-5" /> 
             </a>
             <a
               href="#"
               title="Instagram"
               className="text-slate-500 hover:text-pink-500 transition-colors"
             >
-              <Instagram className="w-5 h-5" />
+              <FaInstagram className="w-5 h-5" />
             </a>
             <a
               href="#"
               title="Reddit"
               className="text-slate-500 hover:text-orange-500 transition-colors"
             >
-              <MessageCircle className="w-5 h-5" />
+              <FaRedditAlien className="w-5 h-5" />
             </a>
             <a
               href="#"
               title="Twitter (X)"
               className="text-slate-500 hover:text-blue-500 transition-colors"
             >
-              <Twitter className="w-5 h-5" />
+              <FaTwitter className="w-5 h-5" />
             </a>
-            <a
+            {/* <a
               href="#"
               title="Official Website"
               className="text-slate-500 hover:text-purple-500 transition-colors"
             >
-              <Globe className="w-5 h-5" />
-            </a>
+              <FaGlobeAsia className="w-5 h-5" />
+            </a> */}
           </div>
         </div>
       </div>

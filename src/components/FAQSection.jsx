@@ -1,6 +1,6 @@
 // src/components/FAQSection.jsx
 import React, { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown,ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const faqs = [
@@ -87,11 +87,9 @@ const FAQSection = () => {
 
       {/* Footer link */}
       <div className="text-center mt-8">
-        <Link
-          to="/legal"
-          className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 font-semibold text-sm transition-colors"
-        >
-          Read in Details →
+        <Link to="/legal" className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 font-semibold text-sm transition-colors">
+          Read more in details
+          <ChevronRight className="w-4 h-4 inline-block" />
         </Link>
       </div>
     </section>

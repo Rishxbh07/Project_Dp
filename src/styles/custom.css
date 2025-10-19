@@ -1,3 +1,7 @@
+/* ===============================
+   Global Custom Styles & Utilities
+   =============================== */
+
 /* Custom scrollbar hiding for better mobile experience */
 .scrollbar-hide {
   -ms-overflow-style: none;
@@ -70,7 +74,7 @@
   color: transparent;
 }
 
-/* Glass effect utilities */
+/* Glass effect utilities (for dropdowns etc, not cards) */
 .glass-effect {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -94,43 +98,94 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.1) 25%,
+    rgba(255,255,255,0.2) 50%,
+    rgba(255,255,255,0.1) 75%
+  );
   background-size: 200px 100%;
   animation: skeleton-loading 1.5s infinite;
 }
 
-.plan-card-container {
-  position: absolute;
-  transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out, filter 0.5s ease-in-out;
+/* ==================================================
+   Mobile Plan Card Carousel (cinematic smoother blur)
+   ================================================== */
+
+@media (max-width: 1023px) {
+  .plan-card-container {
+    position: absolute;
+    transition:
+      transform 0.5s ease-in-out,
+      opacity 0.5s ease-in-out,
+      filter 0.5s ease-in-out;
+    width: 80%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .plan-card-container.active {
+    transform: translateX(0) scale(1);
+    z-index: 10;
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  .plan-card-container.prev {
+    transform: translateX(-70%) scale(0.85);
+    opacity: 0.8;
+    filter: blur(1.5px);
+    z-index: 5;
+  }
+
+  .plan-card-container.next {
+    transform: translateX(70%) scale(0.85);
+    opacity: 0.8;
+    filter: blur(1.5px);
+    z-index: 5;
+  }
+  
+  .plan-card-container.far-prev {
+    transform: translateX(-140%) scale(0.7);
+    opacity: 0;
+    z-index: 0;
+  }
+
+  .plan-card-container.far-next {
+    transform: translateX(140%) scale(0.7);
+    opacity: 0;
+    z-index: 0;
+  }
+}
+/* ==================================================
+   Desktop Infinite Scroll (for PopularPlansDesktop)
+   ================================================== */
+
+/* Infinite scroll keyframes */
+@keyframes scroll-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
-.plan-card-container.active {
-  transform: translateX(0) scale(1.1);
-  z-index: 10;
-  opacity: 1;
-  filter: blur(0);
+/* Loop animation */
+.animate-scroll-x {
+  animation: scroll-x 40s linear infinite;
+  will-change: transform;
 }
 
-.plan-card-container.prev {
-  transform: translateX(-100%) scale(0.8);
-  opacity: 1;
-  filter: blur(2px);
+.animate-scroll-x:hover {
+  animation-play-state: paused;
 }
 
-.plan-card-container.next {
-  transform: translateX(100%) scale(0.8);
-  opacity: 1;
-  filter: blur(2px);
-}
+/* ==================================================
+   Visual Enhancements
+   ================================================== */
 
-.plan-card-container.hidden {
-  transform: scale(0.5);
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Add these animations to your global CSS file or Tailwind config */
-
+/* Shimmer effect for loaders or premium badges */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%) skewX(-12deg);
@@ -160,7 +215,7 @@
   animation: legendary-pulse 2s infinite;
 }
 
-/* Sparkle animation for legendary items */
+/* Sparkle animation for premium visuals */
 @keyframes sparkle {
   0%, 100% {
     opacity: 0;
@@ -176,67 +231,73 @@
   animation: sparkle 1.5s infinite;
 }
 
-
-/* Animation Keyframes for the new Loader component */
+/* ==================================================
+   Logo Loader Animations (for brand intro)
+   ================================================== */
 @keyframes logoPopIn {
-    0% {
-        opacity: 0;
-        transform: scale(0.6) translateY(30px);
-    }
-    60% {
-        transform: scale(1.05) translateY(-5px);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(30px);
+  }
+  60% {
+    transform: scale(1.05) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @keyframes textSlideIn {
-    0% {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes dotPulse {
-    0%, 80%, 100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-    }
-    40% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
-/* Add utility classes for the animations */
+/* Utility classes for the loader */
 .animate-logo-pop-in {
-    animation: logoPopIn 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: 0.3s;
+  animation: logoPopIn 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.3s;
 }
+
 .animate-text-slide-in {
-    animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: 1.2s;
+  animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 1.2s;
 }
+
 .animate-text-slide-in-delayed {
-    animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: 2s;
+  animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 2s;
 }
+
 .animate-text-slide-in-extradelayed {
-    animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    animation-delay: 2.6s;
+  animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 2.6s;
 }
+
 .animate-dot-pulse {
-    animation: dotPulse 1.5s infinite ease-in-out;
+  animation: dotPulse 1.5s infinite ease-in-out;
 }
+
 .delay-200 {
-    animation-delay: 0.2s;
+  animation-delay: 0.2s;
 }
 .delay-400 {
-    animation-delay: 0.4s;
+  animation-delay: 0.4s;
 }

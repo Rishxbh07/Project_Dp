@@ -1,37 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import PlanCard from '../components/PlanCard';
-import HostPlanCTA from '../components/HostPlanCTA';
+import HostPlanCTA from '../components/HostPlanCTA'; 
 import { supabase } from '../lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
 import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
-import { YoutubeIcon, InstagramIcon, TwitterIcon, GlobeIcon } from 'lucide-react';
 import HowItWorks from '../components/HowItWorks';
 import StarBorder from '../components/common/StarBorder';
 import PopularPlansDesktop from '../components/PopularPlansDesktop';
-import FAQSection from '../components/FAQSection'; 
+import PopularPlansMobile from '../components/PopularPlansMobile';
+import FAQSection from '../components/FAQSection';
 import Footer from '../components/layout/Footer';
 
 const HomePage = ({ session }) => {
   const [popularPlans, setPopularPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Combined loading state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allServiceNames, setAllServiceNames] = useState([]);
   const [runAnimation, setRunAnimation] = useState(false);
+  const [loadingServices, setLoadingServices] = useState(true); // Specific loading for services
 
   useEffect(() => {
     const fetchAllServiceNames = async () => {
-      const { data, error } = await supabase.from('services').select('name');
-      if (error) console.error('Error fetching all service names:', error);
-      else {
-        setAllServiceNames(data.map(s => s.name));
-        if (session && !sessionStorage.getItem('hasAnimatedText')) {
-          setTimeout(() => setRunAnimation(true), 3500);
+      setLoadingServices(true); // Start loading services
+      try {
+        const cachedNames = localStorage.getItem('serviceNamesCache');
+        const cachedTimestamp = localStorage.getItem('serviceNamesTimestamp');
+        const sixDays = 6 * 24 * 60 * 60 * 1000; // 6 days in milliseconds
+
+        if (cachedNames && cachedTimestamp && Date.now() - cachedTimestamp < sixDays) {
+          setAllServiceNames(JSON.parse(cachedNames));
+          // console.log("Using cached service names."); // Keep for debugging if needed
+        } else {
+          // console.log("Fetching fresh service names from Supabase."); // Keep for debugging if needed
+          const { data, error } = await supabase.from('services').select('name');
+          if (error) throw error;
+
+          const serviceNames = data.map(s => s.name);
+          setAllServiceNames(serviceNames);
+
+          localStorage.setItem('serviceNamesCache', JSON.stringify(serviceNames));
+          localStorage.setItem('serviceNamesTimestamp', Date.now());
         }
+
+        if (session && !sessionStorage.getItem('hasAnimatedText')) {
+          setTimeout(() => setRunAnimation(true), 1500);
+        }
+
+      } catch (error) {
+        console.error('Error fetching/caching service names:', error);
+        setAllServiceNames(['Premium Plans']); // Fallback
+      } finally {
+        setLoadingServices(false); // Stop loading services
       }
     };
 
     const fetchPopularPlans = async () => {
+       // ... fetchPopularPlans logic remains exactly the same ...
       try {
         const cachedPlans = localStorage.getItem('popularPlansCache');
         const cachedTimestamp = localStorage.getItem('popularPlansTimestamp');
@@ -39,11 +64,9 @@ const HomePage = ({ session }) => {
 
         if (cachedPlans && cachedTimestamp && Date.now() - cachedTimestamp < sixHours) {
           setPopularPlans(JSON.parse(cachedPlans));
-          setLoading(false);
           return;
         }
 
-        setLoading(true);
         const { data, error } = await supabase
           .from('popular_plans')
           .select('*')
@@ -67,13 +90,17 @@ const HomePage = ({ session }) => {
       } catch (error) {
         console.error('Unexpected error fetching popular plans:', error);
         setPopularPlans([]);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchPopularPlans();
-    fetchAllServiceNames();
+    const loadData = async () => {
+        setLoading(true); // Start overall loading
+        await Promise.all([fetchPopularPlans(), fetchAllServiceNames()]);
+        setLoading(false); // Stop overall loading when both are done
+    };
+
+    loadData();
+
   }, [session]);
 
   useEffect(() => {
@@ -90,50 +117,75 @@ const HomePage = ({ session }) => {
     setRunAnimation(false);
   };
 
-  const glowMap = {
-    purple: '#8747d1',
-    blue: '#3b82f6',
-    green: '#22c55e',
-    sky: '#0ea5e9',
-    amber: '#f59e0b',
-    rose: '#f43f5e',
+  const scrollToHowItWorks = () => {
+    const element = document.getElementById('how-it-works-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
+  const glowMap = {
+    purple: '#8747d1',
+  };
+
+
   return (
-    <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative overflow-hidden">
-      
+    <div className="bg-[hsl(0, 0%, 98%)] dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative ">
+
       <DapBuddyDropdownMenu session={session} />
-      
+
       <div className="relative z-10">
         <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
 
           {/* Hero Section */}
           <div className="text-center mb-8 px-2 sm:px-4 lg:flex lg:text-left lg:items-center lg:py-12 xl:py-16">
             <div className="mb-6 lg:w-1/2 lg:pr-12 xl:pr-16">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-tight">
-                Share & Save on
-                {runAnimation ? (
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-tight lg:leading-tight">
+                Share & Save on{' '}
+                {loadingServices ? (
+                   <span className="inline-block align-middle min-h-[1.2em] animate-pulse bg-gray-300 dark:bg-gray-700 rounded w-1/2 h-8 lg:h-12"></span>
+                ) : runAnimation ? (
                   <SlotMachineAnimation
                     words={allServiceNames}
                     onAnimationEnd={handleAnimationEnd}
                   />
                 ) : (
                   <span
-                    className="block bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent animate-pulse cursor-pointer hover:scale-105 transition-transform duration-300"
-                    onClick={() => setRunAnimation(true)}
+                    className="
+                      inline-block align-middle min-h-[1.2em]
+                      bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent
+                      cursor-pointer hover:scale-105 transition-transform duration-300"
+                    onClick={() => !loadingServices && setRunAnimation(true)} // Prevent click while loading
                   >
                     Premium Plans
                   </span>
                 )}
               </h1>
+
               <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg lg:text-xl xl:text-2xl font-light">
                 Split costs, multiply savings with friends
               </p>
+
+              {/* Buttons (Hidden on mobile, flex on large) */}
+              <div className="mt-8 hidden lg:flex gap-4 justify-start">
+                 <Link
+                  to="/explore"
+                  className="px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md hover:shadow-lg hover:scale-[1.02]"
+                >
+                  Explore Plans
+                </Link>
+                <button
+                  onClick={scrollToHowItWorks}
+                  className="px-6 py-3 rounded-full text-sm font-semibold border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02]"
+                >
+                  How It Works
+                </button>
+              </div>
             </div>
 
             {/* Stats Section */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-6 lg:w-1/2 lg:gap-4 xl:gap-5">
-              {[
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-10 lg:mt-0 lg:w-1/2 lg:gap-4 xl:gap-5">
+               {[
                 { value: "2.5K+", label: "Active Users", color: "purple" },
                 { value: "₹50K+", label: "Saved Monthly", color: "blue" },
                 { value: "98%", label: "Satisfaction", color: "green" },
@@ -176,13 +228,24 @@ const HomePage = ({ session }) => {
             ) : (
               <>
                 {/* --- MOBILE/TABLET CAROUSEL --- */}
-                <div className="relative h-[360px] sm:h-[380px] md:h-[400px] flex items-center justify-center overflow-hidden lg:hidden">
+                <div className="relative h-[360px] sm:h-[380px] md:h-[400px] flex items-center justify-center lg:hidden">
                   {popularPlans.map((service, index) => {
-                    let position = 'next';
-                    if (index === currentIndex) position = 'active';
-                    else if (index === (currentIndex - 1 + popularPlans.length) % popularPlans.length) position = 'prev';
-                    else if (index === (currentIndex + 1) % popularPlans.length) position = 'next';
-                    else position = 'hidden';
+                    // --- UPDATED LOGIC START ---
+                    const totalItems = popularPlans.length;
+                    const positiveIndex = (index - currentIndex + totalItems) % totalItems;
+                    let position = 'far-prev'; // Default to being off-screen to the left
+
+                    if (positiveIndex === 0) {
+                      position = 'active';
+                    } else if (positiveIndex === 1) {
+                      position = 'next';
+                    } else if (positiveIndex === totalItems - 1) {
+                      position = 'prev';
+                    } else if (positiveIndex === 2) {
+                      // This positions the card correctly to enter from the right
+                      position = 'far-next'; 
+                    }
+                    // --- UPDATED LOGIC END ---
 
                     return (
                       <div key={service.id} className={`plan-card-container ${position}`}>
@@ -199,11 +262,19 @@ const HomePage = ({ session }) => {
               </>
             )}
           </section>
-          <HowItWorks />
-          <HostPlanCTA />
+
+          {/* How It Works Section */}
+          <div id="how-it-works-section">
+            <HowItWorks />
+          </div>
+
+          {/* This is line 279 where the error was */}
+          <HostPlanCTA /> 
+          
           <FAQSection/>
           <Footer />
 
+          {/* Spacer for bottom nav */}
           <div className="h-20 sm:h-24 lg:h-28"></div>
         </div>
       </div>
