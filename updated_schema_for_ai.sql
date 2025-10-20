@@ -104,6 +104,45 @@ CREATE TABLE public.disputes (
   CONSTRAINT disputes_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT disputes_resolved_by_admin_id_fkey FOREIGN KEY (resolved_by_admin_id) REFERENCES public.admins(user_id)
 );
+CREATE TABLE public.friendships (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  requester_id uuid NOT NULL,
+  addressee_id uuid NOT NULL,
+  status USER-DEFINED NOT NULL DEFAULT 'pending'::friendship_status,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT friendships_pkey PRIMARY KEY (id),
+  CONSTRAINT friendships_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES public.profiles(id),
+  CONSTRAINT friendships_addressee_id_fkey FOREIGN KEY (addressee_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.host_user_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  host_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  listing_id uuid,
+  service_id text NOT NULL,
+  service_name text,
+  sharing_method text NOT NULL,
+  message_type text DEFAULT 'manual'::text,
+  raw_content text,
+  sanitized_content text,
+  is_encrypted boolean DEFAULT false,
+  encryption_key_id uuid,
+  sent_at timestamp with time zone DEFAULT now(),
+  seen_at timestamp with time zone,
+  expires_at timestamp with time zone DEFAULT (now() + '24:00:00'::interval),
+  archived_at timestamp with time zone,
+  status text DEFAULT 'delivered'::text,
+  meta jsonb DEFAULT '{}'::jsonb,
+  booking_id uuid,
+  additional_data jsonb DEFAULT '{}'::jsonb,
+  CONSTRAINT host_user_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT host_user_messages_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT host_user_messages_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
+  CONSTRAINT host_user_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT host_user_messages_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
+  CONSTRAINT host_user_messages_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
+);
 CREATE TABLE public.invite_link (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL UNIQUE,
@@ -144,9 +183,11 @@ CREATE TABLE public.listings (
   total_rating integer NOT NULL DEFAULT 0,
   rating_count integer NOT NULL DEFAULT 0,
   user_count integer NOT NULL DEFAULT 0,
-  avg_joining_time text DEFAULT '6'::text,
+  avg_joining_time text,
   is_public boolean NOT NULL DEFAULT true,
   alias_name text,
+  seats_originally_offered integer CHECK (seats_originally_offered > 0),
+  instant_share boolean NOT NULL DEFAULT false,
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -187,6 +228,8 @@ CREATE TABLE public.profiles (
   pfp_url text,
   host_tier USER-DEFINED NOT NULL DEFAULT 'standard'::host_tier,
   tags ARRAY DEFAULT '{}'::text[],
+  profile_visibility USER-DEFINED NOT NULL DEFAULT 'public'::profile_visibility_options,
+  friend_request_privacy USER-DEFINED NOT NULL DEFAULT 'everyone'::friend_request_privacy,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -261,6 +304,7 @@ CREATE TABLE public.services (
   service_metadata jsonb,
   internal_notes text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  warnings jsonb,
   CONSTRAINT services_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.transactions (

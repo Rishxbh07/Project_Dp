@@ -7,44 +7,29 @@
         window.location.href = '/loader.html';
       }
     </script>
+
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/assets/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dapBuddy</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="/src/styles/custom.css">
-    
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              'poppins': ['Poppins', 'sans-serif'],
-            },
-            colors: {
-              'dap-purple-1': '#A855F7',
-              'dap-purple-2': '#7C3AED',
-            },
-            backdropBlur: {
-              xs: '2px',
-              '3xl': '64px',
-            },
-            animation: {
-              'pulse-slow': 'pulse 3s ease-in-out infinite',
-              'bounce-subtle': 'bounce 2s infinite',
-            }
-          }
-        }
-      }
-    </script>
+    <!-- Tailwind is now compiled via PostCSS, no CDN required -->
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
 
-    </head>
+    <!-- Custom Global Styles -->
+    <link rel="stylesheet" href="/src/styles/custom.css" />
+  </head>
+
   <body class="bg-white dark:bg-[#0b1220] font-poppins">
     <div id="root"></div>
+
+    <!-- Vite React Entry -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

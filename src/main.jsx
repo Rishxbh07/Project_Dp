@@ -1,11 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import { ThemeProvider } from './context/ThemeContext'; // <-- IMPORT
+import { ThemeProvider } from './context/ThemeContext';
+import './styles/index.css'; // <-- ADD THIS LINE
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider> {/* <-- WRAP APP */}
+    <ThemeProvider>
       <App />
     </ThemeProvider>
   </React.StrictMode>
