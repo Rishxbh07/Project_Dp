@@ -42,10 +42,21 @@ const ProfileAvatar = ({ session }) => {
         <img
           src={profile.pfp_url}
           alt={profile.username || 'Profile'}
-          className="w-10 h-10 rounded-full object-cover border-2 border-white/10 shadow-sm"
+          className="w-10 h-10 lg:w-11 lg:h-11 rounded-full object-cover 
+                    ring-2 ring-purple-500/30 dark:ring-purple-400/30 
+                    ring-offset-2 ring-offset-white dark:ring-offset-slate-900
+                    transition-all duration-200 hover:ring-purple-500/50 dark:hover:ring-purple-400/50
+                    hover:ring-offset-3"
         />
       ) : (
-        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold flex items-center justify-center border-2 border-white/10 shadow-sm">
+        <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full 
+                        bg-gradient-to-br from-purple-500 to-indigo-500 
+                        text-white font-bold flex items-center justify-center 
+                        ring-2 ring-purple-500/30 dark:ring-purple-400/30 
+                        ring-offset-2 ring-offset-white dark:ring-offset-slate-900
+                        transition-all duration-200 hover:ring-purple-500/50 dark:hover:ring-purple-400/50
+                        hover:ring-offset-3 hover:scale-105
+                        shadow-sm text-sm lg:text-base">
           {initial}
         </div>
       )}

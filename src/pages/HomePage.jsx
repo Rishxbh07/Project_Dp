@@ -140,7 +140,7 @@ const HomePage = ({ session }) => {
           {/* Hero Section */}
           <div className="text-center mb-8 px-2 sm:px-4 lg:flex lg:text-left lg:items-center lg:py-12 xl:py-16">
             <div className="mb-6 lg:w-1/2 lg:pr-12 xl:pr-16">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-tight lg:leading-tight">
+              <h1 className="text-4xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 dark:text-white mb-3 sm:mb-4 leading-tight lg:leading-tight">
                 Share & Save on{' '}
                 {loadingServices ? (
                    <span className="inline-block align-middle min-h-[1.2em] animate-pulse bg-gray-300 dark:bg-gray-700 rounded w-1/2 h-8 lg:h-12"></span>
@@ -162,8 +162,8 @@ const HomePage = ({ session }) => {
                 )}
               </h1>
 
-              <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg lg:text-xl xl:text-2xl font-light">
-                Split costs, multiply savings with friends
+              <p className="text-zinc-800 dark:text-zinc-300 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-normal"> {/* Adjusted sizes */}
+                Split costs, multiply savings with friends & family
               </p>
 
               {/* Buttons (Hidden on mobile, flex on large) */}

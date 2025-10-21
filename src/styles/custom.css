@@ -301,3 +301,24 @@
 .delay-400 {
   animation-delay: 0.4s;
 }
+
+
+/* Hide scrollbar for WebKit browsers (Chrome, Safari, Edge, Opera) */
+body::-webkit-scrollbar {
+  display: none; /* Make the scrollbar track invisible */
+  width: 0px; /* Force width to zero */
+  background: transparent; /* Optional: ensure background is transparent */
+}
+
+/* Hide scrollbar for Firefox */
+/* Apply this to the element that scrolls, usually html or body */
+html {
+  scrollbar-width: none; /* Firefox specific property */
+  -ms-overflow-style: none; /* Internet Explorer 10+ (for completeness) */
+}
+
+/* Ensure body also hides overflow if needed, though usually targeting html is enough */
+body {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+   overflow: -moz-scrollbars-none; /* Older Firefox - may not be needed */
+}
