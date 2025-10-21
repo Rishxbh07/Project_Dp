@@ -3,7 +3,7 @@ import PlanCard from '../components/PlanCard';
 import HostPlanCTA from '../components/HostPlanCTA'; 
 import { supabase } from '../lib/supabaseClient';
 import { Link } from 'react-router-dom';
-import DapBuddyDropdownMenu from '../components/layout/DapBuddyDropdownMenu';
+import TopNavBar from '../components/layout/TopNavBar';
 import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
 import HowItWorks from '../components/HowItWorks';
 import StarBorder from '../components/common/StarBorder';
@@ -130,9 +130,9 @@ const HomePage = ({ session }) => {
 
 
   return (
-    <div className="bg-[hsl(0, 0%, 98%)] dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative ">
+    <div className="pt-[72px] sm:pt-[88px] bg-[hsl(0, 0%, 98%)] dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative">
 
-      <DapBuddyDropdownMenu session={session} />
+      <TopNavBar session={session} />
 
       <div className="relative z-10">
         <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">

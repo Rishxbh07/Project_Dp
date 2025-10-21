@@ -60,7 +60,7 @@ const SlotMachineAnimation = ({ words, onAnimationEnd }) => {
     // --- CONTAINER ---
     // Remains inline-block, vertically aligned, with min-height/width
     <div className="
-      relative inline-block align-middle text-left /* text-left is key here */
+      relative inline-block align-middle text-left 
       min-h-[1.2em] /* Match surrounding line height */
       min-w-[200px] sm:min-w-[300px] lg:min-w-[400px] xl:min-w-[500px] /* Prevent shrinking */
       overflow-hidden /* Hide overflow */

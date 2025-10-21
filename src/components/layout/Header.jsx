@@ -1,13 +1,8 @@
 import React from 'react';
-import DapBuddyDropdownMenu from './DapBuddyDropdownMenu';
+import TopNavBar from './TopNavBar';
 
-const Header = () => {
-  // The header's only job is to render your new component.
-  return (
-    <header className="py-4">
-      <DapBuddyDropdownMenu />
-    </header>
-  );
+const Header = ({ session }) => {
+  return <TopNavBar session={session} />;
 };
 
 export default Header;
