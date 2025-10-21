@@ -80,7 +80,7 @@ const ResponsiveSearchBar = () => {
           className="fixed top-0 left-0 right-0 h-16 /* Match header height */
                      bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl
                      border-b border-slate-200/50 dark:border-white/10
-                     px-4 z-50 flex items-center /* Ensure z-50 */
+                     px-4 z-50 flex items-center 
                      md:hidden animate-in fade-in duration-200"
         >
           <form onSubmit={handleSubmit} className="relative w-full">
