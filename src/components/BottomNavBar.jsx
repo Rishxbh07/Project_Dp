@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Compass, Users, Bell } from "lucide-react";
-import { useNotifications } from "../context/NotificationContext"; // new hook
+import { Home, Compass, Users,Wallet,} from "lucide-react"; // Bell icon is no longer needed here
+import { useNotifications } from "../context/NotificationContext";
 
-// --- navItems ---
+// --- UPDATED NAVIGATION ITEMS ---
 const navItems = [
   {
     label: "Home",
@@ -13,7 +13,7 @@ const navItems = [
     icon: Home,
   },
   {
-    label: "Sub's",
+    label: "Subs",
     path: "/subscription",
     icon: (props) => (
       <svg
@@ -34,6 +34,16 @@ const navItems = [
     ),
   },
   {
+    label: "Explore",
+    path: "/explore",
+    icon: Compass,
+  },
+  {
+    label: "Buddies",
+    path: "/friends",
+    icon: Users,
+  },
+  {
     label: "Wallet",
     path: "/wallet",
     icon: (props) => (
@@ -51,24 +61,12 @@ const navItems = [
         <path d="M17 14h.01" />
       </svg>
     ),
-    hideOnMobile: true,
-  },
-  {
-    label: "Explore",
-    path: "/explore",
-    icon: Compass,
-  },
-  {
-    label: "Buddies",
-    path: "/friends",
-    icon: Users,
-  },
-  {
-    label: "Inbox",
-    path: "/notifications",
-    icon: Bell,
+    // hideOnMobile property is removed, so it's now visible everywhere.
   },
 ];
+
+
+// --- (No changes needed below this line) ---
 
 // --- Notification Dot ---
 const NotificationDot = () => (
@@ -85,7 +83,6 @@ export default function BottomNavBar() {
   const [lastScrollY, setLastScrollY] = useState(0);
   const navRef = useRef(null);
 
-  // --- scroll + hover behavior (restored) ---
   useEffect(() => {
     let timeoutId;
     const handleScroll = () => {
@@ -131,7 +128,7 @@ export default function BottomNavBar() {
   };
 
   const getNotificationState = (label) => {
-    if (label === "Inbox" && unreadCount > 0) return true;
+    // Notification logic for "Inbox" is no longer needed here as the icon is removed
     if (label === "Buddies" && friendRequestCount > 0) return true;
     if (label === "Sub's" && subUpdatesCount > 0) return true;
     return false;
