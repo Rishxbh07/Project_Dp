@@ -1,3 +1,5 @@
+// src/pages/HomePage.jsx
+
 import React, { useState, useEffect } from 'react';
 import PlanCard from '../components/PlanCard';
 import HostPlanCTA from '../components/HostPlanCTA'; 
@@ -12,51 +14,52 @@ import PopularPlansMobile from '../components/PopularPlansMobile';
 import FAQSection from '../components/FAQSection';
 import Footer from '../components/layout/Footer';
 
-const HomePage = ({ session }) => {
+// --- (Step 1: Import the new component) ---
+import OptionalLoginPopup from '../components/common/OptionalLoginPopup'; // Assuming you saved it here
+
+// --- (Step 2: Receive openAuthModal prop) ---
+const HomePage = ({ session, openAuthModal }) => {
   const [popularPlans, setPopularPlans] = useState([]);
-  const [loading, setLoading] = useState(true); // Combined loading state
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allServiceNames, setAllServiceNames] = useState([]);
   const [runAnimation, setRunAnimation] = useState(false);
-  const [loadingServices, setLoadingServices] = useState(true); // Specific loading for services
+  const [loadingServices, setLoadingServices] = useState(true);
+  
+  // --- (Step 3: Add state for the new popup) ---
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
+    // ... (Your existing fetchAllServiceNames and fetchPopularPlans logic) ...
     const fetchAllServiceNames = async () => {
-      setLoadingServices(true); // Start loading services
+      setLoadingServices(true);
       try {
         const cachedNames = localStorage.getItem('serviceNamesCache');
         const cachedTimestamp = localStorage.getItem('serviceNamesTimestamp');
-        const sixDays = 6 * 24 * 60 * 60 * 1000; // 6 days in milliseconds
+        const sixDays = 6 * 24 * 60 * 60 * 1000;
 
         if (cachedNames && cachedTimestamp && Date.now() - cachedTimestamp < sixDays) {
           setAllServiceNames(JSON.parse(cachedNames));
-          // console.log("Using cached service names."); // Keep for debugging if needed
         } else {
-          // console.log("Fetching fresh service names from Supabase."); // Keep for debugging if needed
           const { data, error } = await supabase.from('services').select('name');
           if (error) throw error;
-
           const serviceNames = data.map(s => s.name);
           setAllServiceNames(serviceNames);
-
           localStorage.setItem('serviceNamesCache', JSON.stringify(serviceNames));
           localStorage.setItem('serviceNamesTimestamp', Date.now());
         }
-
         if (session && !sessionStorage.getItem('hasAnimatedText')) {
           setTimeout(() => setRunAnimation(true), 1500);
         }
-
       } catch (error) {
         console.error('Error fetching/caching service names:', error);
-        setAllServiceNames(['Premium Plans']); // Fallback
+        setAllServiceNames(['Premium Plans']);
       } finally {
-        setLoadingServices(false); // Stop loading services
+        setLoadingServices(false);
       }
     };
 
     const fetchPopularPlans = async () => {
-       // ... fetchPopularPlans logic remains exactly the same ...
       try {
         const cachedPlans = localStorage.getItem('popularPlansCache');
         const cachedTimestamp = localStorage.getItem('popularPlansTimestamp');
@@ -66,7 +69,6 @@ const HomePage = ({ session }) => {
           setPopularPlans(JSON.parse(cachedPlans));
           return;
         }
-
         const { data, error } = await supabase
           .from('popular_plans')
           .select('*')
@@ -82,7 +84,6 @@ const HomePage = ({ session }) => {
             base_price: plan.base_price,
             description: `Join the best ${plan.service_name} plan!`
           }));
-
           setPopularPlans(formattedPlans);
           localStorage.setItem('popularPlansCache', JSON.stringify(formattedPlans));
           localStorage.setItem('popularPlansTimestamp', Date.now());
@@ -94,14 +95,34 @@ const HomePage = ({ session }) => {
     };
 
     const loadData = async () => {
-        setLoading(true); // Start overall loading
+        setLoading(true);
         await Promise.all([fetchPopularPlans(), fetchAllServiceNames()]);
-        setLoading(false); // Stop overall loading when both are done
+        setLoading(false);
     };
 
     loadData();
 
   }, [session]);
+
+  // --- (Step 4: Add useEffect to show the popup) ---
+  useEffect(() => {
+    // Only run this logic if the user is a GUEST
+    if (!session) {
+      const hasSeenPopup = localStorage.getItem('hasSeenOptionalLoginPopup');
+      
+      // Set a timer to show the popup
+      const timer = setTimeout(() => {
+        if (!hasSeenPopup) { // Only show if they haven't dismissed it
+          setShowLoginPopup(true);
+        }
+      }, 3500); // 3.5-second delay
+
+      return () => clearTimeout(timer); // Cleanup the timer
+    } else {
+      // If user logs in, make sure popup is hidden
+      setShowLoginPopup(false);
+    }
+  }, [session]); // This effect re-runs when the session changes
 
   useEffect(() => {
     if (popularPlans.length > 1) {
@@ -123,16 +144,37 @@ const HomePage = ({ session }) => {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+  
+  // --- (Step 5: Add handlers for the popup buttons) ---
+  const handleClosePopup = () => {
+    setShowLoginPopup(false);
+    // Remember this choice so we don't bother them again
+    localStorage.setItem('hasSeenOptionalLoginPopup', 'true');
+  };
+
+  const handleAuthClickFromPopup = () => {
+    handleClosePopup(); // Close this popup first
+    openAuthModal(); // Open the main login modal from App.jsx
+  };
+
 
   const glowMap = {
-    purple: '#8747d1',
+     purple: '#8747d1',
   };
 
 
   return (
     <div className="pt-[72px] sm:pt-[88px] bg-[hsl(0, 0%, 98%)] dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative">
 
-      <TopNavBar session={session} />
+      {/* --- (Step 6: Pass openAuthModal to TopNavBar) --- */}
+      <TopNavBar session={session} openAuthModal={openAuthModal} />
+
+      {/* --- (Step 7: Render the popup component) --- */}
+      <OptionalLoginPopup
+        isOpen={showLoginPopup}
+        onClose={handleClosePopup}
+        onAuthClick={handleAuthClickFromPopup}
+      />
 
       <div className="relative z-10">
         <div className="w-full px-4 sm:px-6 lg:px-12 xl:px-16">
@@ -144,7 +186,7 @@ const HomePage = ({ session }) => {
                 Share & Save on{' '}
                 {loadingServices ? (
                    <span className="inline-block align-middle min-h-[1.2em] animate-pulse bg-gray-300 dark:bg-gray-700 rounded w-1/2 h-8 lg:h-12"></span>
-                ) : runAnimation ? (
+                ) : (session && runAnimation) ? ( // Only run animation if logged in
                   <SlotMachineAnimation
                     words={allServiceNames}
                     onAnimationEnd={handleAnimationEnd}
@@ -155,14 +197,14 @@ const HomePage = ({ session }) => {
                       inline-block align-middle min-h-[1.2em]
                       bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent
                       cursor-pointer hover:scale-105 transition-transform duration-300"
-                    onClick={() => !loadingServices && setRunAnimation(true)} // Prevent click while loading
+                    onClick={() => !loadingServices && session && setRunAnimation(true)} // Prevent click if loading or guest
                   >
                     Premium Plans
                   </span>
                 )}
               </h1>
 
-              <p className="text-zinc-800 dark:text-zinc-300 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-normal"> {/* Adjusted sizes */}
+              <p className="text-zinc-800 dark:text-zinc-300 text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-normal">
                 Split costs, multiply savings with friends & family
               </p>
 
@@ -178,7 +220,7 @@ const HomePage = ({ session }) => {
                   onClick={scrollToHowItWorks}
                   className="px-6 py-3 rounded-full text-sm font-semibold border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02]"
                 >
-                  How It Works
+                  How ItWorks
                 </button>
               </div>
             </div>
@@ -210,6 +252,8 @@ const HomePage = ({ session }) => {
           </div>
 
           {/* Popular Plans Section */}
+          {/* ... (rest of your popular plans, howitworks, cta, faq, footer) ... */}
+           {/* Popular Plans Section */}
           <section className="mt-8 sm:mt-10 lg:mt-12">
             <div className="flex items-center justify-between mb-5 sm:mb-6 lg:mb-8">
               <h2 className="text-slate-900 dark:text-white text-2xl sm:text-3xl lg:text-4xl font-bold">
@@ -230,10 +274,9 @@ const HomePage = ({ session }) => {
                 {/* --- MOBILE/TABLET CAROUSEL --- */}
                 <div className="relative h-[360px] sm:h-[380px] md:h-[400px] flex items-center justify-center lg:hidden">
                   {popularPlans.map((service, index) => {
-                    // --- UPDATED LOGIC START ---
                     const totalItems = popularPlans.length;
                     const positiveIndex = (index - currentIndex + totalItems) % totalItems;
-                    let position = 'far-prev'; // Default to being off-screen to the left
+                    let position = 'far-prev'; 
 
                     if (positiveIndex === 0) {
                       position = 'active';
@@ -242,10 +285,8 @@ const HomePage = ({ session }) => {
                     } else if (positiveIndex === totalItems - 1) {
                       position = 'prev';
                     } else if (positiveIndex === 2) {
-                      // This positions the card correctly to enter from the right
                       position = 'far-next'; 
                     }
-                    // --- UPDATED LOGIC END ---
 
                     return (
                       <div key={service.id} className={`plan-card-container ${position}`}>
@@ -268,7 +309,6 @@ const HomePage = ({ session }) => {
             <HowItWorks />
           </div>
 
-          {/* This is line 279 where the error was */}
           <HostPlanCTA /> 
           
           <FAQSection/>

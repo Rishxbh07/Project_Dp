@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Link } from 'react-router-dom';
 import { Bell, CheckCheck, Gift, UserPlus, Award, AlertTriangle, Inbox } from 'lucide-react';
 import Loader from '../components/common/Loader';
+import { useNotifications } from '../context/NotificationContext'; // ✅ Added import
 
 // Helper to select an icon based on the notification type
 const getNotificationIcon = (type) => {
@@ -24,6 +25,7 @@ const NotificationsPage = ({ session }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { refreshCounts } = useNotifications(); // ✅ Added hook
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -63,6 +65,7 @@ const NotificationsPage = ({ session }) => {
       setNotifications(
         notifications.map(n => ({ ...n, is_read: true }))
       );
+      refreshCounts(); // ✅ Trigger count refresh
     }
   };
 

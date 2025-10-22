@@ -1,130 +1,190 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, useLocation } from 'react-router-dom';
+// src/App.jsx
+
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
+
+// --- Layouts & Wrappers ---
 import MainLayout from './components/layout/MainLayout';
-import HomePage from './pages/HomePage';
-import SubscriptionPage from './pages/SubscriptionPage';
-import HostedPlanDetailPage from './pages/HostedPlanDetailPage';
-import SubscriptionDetailPage from './pages/SubscriptionDetailPage';
-import WalletPage from './pages/WalletPage';
-import ProfilePage from './pages/ProfilePage';
-import EditProfilePage from './pages/EditProfilePage';
-import NotificationsPage from './pages/NotificationsPage';
-import MarketplacePage from './pages/MarketplacePage';
-import JoinPlanPage from './pages/JoinPlanPage';
-import ExplorePage from './pages/ExplorePage';
-import HostPlanPage from './pages/HostPlanPage';
-import ServiceRequestPage from './pages/ServiceRequestPage';
-import InvitePage from './pages/InvitePage';
-import AchievementsPage from './pages/AchievementsPage';
-import Auth from './components/Auth';
-import ConnectedAccountsPage from './pages/ConnectedAccountsPage';
-import MemberDetailPage from './pages/MemberDetailPage';
-import DisputePage from './pages/DisputePage';
-import DisputeStatusPage from './pages/DisputeStatusPage';
-import JoinDapBuddyPlanPage from './pages/JoinDapBuddyPlanPage';
-import PaymentPage from './pages/PaymentPage';
-import PaymentVerificationPage from './pages/PaymentVerificationPage';
-import DapBuddySubDetailsPage from './pages/DapBuddySubDetailsPage';
-import FriendsPage from './pages/FriendsPage';
-
-// --- NEW IMPORTS ---
-import AdminRequired from './components/AdminRequired';
 import AdminLayout from './pages/admin/AdminLayout';
-import UserManagementPage from './pages/admin/UserManagementPage';
-import GroupManagementPage from './pages/admin/GroupManagementPage'; // <-- FIX IS HERE
-import GroupDetailPage from './pages/admin/GroupDetailPage';
+import AdminRequired from './components/AdminRequired';
+import Loader from './components/common/Loader';
 
-// ✅ NEW: A dedicated component to handle the session check.
-// Its only job is to check for a session and redirect if one doesn't exist.
-const AuthRequired = ({ session }) => {
-    const location = useLocation();
-    if (!session) {
-        return <Navigate to="/auth" state={{ from: location }} replace />;
-    }
-    // If the user is logged in, it renders the child route (<MainLayout /> in our case).
-    return <Outlet />;
+// --- Core Components ---
+import Auth from './components/Auth';
+import Modal from './components/common/Modal';
+import { NotificationProvider } from './context/NotificationContext';
+
+// --- Page Imports (using React.lazy) ---
+const HomePage = lazy(() => import('./pages/HomePage'));
+const AuthRedirectPage = lazy(() => import('./pages/AuthRedirectPage'));
+
+// --- MOVED TO PUBLIC ---
+const ExplorePage = lazy(() => import('./pages/ExplorePage'));
+const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
+
+// Protected Pages
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
+const SubscriptionDetailPage = lazy(() => import('./pages/SubscriptionDetailPage'));
+// ... (all other lazy-loaded protected pages) ...
+const DapBuddySubDetailsPage = lazy(() => import('./pages/DapBuddySubDetailsPage'));
+const HostedPlanDetailPage = lazy(() => import('./pages/HostedPlanDetailPage'));
+const WalletPage = lazy(() => import('./pages/WalletPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
+const ConnectedAccountsPage = lazy(() => import('./pages/ConnectedAccountsPage'));
+const FriendsPage = lazy(() => import('./pages/FriendsPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const JoinPlanPage = lazy(() => import('./pages/JoinPlanPage'));
+const JoinDapBuddyPlanPage = lazy(() => import('./pages/JoinDapBuddyPlanPage'));
+const HostPlanPage = lazy(() => import('./pages/HostPlanPage'));
+const ServiceRequestPage = lazy(() => import('./pages/ServiceRequestPage'));
+const InvitePage = lazy(() => import('./pages/InvitePage'));
+const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
+const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage'));
+const DisputePage = lazy(() => import('./pages/DisputePage'));
+const DisputeStatusPage = lazy(() => import('./pages/DisputeStatusPage'));
+const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'));
+const PaymentPage = lazy(() => import('./pages/PaymentPage'));
+
+// Admin Pages
+const GroupManagementPage = lazy(() => import('./pages/admin/GroupManagementPage'));
+const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
+const GroupDetailPage = lazy(() => import('./pages/admin/GroupDetailPage'));
+
+/**
+ * Renders the AuthRedirectPage if no session is found.
+ */
+const AuthRequired = ({ session, openAuthModal }) => {
+  const location = useLocation();
+
+  if (!session) {
+    return <AuthRedirectPage location={location} openAuthModal={openAuthModal} />;
+  }
+  return <Outlet />;
 };
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const openAuthModal = useCallback(() => {
+    setShowAuthModal(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setShowAuthModal(false);
+  }, []);
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (error) {
+        console.error("Error fetching session:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     getSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        closeAuthModal();
+      }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [closeAuthModal]);
 
   if (loading) {
-    // You can replace this with a proper loading spinner component
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-slate-900">
+        <Loader />
+      </div>
+    );
   }
-  <div className="animate-scroll-x bg-purple-500 h-4 w-32"></div>
 
   return (
-    <Router>
-      <Routes>
-        {/* Public route for authentication */}
-        <Route path="/auth" element={<Auth />} />
+    <Suspense fallback={<Loader />}>
+      <Router>
+        <NotificationProvider>
+          <Routes>
+            {/* --- Admin Routes --- */}
+            <Route element={<AdminRequired session={session} />}>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<GroupManagementPage />} />
+                <Route path="users" element={<UserManagementPage />} />
+                <Route path="group/:id" element={<GroupDetailPage />} />
+              </Route>
+            </Route>
 
-        {/* --- NEW: ADMIN ROUTES --- */}
-        <Route element={<AdminRequired session={session} />}>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/users" replace />} />
-            <Route path="users" element={<UserManagementPage />} />
-            <Route path="groups" element={<GroupManagementPage />} />
-            <Route path="group/:groupId" element={<GroupDetailPage />} />
-            {/* We can add placeholder routes for other admin pages */}
-            <Route path="dashboard" element={<h1>Admin Dashboard</h1>} />
-            <Route path="disputes" element={<h1>Dispute Management</h1>} />
-            <Route path="analytics" element={<h1>Analytics</h1>} />
-          </Route>
-        </Route>
+            {/* --- Direct Auth Route --- */}
+            <Route path="/auth" element={<Auth />} />
 
-        {/* ✅ CORRECTED: Protected Routes Structure */}
-        {/* 1. The AuthRequired route checks if the user is logged in. */}
-        <Route element={<AuthRequired session={session} />}>
-          {/* 2. If logged in, it renders the MainLayout route. */}
-          {/* 3. MainLayout renders the bottom nav bar and an <Outlet /> for the page content. */}
-          <Route element={<MainLayout />}>
-            {/* 4. All your protected pages are now children of MainLayout. */}
-            <Route path="/" element={<HomePage session={session} />} />
-            <Route path="/subscription" element={<SubscriptionPage session={session} />} />
-            <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
-            <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
-            <Route path="/hosted-plan/:id" element={<HostedPlanDetailPage session={session} />} />
-            <Route path="/wallet" element={<WalletPage session={session} />} />
-            <Route path="/profile" element={<ProfilePage session={session} />} />
-            <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
-            <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
-            <Route path="/friends" element={<FriendsPage session={session} />} />
-            <Route path="/notifications" element={<NotificationsPage session={session} />} />
-            <Route path="/explore" element={<ExplorePage session={session} />} />
-            <Route path="/marketplace/:serviceName" element={<MarketplacePage session={session} />} />
-            <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
-            <Route path="/join-dapbuddy-plan/:planId" element={<JoinDapBuddyPlanPage session={session} />} />
-            <Route path="/host-plan" element={<HostPlanPage session={session} />} />
-            <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
-            <Route path="/invite" element={<InvitePage session={session} />} />
-            <Route path="/achievements" element={<AchievementsPage session={session} />} />
-            <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
-            <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
-            <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
-            <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
-            <Route path="/pay" element={<PaymentPage session={session} />} />
-          </Route>
-        </Route>
-      </Routes>
-    </Router>
+            {/* --- Main Application Routes --- */}
+            <Route element={<MainLayout session={session} openAuthModal={openAuthModal} />}>
+              
+              {/* === PUBLIC ROUTES === */}
+              {/* These routes are accessible to everyone, logged in or not. */}
+              
+              <Route
+                path="/"
+                element={<HomePage session={session} openAuthModal={openAuthModal} />}
+              />
+              
+              {/* MOVED: ExplorePage is now public */}
+              <Route
+                path="/explore"
+                element={<ExplorePage session={session} openAuthModal={openAuthModal} />}
+              />
+              
+              {/* MOVED: MarketplacePage is now public */}
+              <Route
+                path="/marketplace/:serviceName"
+                element={<MarketplacePage session={session} openAuthModal={openAuthModal} />}
+              />
+
+              {/* === PROTECTED ROUTES === */}
+              {/* All routes inside here will trigger the AuthRedirectPage for guests. */}
+              
+              <Route element={<AuthRequired session={session} openAuthModal={openAuthModal} />}>
+                {/* These routes are from your original file */}
+                <Route path="/subscription" element={<SubscriptionPage session={session} />} />
+                <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
+                <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
+                <Route path="/hosted-plan/:id" element={<HostedPlanDetailPage session={session} />} />
+                <Route path="/wallet" element={<WalletPage session={session} />} />
+                <Route path="/profile" element={<ProfilePage session={session} />} />
+                <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
+                <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
+                <Route path="/friends" element={<FriendsPage session={session} />} />
+                <Route path="/notifications" element={<NotificationsPage session={session} />} />
+                {/* ExplorePage & MarketplacePage were removed from this protected list */}
+                <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
+                <Route path="/join-dapbuddy-plan/:planId" element={<JoinDapBuddyPlanPage session={session} />} />
+                <Route path="/host-plan" element={<HostPlanPage session={session} />} />
+                <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
+                <Route path="/invite" element={<InvitePage session={session} />} />
+                <Route path="/achievements" element={<AchievementsPage session={session} />} />
+                <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
+                <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
+                <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
+                <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
+                <Route path="/pay" element={<PaymentPage session={session} />} />
+              </Route>
+            </Route>
+          </Routes>
+        </NotificationProvider>
+
+        {/* --- Global Auth Modal --- */}
+        <Modal isOpen={showAuthModal} onClose={closeAuthModal}>
+          <Auth />
+        </Modal>
+      </Router>
+    </Suspense>
   );
 }
 

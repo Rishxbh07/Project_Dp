@@ -2,6 +2,7 @@
 import React from 'react';
 import { Search, ShieldCheck, Smile } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {ChevronRight} from 'lucide-react';
 
 const steps = [
   {
@@ -19,9 +20,9 @@ const steps = [
     link: (
       <Link
         to="/rules"
-        className="text-sm font-semibold text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 mt-3 inline-block"
+        className="text-sm font-semibold text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 mt-3 flex items-center justify-center"
       >
-        Learn about safety →
+        Learn about safety<ChevronRight />
       </Link>
     ),
     bg: 'from-blue-50 to-white dark:from-blue-900/30 dark:to-slate-900',

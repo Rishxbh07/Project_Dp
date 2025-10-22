@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Users, UserPlus, Mail, RefreshCw, Loader2, Search, BookUser, X } from 'lucide-react';
 import FriendshipProfileCard from '../components/common/FriendshipProfileCard';
+import { useNotifications } from '../context/NotificationContext'; // ✅ Added import
 
 const FriendsPage = ({ session }) => {
     const [activeTab, setActiveTab] = useState('friends');
@@ -19,6 +20,8 @@ const FriendsPage = ({ session }) => {
     const [contacts, setContacts] = useState([]);
     const [contactAccess, setContactAccess] = useState('prompt');
     const [sentRequestIds, setSentRequestIds] = useState([]);
+
+    const { refreshCounts } = useNotifications(); // ✅ Added hook
 
     const fetchData = useCallback(async (forceRefresh = false) => {
         if (!session) return;
@@ -50,7 +53,7 @@ const FriendsPage = ({ session }) => {
         const channel = supabase
             .channel('public:friendships')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => {
-                fetchData(true); // Force refresh on real-time change
+                fetchData(true);
             })
             .subscribe();
 
@@ -79,6 +82,8 @@ const FriendsPage = ({ session }) => {
                 incoming_requests: [...prev.incoming_requests, request],
                 friends: prev.friends.filter(f => f.id !== userId)
             }));
+        } else {
+            refreshCounts(); // ✅ Trigger count refresh
         }
     };
 
@@ -95,6 +100,8 @@ const FriendsPage = ({ session }) => {
         if (error) {
             console.error("Failed to decline request:", error);
             setData(prev => ({ ...prev, incoming_requests: originalRequests }));
+        } else {
+            refreshCounts(); // ✅ Trigger count refresh
         }
     };
 
