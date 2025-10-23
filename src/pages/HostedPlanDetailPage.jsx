@@ -1,68 +1,15 @@
+// src/pages/HostedPlanDetailPage.jsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star, IndianRupee, Trash2, AlertTriangle, Clock, CheckCircle, ChevronRight, UserPlus, Users, Tag, Lock, ShoppingCart } from 'lucide-react';
+import { Star, IndianRupee, Trash2, AlertTriangle, Info, UserPlus, Users, Tag, Lock, ShoppingCart } from 'lucide-react';
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
 import InviteFriend from '../components/common/InviteFriend';
 
-const SimpleMemberCard = ({ booking }) => {
-    const userProfile = booking.profiles;
-    const inviteData = (booking.invite_link && booking.invite_link.length > 0) ? booking.invite_link[0] : null;
-    const status = inviteData?.status || 'pending_host_invite';
-    const paymentStatus = booking.payment_status;
-
-    const getStatusBadge = () => {
-        switch (status) {
-            case 'pending_host_invite':
-                return <span className="flex items-center gap-1 text-xs font-semibold text-gray-500"><Clock className="w-3 h-3"/> Send Invite</span>;
-            case 'pending_host_confirmation':
-                return <span className="flex items-center gap-1 text-xs font-semibold text-blue-500"><AlertTriangle className="w-3 h-3"/> Action Required</span>;
-            case 'active':
-                return <span className="flex items-center gap-1 text-xs font-semibold text-green-500"><CheckCircle className="w-3 h-3"/> Active</span>;
-            case 'pending_user_reveal':
-                 return <span className="flex items-center gap-1 text-xs font-semibold text-gray-500"><Clock className="w-3 h-3"/> Awaiting User</span>;
-            default:
-                if (status.startsWith('mismatch')) {
-                    return <span className="flex items-center gap-1 text-xs font-semibold text-yellow-500"><AlertTriangle className="w-3 h-3"/> Mismatch</span>;
-                }
-                return null;
-        }
-    };
-
-    if (!userProfile) return null;
-
-    return (
-        <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
-            <div className="flex items-center gap-4">
-                {userProfile.pfp_url ? (
-                    <img src={userProfile.pfp_url} alt={userProfile.username} className="w-12 h-12 rounded-full object-cover" />
-                ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xl">{userProfile.username.charAt(0).toUpperCase()}</div>
-                )}
-                <div className="flex-1">
-                    <p className="font-bold text-gray-900 dark:text-white">{userProfile.username}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                        {getStatusBadge()}
-                        {paymentStatus && (
-                            <span className={`capitalize text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                paymentStatus.toLowerCase().includes('paid')
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300'
-                                    : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
-                            }`}>
-                                {paymentStatus}
-                            </span>
-                        )}
-                    </div>
-                </div>
-                <Link to={`/hosted-plan/member/${booking.id}`} className="bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 p-2 rounded-full text-gray-600 dark:text-slate-300 transition-colors">
-                    <ChevronRight className="w-5 h-5" />
-                </Link>
-            </div>
-        </div>
-    );
-};
-
+import MemberStatusCard from '../components/host/MemberStatusCard';
+import BroadcastDetailsInput from '../components/host/BroadcastDetailsInput';
 
 const HostedPlanDetailPage = ({ session }) => {
     const { id } = useParams();
@@ -89,9 +36,17 @@ const HostedPlanDetailPage = ({ session }) => {
         
         const { data, error } = await supabase
             .from('listings')
-            .select(`*, services(*), profiles(*), bookings(*, profiles(*), invite_link(status), payment_status)`)
+            .select(`
+                *,
+                services(*),
+                profiles(*),
+                bookings (
+                    *,
+                    profiles(*)
+                )
+            `)
             .eq('id', id)
-            .order('joined_at', { foreignTable: 'bookings', ascending: true })
+            .eq('bookings.status', 'active')
             .single();
 
         if (error) {
@@ -99,8 +54,7 @@ const HostedPlanDetailPage = ({ session }) => {
             console.error(error);
         } else {
             setListing(data);
-            const active = (data.bookings || []).filter(m => m.status === 'active');
-            setActiveMembers(active);
+            setActiveMembers(data.bookings || []);
         }
         setLoading(false);
     }, [id]);
@@ -115,7 +69,19 @@ const HostedPlanDetailPage = ({ session }) => {
             return;
         }
         setIsDeleting(true);
-        // ... (rest of the function is the same)
+        const { error } = await supabase
+            .from('listings')
+            .update({ status: 'archived', archive_reason: deleteReason })
+            .eq('id', id);
+
+        if (error) {
+            alert('Failed to delete listing: ' + error.message);
+        } else {
+            alert('Listing successfully deleted.');
+            navigate('/subscription');
+        }
+        setIsDeleting(false);
+        setShowDeleteModal(false);
     };
     
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
@@ -148,7 +114,6 @@ const HostedPlanDetailPage = ({ session }) => {
                     </div>
                 </header>
                 <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 md:grid-cols-2 md:gap-8">
-                    {/* --- LEFT COLUMN (UPDATED) --- */}
                     <div className="md:col-span-1 space-y-6">
                         <section className="flex items-center gap-4">
                             <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">{service.name.charAt(0)}</div>
@@ -166,25 +131,25 @@ const HostedPlanDetailPage = ({ session }) => {
                                 <div className="flex justify-between"><span className="text-gray-600 dark:text-slate-300 font-bold">Final Payout</span><span className="font-bold text-green-600 dark:text-green-400">₹{finalPayout}</span></div>
                             </div>
                         </section>
-                        <section>
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Plan Overview</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-100 dark:bg-slate-800 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Total Capacity</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Users className="w-4 h-4"/> {totalCapacity} Seats</p></div>
-                                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Offered for Sale</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Tag className="w-4 h-4 text-green-500"/> {originallyOffered} Seats</p></div>
-                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Reserved by Host</p><p className="font-bold text-lg flex items-center justify-center gap-1"><Lock className="w-4 h-4 text-blue-500"/> {reservedByHost} Seats</p></div>
-                                <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-slate-400">Sold on DapBuddy</p><p className="font-bold text-lg flex items-center justify-center gap-1"><ShoppingCart className="w-4 h-4 text-purple-500"/> {soldSeats} Seats</p></div>
-                            </div>
+                         <section>
+                             <BroadcastDetailsInput
+                                serviceId={listing.service_id}
+                                listingId={listing.id}
+                            />
                         </section>
                     </div>
-
-                    {/* --- RIGHT COLUMN (UPDATED) --- */}
                     <div className="md:col-span-1 mt-8 md:mt-0 space-y-6">
                         <section>
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">DapBuddy Members ({soldSeats})</h3>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                Buddies ({soldSeats})
+                                <span title="Members who joined from the DapBuddy platform">
+                                    <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                                </span>
+                            </h3>
                             {activeMembers.length > 0 ? (
                                 <div className="space-y-4">
                                     {activeMembers.map((booking) => (
-                                        <SimpleMemberCard key={booking.id} booking={booking} />
+                                        <MemberStatusCard key={booking.id} booking={booking} />
                                     ))}
                                 </div>
                             ) : (
@@ -193,23 +158,11 @@ const HostedPlanDetailPage = ({ session }) => {
                         </section>
                         <section className="space-y-4 pt-4 border-t border-gray-200 dark:border-slate-700 md:border-none">
                              <button onClick={() => setIsInviteModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 font-semibold py-3 rounded-xl transition-colors">
-                                <UserPlus className="w-5 h-5" /> Invite a Friend
-                            </button>
-                            <div className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Reserved by You ({reservedByHost})</h3>
-                                    <button 
-                                        onClick={() => alert('Coming Soon! This feature will allow you to add members who are not on DapBuddy.')}
-                                        className="flex items-center gap-1.5 bg-blue-500/10 text-blue-500 dark:text-blue-400 text-xs font-semibold py-2 px-3 rounded-lg hover:bg-blue-500/20 transition-colors"
-                                    >
-                                        <UserPlus className="w-4 h-4"/> Add Member
-                                    </button>
-                                </div>
-                                <p className="text-xs text-gray-500 dark:text-slate-400">These are the spots you've kept for yourself or friends outside DapBuddy.</p>
-                            </div>
-                            <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-semibold py-3 rounded-xl transition-colors">
-                                <Trash2 className="w-5 h-5" /> Delete Listing
-                            </button>
+                                 <UserPlus className="w-5 h-5" /> Invite a Friend
+                             </button>
+                             <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 font-semibold py-3 rounded-xl transition-colors">
+                                 <Trash2 className="w-5 h-5" /> Delete Listing
+                             </button>
                         </section>
                     </div>
                 </main>
@@ -224,7 +177,47 @@ const HostedPlanDetailPage = ({ session }) => {
             />
 
             <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-                {/* Modal content remains the same */}
+                 <div className="p-2">
+                    <div className="text-center">
+                        <AlertTriangle className="mx-auto h-12 w-12 text-red-400" />
+                        <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Delete Group Listing</h3>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                            Are you sure you want to delete this group? All active subscriptions will be cancelled. This action cannot be undone.
+                        </p>
+                    </div>
+                    <div className="mt-4">
+                        <label htmlFor="deleteReason" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Reason for deletion</label>
+                        <select
+                            id="deleteReason"
+                            name="deleteReason"
+                            value={deleteReason}
+                            onChange={(e) => setDeleteReason(e.target.value)}
+                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                        >
+                            <option value="">Select a reason...</option>
+                            {deletionReasons.map(reason => (
+                                <option key={reason} value={reason}>{reason}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                        <button
+                            type="button"
+                            disabled={isDeleting}
+                            onClick={handleArchiveListing}
+                            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteModal(false)}
+                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-600"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </>
     );

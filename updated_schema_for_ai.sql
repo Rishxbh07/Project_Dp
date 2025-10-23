@@ -67,6 +67,30 @@ CREATE TABLE public.connected_accounts (
   CONSTRAINT connected_accounts_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
   CONSTRAINT connected_accounts_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
 );
+CREATE TABLE public.credential_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  booking_id uuid NOT NULL,
+  listing_id uuid NOT NULL,
+  host_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  request_type jsonb NOT NULL,
+  request_reason text,
+  status USER-DEFINED NOT NULL DEFAULT 'pending_host'::request_status,
+  details jsonb,
+  request_created_at timestamp with time zone NOT NULL DEFAULT now(),
+  request_expires_at timestamp with time zone,
+  message_expires_at timestamp with time zone,
+  sent_at timestamp with time zone,
+  seen_at timestamp with time zone,
+  confirmed_at timestamp with time zone,
+  additional_info jsonb,
+  confirmation_status USER-DEFINED NOT NULL DEFAULT 'pending'::confirmation_status_enum,
+  CONSTRAINT credential_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT credential_requests_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT credential_requests_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
+  CONSTRAINT credential_requests_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
+  CONSTRAINT credential_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.credit_ledger (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   user_id uuid NOT NULL,
