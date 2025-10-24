@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { Star, IndianRupee, Trash2, AlertTriangle, Info, UserPlus, Users, Tag, Lock, ShoppingCart } from 'lucide-react';
+import { Star, IndianRupee, Trash2, AlertTriangle, Info, UserPlus } from 'lucide-react';
 import Loader from '../components/common/Loader';
 import Modal from '../components/common/Modal';
 import InviteFriend from '../components/common/InviteFriend';
@@ -94,10 +94,6 @@ const HostedPlanDetailPage = ({ session }) => {
     }
 
     const soldSeats = activeMembers.length;
-    const totalCapacity = listing.seats_total;
-    const originallyOffered = listing.seats_originally_offered || 0;
-    const reservedByHost = totalCapacity - originallyOffered;
-
     const potentialEarning = (service.base_price * soldSeats).toFixed(2);
     const platformCut = (potentialEarning * (service.platform_commission_rate / 100)).toFixed(2);
     const finalPayout = (potentialEarning - platformCut).toFixed(2);
@@ -149,7 +145,9 @@ const HostedPlanDetailPage = ({ session }) => {
                             {activeMembers.length > 0 ? (
                                 <div className="space-y-4">
                                     {activeMembers.map((booking) => (
-                                        <MemberStatusCard key={booking.id} booking={booking} />
+                                        <Link to={`/hosted-plan/member/${booking.id}`} key={booking.id} className="block hover:bg-gray-100 dark:hover:bg-slate-800/50 rounded-lg transition-colors">
+                                            <MemberStatusCard booking={booking} />
+                                        </Link>
                                     ))}
                                 </div>
                             ) : (

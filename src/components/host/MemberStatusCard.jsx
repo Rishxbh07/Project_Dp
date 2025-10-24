@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { Link } from 'react-router-dom';
-import { Loader, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Loader } from 'lucide-react';
 
 const MemberStatusCard = ({ booking }) => {
   const [request, setRequest] = useState(null);
@@ -55,9 +54,10 @@ const MemberStatusCard = ({ booking }) => {
         badgeText: 'Issue Reported',
         badgeColor: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
         action: (
-            <Link to={`/hosted-plan/member/${booking.id}`} className="bg-red-500/10 text-red-500 font-semibold text-xs px-3 py-1.5 rounded-lg hover:bg-red-500/20">
-                View Issue
-            </Link>
+          // FIX: Changed from <Link> to <div> to prevent nesting
+          <div className="bg-red-500/10 text-red-500 font-semibold text-xs px-3 py-1.5 rounded-lg">
+            View Issue
+          </div>
         ),
       };
     }
@@ -76,9 +76,10 @@ const MemberStatusCard = ({ booking }) => {
         badgeText: 'Details Sent',
         badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
         action: (
-            <Link to={`/hosted-plan/member/${booking.id}`} className="bg-blue-500/10 text-blue-500 font-semibold text-xs px-3 py-1.5 rounded-lg hover:bg-blue-500/20">
-                Resend
-            </Link>
+          // FIX: Changed from <Link> to <div> to prevent nesting
+          <div className="bg-blue-500/10 text-blue-500 font-semibold text-xs px-3 py-1.5 rounded-lg">
+            Resend
+          </div>
         ),
       };
     }
@@ -88,9 +89,10 @@ const MemberStatusCard = ({ booking }) => {
       badgeText: 'Pending Details',
       badgeColor: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
       action: (
-        <Link to={`/hosted-plan/member/${booking.id}`} className="bg-yellow-500/10 text-yellow-500 font-semibold text-xs px-3 py-1.5 rounded-lg hover:bg-yellow-500/20">
+        // FIX: Changed from <Link> to <div> to prevent nesting
+        <div className="bg-yellow-500/10 text-yellow-500 font-semibold text-xs px-3 py-1.5 rounded-lg">
           Send Details
-        </Link>
+        </div>
       ),
     };
   };
@@ -101,7 +103,7 @@ const MemberStatusCard = ({ booking }) => {
   if (!userProfile) return null;
 
   return (
-    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
+    <div className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 transition-transform duration-300 ease-in-out transform hover:scale-[1.02] hover:shadow-lg">
       <div className="flex items-center gap-4">
         {userProfile.pfp_url ? (
           <img src={userProfile.pfp_url} alt={userProfile.username} className="w-12 h-12 rounded-full object-cover" />
