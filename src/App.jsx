@@ -9,6 +9,7 @@ import MainLayout from './components/layout/MainLayout';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminRequired from './components/AdminRequired';
 import Loader from './components/common/Loader';
+import RequestStatusPage from './pages/RequestStatusPage';
 
 // --- Core Components ---
 import Auth from './components/Auth';
@@ -46,6 +47,7 @@ const DisputePage = lazy(() => import('./pages/DisputePage'));
 const DisputeStatusPage = lazy(() => import('./pages/DisputeStatusPage'));
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
+
 
 // Admin Pages
 const GroupManagementPage = lazy(() => import('./pages/admin/GroupManagementPage'));
@@ -115,8 +117,6 @@ function App() {
             {/* --- Admin Routes --- */}
             <Route element={<AdminRequired session={session} />}>
               <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<GroupManagementPage />} />
-                <Route path="users" element={<UserManagementPage />} />
                 <Route path="group/:id" element={<GroupDetailPage />} />
               </Route>
             </Route>
@@ -174,6 +174,7 @@ function App() {
                 <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
                 <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
                 <Route path="/pay" element={<PaymentPage session={session} />} />
+                <Route path="/request-status/:bookingId" element={<RequestStatusPage session={session} />} />
               </Route>
             </Route>
           </Routes>

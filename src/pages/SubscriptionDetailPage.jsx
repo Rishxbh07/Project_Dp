@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import { AlertTriangle, LogOut, Star, IndianRupee, Zap, Calendar, Repeat, ChevronRight, Edit, UserCheck, ShieldQuestion, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, LogOut, Star, IndianRupee, Calendar, Repeat, ChevronRight, Edit, UserCheck, ShieldQuestion } from 'lucide-react';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
-import JoiningDetails from '../components/common/JoiningDetails';
 import UpdateDetailsModal from '../components/common/UpdateDetailsModal';
+import RequestStatusPreview from '../components/common/RequestStatusPreview'; // <-- IMPORT THE NEW COMPONENT
 
 // --- Sub-components remain unchanged ---
 const InterventionNotice = () => (
@@ -20,7 +20,7 @@ const InterventionNotice = () => (
     </section>
 );
 
-const MismatchResolver = ({ bookingId, onUpdateClick, onAcknowledge }) => (
+const MismatchResolver = ({ onUpdateClick, onAcknowledge }) => (
     <section className="bg-yellow-500/10 p-6 rounded-2xl border-2 border-dashed border-yellow-500/50 mb-6 text-center animate-in fade-in">
         <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
         <h3 className="font-bold text-lg text-yellow-600 dark:text-yellow-300 mb-2">Action Required</h3>
@@ -61,13 +61,11 @@ const SubscriptionDetailPage = ({ session }) => {
     const [inviteData, setInviteData] = useState(null);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
 
-    // --- MODIFIED: Simplified fetchDetails function ---
     const fetchDetails = async () => {
         if (!id || !session?.user?.id) return;
         setLoading(true);
         setError('');
 
-        // It's a Community Plan, use the original RPC.
         const { data: details, error: detailsError } = await supabase.rpc('get_subscription_details', {
             p_booking_id: id,
             p_buyer_id: session.user.id
@@ -85,7 +83,6 @@ const SubscriptionDetailPage = ({ session }) => {
              setError('Subscription not found or you do not have access.');
         }
 
-        // Fetch invite data separately and use .maybeSingle() to safely handle 0 or 1 result.
         const { data: inviteRes } = await supabase.from('invite_link').select('*').eq('booking_id', id).maybeSingle();
         if (inviteRes) setInviteData(inviteRes);
 
@@ -109,11 +106,9 @@ const SubscriptionDetailPage = ({ session }) => {
         setIsSubmittingRating(false);
     };
 
-    // --- MODIFIED: Simplified handleLeavePlan function ---
     const handleLeavePlan = async () => {
         setShowLeaveModal(false);
         setLoading(true);
-
         const { error } = await supabase.from('bookings').update({ status: 'left' }).eq('id', id);
         if (error) {
             setLoading(false);
@@ -132,7 +127,6 @@ const SubscriptionDetailPage = ({ session }) => {
             .from('invite_link')
             .update({ status: 'pending_host_confirmation_retry' })
             .eq('id', inviteData.id);
-
         if (error) {
             alert("Could not send acknowledgement. Please try again.");
         } else {
@@ -143,12 +137,6 @@ const SubscriptionDetailPage = ({ session }) => {
     if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
     
-    const joinDate = new Date(bookingDetails.joined_on);
-    const monthsJoined = Math.max(1, Math.floor(Math.abs(new Date() - joinDate) / (1000 * 60 * 60 * 24 * 30)));
-    const savingsPerMonth = (bookingDetails.solo_plan_price || 0) - (bookingDetails.base_price || 0);
-    const totalSavings = savingsPerMonth > 0 ? (savingsPerMonth * monthsJoined).toFixed(2) : null;
-    const renewalStatus = bookingDetails.billing_option === 'autoPay' ? 'Renews Automatically' : 'One-Time Payment';
-
     return (
         <>
             <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
@@ -162,7 +150,6 @@ const SubscriptionDetailPage = ({ session }) => {
                     </div>
                 </header>
                 <main className="max-w-md mx-auto px-4 py-6 pb-24">
-                    {/* --- MODIFIED: Removed conditional branding section, now always shows host details --- */}
                     <section className="flex flex-col items-center text-center mb-8">
                          {bookingDetails.host_pfp_url ? (
                             <img src={bookingDetails.host_pfp_url} alt={bookingDetails.host_name} className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-white dark:border-slate-700 shadow-lg" />
@@ -202,29 +189,30 @@ const SubscriptionDetailPage = ({ session }) => {
                         </div>
                     </section>
                     
-                    {/* --- MODIFIED: Removed conditional rendering wrapper --- */}
+                    {/* --- THIS IS THE UPDATED SECTION --- */}
                     <>
                         {inviteData?.status === 'human_intervention_required' && <InterventionNotice />}
                         {inviteData?.status === 'mismatch_reported_once' && <MismatchResolver bookingId={id} onUpdateClick={() => setShowUpdateModal(true)} onAcknowledge={handleAcknowledge} />}
-                        {bookingDetails.sharing_method === 'invite_link' && <JoiningDetails bookingId={id} />}
                         
-                        <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
-                            <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
-                            <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
-                            <div className="mt-4 h-10 flex items-center justify-center">
-                                {isSubmittingRating ? <Loader /> : isRatingEditable ? (
-                                    <button onClick={submitRating} disabled={currentRating === originalRating} className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Submit Rating
-                                    </button>
-                                ) : (
-                                    <div className="space-y-1">
-                                        <p className="text-sm text-green-600 dark:text-green-400">Your rating has been submitted!</p>
-                                        <button onClick={() => setIsRatingEditable(true)} className="text-xs font-semibold text-purple-500 hover:underline">Change Rating</button>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
+                        {bookingDetails.sharing_method === 'invite_link' && <RequestStatusPreview bookingId={id} />}
                     </>
+                    
+                    <section className="bg-white dark:bg-white/5 border border-gray-200 dark:border-transparent rounded-2xl p-6 mb-4 text-center">
+                        <h3 className="font-bold text-lg mb-3">Rate Your Experience</h3>
+                        <StarRating rating={currentRating} onRatingChange={setCurrentRating} disabled={!isRatingEditable || isSubmittingRating} />
+                        <div className="mt-4 h-10 flex items-center justify-center">
+                            {isSubmittingRating ? <Loader /> : isRatingEditable ? (
+                                <button onClick={submitRating} disabled={currentRating === originalRating} className="bg-purple-600 text-white font-semibold py-2 px-6 rounded-lg transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Submit Rating
+                                </button>
+                            ) : (
+                                <div className="space-y-1">
+                                    <p className="text-sm text-green-600 dark:text-green-400">Your rating has been submitted!</p>
+                                    <button onClick={() => setIsRatingEditable(true)} className="text-xs font-semibold text-purple-500 hover:underline">Change Rating</button>
+                                </div>
+                            )}
+                        </div>
+                    </section>
                     
                     <section className="space-y-3">
                         <Link to={`/dispute/${id}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
