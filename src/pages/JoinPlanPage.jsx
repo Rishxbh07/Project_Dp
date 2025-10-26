@@ -166,7 +166,11 @@ const JoinPlanPage = ({ session }) => {
         setLoading(true);
         setError('');
 
-        try {
+        // --- ADDED LOGS ---
+        console.log('Attempting RPC call with listingId:', listing.id);
+        console.log('Session User ID:', session.user.id);
+        
+        try { // <-- START: The only try block
             // Step 1: Create the booking
             const { data: bookingData, error: bookingError } = await supabase.rpc('create_booking_atomic', {
                 p_listing_id: listing.id,
@@ -210,9 +214,10 @@ const JoinPlanPage = ({ session }) => {
             // Step 4: Navigate to subscriptions page
             navigate('/subscription');
 
-        } catch (error) {
+        } catch (error) { // <-- START: The only catch block
+            console.error('Full error object in catch:', error); // This will show the full error in your console
             setError(`An error occurred: ${error.message}`);
-        } finally {
+        } finally { // <-- START: The only finally block
             setLoading(false);
         }
     };

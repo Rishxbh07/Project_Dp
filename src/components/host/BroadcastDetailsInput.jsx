@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { Eye, EyeOff, Send, Loader } from 'lucide-react';
 
-// --- Validation Logic ---
-const validateAgainstForbiddenWords = (value) => {
+// --- Validation Logic (FIX: Added 'export' to each function) ---
+export const validateAgainstForbiddenWords = (value) => {
   const forbiddenPatterns = [
     /contact\s?me/i, /call\s?me/i, /dm\s?me/i, /message\s?me/i,
     /cheaper/i, /discount/i, /telegram/i, /whatsapp/i, /\b\d{10}\b/
@@ -18,7 +18,7 @@ const validateAgainstForbiddenWords = (value) => {
   return null;
 };
 
-const validateLanguage = (value) => {
+export const validateLanguage = (value) => {
   const englishRegex = /^[A-Za-z0-9\s`~!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]*$/;
   if (!englishRegex.test(value)) {
     return "Please use only English characters, numbers, and standard symbols.";
@@ -26,7 +26,7 @@ const validateLanguage = (value) => {
   return null;
 };
 
-const validateInviteLink = (value, serviceId) => {
+export const validateInviteLink = (value, serviceId) => {
   if (!value.startsWith('https://')) {
     return "Link must start with https://";
   }
@@ -111,6 +111,7 @@ const BroadcastDetailsInput = ({ serviceId, listingId }) => {
   };
 
   const validateField = (field, value) => {
+    // We call the functions directly since they are in the same file
     let error = validateLanguage(value) || validateAgainstForbiddenWords(value);
     if (!error && field.validation === 'invite_link') {
       error = validateInviteLink(value, serviceId);
