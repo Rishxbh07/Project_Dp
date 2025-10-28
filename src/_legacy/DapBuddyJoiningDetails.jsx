@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase } from '../lib/supabaseClient.js';
 import { Eye, Copy, Check, ArrowRight } from 'lucide-react';
-import Loader from './Loader.jsx';
-import RevealWarningModal from './RevealWarningModal.jsx';
+import Loader from '../components/common/Loader.jsx';
+import RevealWarningModal from '../components/common/RevealWarningModal.jsx';
 
 const DapBuddyJoiningDetails = ({ bookingId }) => {
     const [details, setDetails] = useState(null);

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import Loader from './Loader';
+import { supabase } from '../lib/supabaseClient';
+import Loader from '../components/common/Loader';
 import { AlertTriangle, PartyPopper } from 'lucide-react';
-import Modal from './Modal';
+import Modal from '../components/common/Modal';
 
 // Helper to configure form fields based on service name
 const getServiceInputConfig = (serviceName) => {

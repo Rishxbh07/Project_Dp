@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
@@ -26,10 +24,11 @@ const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
 
 // Protected Pages
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
-const SubscriptionDetailPage = lazy(() => import('./pages/SubscriptionDetailPage'));
-// ... (all other lazy-loaded protected pages) ...
-const DapBuddySubDetailsPage = lazy(() => import('./pages/DapBuddySubDetailsPage'));
-const HostedPlanDetailPage = lazy(() => import('./pages/HostedPlanDetailPage'));
+// The old page is replaced with the new one
+const SubscriptionDashboardPage = lazy(() => import('./pages/SubscriptionDashboardPage'));
+const DapBuddySubDetailsPage = lazy(() => import('./_legacy/DapBuddySubDetailsPage'));
+const HostDashboardPage = lazy(() => import('./pages/host-side/HostDashboardPage'));
+const MemberManagementPage = lazy(() => import('./pages/host-side/MemberManagementPage'));
 const WalletPage = lazy(() => import('./pages/WalletPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
@@ -42,7 +41,6 @@ const HostPlanPage = lazy(() => import('./pages/HostPlanPage'));
 const ServiceRequestPage = lazy(() => import('./pages/ServiceRequestPage'));
 const InvitePage = lazy(() => import('./pages/InvitePage'));
 const AchievementsPage = lazy(() => import('./pages/AchievementsPage'));
-const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage'));
 const DisputePage = lazy(() => import('./pages/DisputePage'));
 const DisputeStatusPage = lazy(() => import('./pages/DisputeStatusPage'));
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'));
@@ -128,48 +126,41 @@ function App() {
             <Route element={<MainLayout session={session} openAuthModal={openAuthModal} />}>
               
               {/* === PUBLIC ROUTES === */}
-              {/* These routes are accessible to everyone, logged in or not. */}
-              
               <Route
                 path="/"
                 element={<HomePage session={session} openAuthModal={openAuthModal} />}
               />
               
-              {/* MOVED: ExplorePage is now public */}
               <Route
                 path="/explore"
                 element={<ExplorePage session={session} openAuthModal={openAuthModal} />}
               />
               
-              {/* MOVED: MarketplacePage is now public */}
               <Route
                 path="/marketplace/:serviceName"
                 element={<MarketplacePage session={session} openAuthModal={openAuthModal} />}
               />
 
               {/* === PROTECTED ROUTES === */}
-              {/* All routes inside here will trigger the AuthRedirectPage for guests. */}
-              
               <Route element={<AuthRequired session={session} openAuthModal={openAuthModal} />}>
-                {/* These routes are from your original file */}
                 <Route path="/subscription" element={<SubscriptionPage session={session} />} />
-                <Route path="/subscription/:id" element={<SubscriptionDetailPage session={session} />} />
+                {/* The route now points to the new dashboard page */}
+                <Route path="/subscription/:bookingId" element={<SubscriptionDashboardPage session={session} />} />
                 <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
-                <Route path="/hosted-plan/:id" element={<HostedPlanDetailPage session={session} />} />
+                <Route path="/hosted-plan/:listingId" element={<HostDashboardPage session={session} />} />
+                <Route path="/manage-member/:bookingId" element={<MemberManagementPage session={session} />} />
                 <Route path="/wallet" element={<WalletPage session={session} />} />
                 <Route path="/profile" element={<ProfilePage session={session} />} />
                 <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
                 <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
                 <Route path="/friends" element={<FriendsPage session={session} />} />
                 <Route path="/notifications" element={<NotificationsPage session={session} />} />
-                {/* ExplorePage & MarketplacePage were removed from this protected list */}
                 <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
                 <Route path="/join-dapbuddy-plan/:planId" element={<JoinDapBuddyPlanPage session={session} />} />
                 <Route path="/host-plan" element={<HostPlanPage session={session} />} />
                 <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
                 <Route path="/invite" element={<InvitePage session={session} />} />
                 <Route path="/achievements" element={<AchievementsPage session={session} />} />
-                <Route path="/hosted-plan/member/:bookingId" element={<MemberDetailPage session={session} />} />
                 <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
                 <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
                 <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
