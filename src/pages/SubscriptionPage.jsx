@@ -1,5 +1,4 @@
-// src/pages/SubscriptionPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import SubscriptionCard from "../components/SubscriptionCard";
@@ -15,7 +14,7 @@ const SubscriptionPage = ({ session }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!session?.user?.id) {
       setLoading(false);
       return;
@@ -25,7 +24,6 @@ const SubscriptionPage = ({ session }) => {
     setError(null);
 
     try {
-      // Single, efficient call to our new function
       const [allSubsRes, hostedPlansRes] = await Promise.all([
         supabase.rpc("get_all_user_subscriptions", { p_user_id: session.user.id }),
         supabase.rpc("get_hosted_plans", { p_host_id: session.user.id })
@@ -71,14 +69,14 @@ const SubscriptionPage = ({ session }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     fetchData();
     const handleRefresh = () => fetchData();
     window.addEventListener("refreshHostedPlans", handleRefresh);
     return () => window.removeEventListener("refreshHostedPlans", handleRefresh);
-  }, [session]);
+  }, [fetchData]);
 
   const EmptyState = ({ type }) => (
     <div className="text-center py-20 bg-white dark:bg-white/5 rounded-3xl border border-dashed border-gray-300 dark:border-white/20 shadow-sm">

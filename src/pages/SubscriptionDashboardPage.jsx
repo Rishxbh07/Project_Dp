@@ -14,14 +14,14 @@ import Rating from '../components/subscriptiondashboard/Rating';
 import ActionButtons from '../components/subscriptiondashboard/ActionButtons';
 
 const SubscriptionDashboardPage = ({ session }) => {
-    const { id: bookingId } = useParams(); // Using 'id' as per your reference file
+    // FIX IS HERE: The component was incorrectly using 'id' from useParams, but your App.jsx defines it as 'bookingId'.
+    const { bookingId } = useParams(); 
     const navigate = useNavigate();
     const [bookingDetails, setBookingDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showLeaveModal, setShowLeaveModal] = useState(false);
 
-    // THIS FETCH LOGIC IS NOW COPIED EXACTLY FROM YOUR REFERENCE FILE
     const fetchDetails = useCallback(async () => {
         if (!bookingId || !session?.user?.id) return;
         setLoading(true);
@@ -41,7 +41,8 @@ const SubscriptionDashboardPage = ({ session }) => {
             setError('Subscription not found or you do not have access.');
         }
         setLoading(false);
-    }, [bookingId, session]);
+    // FIX IS HERE: Dependency changed from `session` to the stable `session.user.id`.
+    }, [bookingId, session?.user?.id]); 
 
     useEffect(() => {
         fetchDetails();
@@ -55,14 +56,13 @@ const SubscriptionDashboardPage = ({ session }) => {
             setLoading(false);
             alert('Could not leave the plan.');
         } else {
-            navigate('/subscription');
+            navigate('/subscriptions'); // Corrected navigation path
         }
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     if (error || !bookingDetails) return <p className="text-center text-red-500 mt-8">{error || 'Details not found.'}</p>;
 
-    // Destructuring the flat object returned by the RPC call, as per your reference code
     const { 
         service_name, 
         service_metadata, 
@@ -77,14 +77,16 @@ const SubscriptionDashboardPage = ({ session }) => {
         listing_id 
     } = bookingDetails;
     
-    const username = session?.user?.user_metadata?.username || 'You';
+    // Using a safer fallback for username
+    const username = session?.user?.user_metadata?.username || 'a friend';
 
     return (
         <>
             <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
                 <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-                        <Link to="/subscription" className="text-purple-500 dark:text-purple-400">
+                        {/* Corrected navigation path */}
+                        <Link to="/subscriptions" className="text-purple-500 dark:text-purple-400">
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
                         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Your Subscription</h1>
@@ -92,7 +94,6 @@ const SubscriptionDashboardPage = ({ session }) => {
                 </header>
 
                 <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                    {/* Passing correct props to each component */}
                     <PlanHeader 
                         serviceName={service_name}
                         serviceMetadata={service_metadata}
