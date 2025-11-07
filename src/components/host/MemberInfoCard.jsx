@@ -1,42 +1,111 @@
-import React from 'react';
-import { User, Layers } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
+import Loader from '../../components/common/Loader'; // <-- Correct path
+import { ArrowLeft } from 'lucide-react';
 
-const MemberInfoCard = ({ profile, listing }) => {
-    // Correct fallback logic for the avatar
-    const avatarUrl = profile.pfp_url || `https://api.dicebear.com/8.x/initials/svg?seed=${profile.username || '?'}`;
-    
+// Import the essential components
+import MemberInfoCard from '../../components/host/MemberInfoCard';
+import BillingInfo from '../../components/host/BillingInfo';
+// --- LEGACY COMPONENTS REMOVED ---
+// import UserSubmittedDetails from '../../components/host/UserSubmittedDetails';
+// import CredentialManager from '../../components/host/CredentialManager';
+
+// --- NEW: Accept 'session' as a prop, just like SubscriptionDashboardPage ---
+const MemberManagementPage = ({ session }) => {
+    const { bookingId } = useParams();
+    const [booking, setBooking] = useState(null);
+    // --- REMOVED: 'requests' state is no longer needed ---
+    // const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const fetchMemberData = useCallback(async () => {
+        if (!bookingId) return;
+        setLoading(true);
+
+        // Simplified query. We don't need 'credential_requests' anymore.
+        const { data: bookingData, error: bookingError } = await supabase
+            .from('bookings')
+            .select(`
+                *,
+                profiles(*), 
+                listings(*, services(*)),
+                transactions(*),
+                connected_accounts(*)
+            `)
+            .eq('id', bookingId)
+            .single();
+
+        if (bookingError) {
+            setError('Failed to fetch member details.');
+            console.error(bookingError);
+            setLoading(false);
+            return;
+        }
+        setBooking(bookingData);
+        setLoading(false);
+
+        // --- REMOVED: No need to fetch 'credential_requests' ---
+        
+    }, [bookingId]);
+
+    useEffect(() => {
+        fetchMemberData();
+    }, [fetchMemberData]);
+
+    if (loading) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
+    if (error) return <p className="text-center text-red-500 mt-8">{error}</p>;
+    if (!booking) return <p className="text-center mt-8">Member not found.</p>;
+
+    const transaction = (booking.transactions && booking.transactions.length > 0) ? booking.transactions[0] : null;
+    // const connectedAccount = (booking.connected_accounts && booking.connected_accounts.length > 0) ? booking.connected_accounts[0] : null;
+
     return (
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-gray-200 dark:border-slate-700">
-            <div className="flex items-center gap-4 mb-4">
-                <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    className="w-16 h-16 rounded-full border-2 border-purple-500"
-                />
-                <div>
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">{profile.username}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Member</p>
+        <div className="bg-gray-50 dark:bg-slate-900 min-h-screen">
+            <header className="sticky top-0 z-20 backdrop-blur-lg bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+                    <Link to={`/host/dashboard/${booking.listing_id}`} className="text-purple-500 dark:text-purple-400">
+                        <ArrowLeft size={24} />
+                    </Link>
+                    <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+                        Manage {booking.profiles.username}
+                    </h1>
                 </div>
-            </div>
-            <div className="border-t dark:border-slate-700 my-4"></div>
-            <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-3">
-                    <Layers className="text-purple-500" size={18} />
-                    <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Plan</p>
-                        <p className="font-semibold text-gray-700 dark:text-gray-300">{listing.title}</p>
-                    </div>
+            </header>
+
+            <main className="max-w-4xl mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1 space-y-6">
+                    
+                    {/* --- MODIFIED: Pass the *full* booking and the session --- */}
+                    <MemberInfoCard 
+                      booking={booking} 
+                      session={session} 
+                      onRemoveUser={() => {/* Add your remove user logic here */}} 
+                    />
+                    
+                    <BillingInfo transaction={transaction} />
                 </div>
-                <div className="flex items-center gap-3">
-                    <User className="text-purple-500" size={18} />
-                     <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">User ID</p>
-                        <p className="font-mono text-xs text-gray-600 dark:text-gray-400">{profile.id}</p>
-                    </div>
+
+                <div className="md:col-span-2 space-y-6">
+                    {/* --- LEGACY COMPONENTS REMOVED --- */}
+                    {/* <UserSubmittedDetails 
+                        connectedAccount={connectedAccount} 
+                        sharingMethod={booking.listings.services.sharing_method}
+                    />
+                    <CredentialManager 
+                        requests={requests}
+                        booking={booking}
+                        onUpdate={fetchMemberData}
+                    />
+                    */}
+                    
+                    {/* You can add other components here if needed, 
+                        but the communication is handled by MemberInfoCard's modal. */}
                 </div>
-            </div>
+            </main>
         </div>
     );
 };
 
-export default MemberInfoCard;
+export default MemberManagementPage;

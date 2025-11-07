@@ -1,36 +1,40 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Share2, AlertTriangle, LogOut } from 'lucide-react';
+import React, { useState } from 'react'
+import { supabase } from '../../lib/supabaseClient'
 
-const ActionButtons = ({ bookingId, listingId, username, serviceName, onLeaveClick }) => {
-    const shareMessage = `Heyy !!! ${username} wants you to join their ${serviceName} group and start saving now!!`;
-    const shareUrl = `${window.location.origin}/join-plan/${listingId}`;
+export const ActionButtons = ({ actions, bookingId }) => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-    const handleShare = async () => {
-        if (navigator.share) {
-            navigator.share({ title: `Join this ${serviceName} group!`, text: shareMessage, url: shareUrl });
-        } else {
-            navigator.clipboard.writeText(`${shareMessage} ${shareUrl}`);
-            alert('Invite link copied to clipboard!');
-        }
-    };
+  const handleActionClick = async (nodeId) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      // This calls the Edge Function we built!
+      const { error } = await supabase.functions.invoke('user-flow-action', {
+        body: { booking_id: bookingId, node_id: nodeId },
+      })
+      if (error) throw error
+      // The UI will update automatically via the real-time subscription
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-    return (
-        <section className="space-y-3">
-            <button onClick={handleShare} className="w-full text-left flex items-center p-4 bg-gray-100 dark:bg-slate-800 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">
-                <Share2 className="w-5 h-5 mr-4 text-blue-500" />
-                <span className="flex-1 font-semibold text-gray-800 dark:text-slate-200">Share This Plan</span>
-            </button>
-            <Link to={`/dispute/${bookingId}`} className="w-full text-left flex items-center p-4 bg-yellow-500/10 rounded-lg hover:bg-yellow-500/20 transition-colors">
-                <AlertTriangle className="w-5 h-5 mr-4 text-yellow-600 dark:text-yellow-400" />
-                <span className="flex-1 font-semibold text-yellow-700 dark:text-yellow-300">Report an Issue</span>
-            </Link>
-            <button onClick={onLeaveClick} className="w-full text-left bg-red-500/10 flex items-center p-4 rounded-lg hover:bg-red-500/20 transition-colors">
-                <LogOut className="w-5 h-5 mr-4 text-red-500 dark:text-red-400" />
-                <span className="font-semibold text-red-500 dark:text-red-400">Leave Plan</span>
-            </button>
-        </section>
-    );
-};
-
-export default ActionButtons;
+  return (
+    <div className="space-y-3">
+      {actions.map((action) => (
+        <button
+          key={action.node_id}
+          onClick={() => handleActionClick(action.node_id)}
+          disabled={isLoading}
+          className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+        >
+          {action.button_label}
+        </button>
+      ))}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+    </div>
+  )
+}

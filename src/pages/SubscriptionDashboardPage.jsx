@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
-import Loader from '../components/common/Loader';
+import Loader from '../components/common/Loader'; // Correct path
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import Modal from '../components/common/Modal';
 
@@ -9,18 +9,26 @@ import Modal from '../components/common/Modal';
 import PlanHeader from '../components/subscriptiondashboard/PlanHeader';
 import PlanPricing from '../components/subscriptiondashboard/PlanPricing';
 import SavingsSummary from '../components/subscriptiondashboard/SavingsSummary';
-import JoiningDetailsViewer from '../components/subscriptiondashboard/JoiningDetailsViewer';
+
+// --- THIS IS THE FIX: Added the missing import for Rating ---
 import Rating from '../components/subscriptiondashboard/Rating';
-import ActionButtons from '../components/subscriptiondashboard/ActionButtons';
+
+// --- NEW COMPONENT IMPORTED ---
+import { CommunicationManager } from '../components/subscriptiondashboard/CommunicationManager';
+
+// --- LEGACY COMPONENTS REMOVED ---
+// We no longer import JoiningDetailsViewer or ActionButtons
 
 const SubscriptionDashboardPage = ({ session }) => {
-    // FIX IS HERE: The component was incorrectly using 'id' from useParams, but your App.jsx defines it as 'bookingId'.
     const { bookingId } = useParams(); 
     const navigate = useNavigate();
     const [bookingDetails, setBookingDetails] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+    // --- NEW: State for chat modal ---
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     const fetchDetails = useCallback(async () => {
         if (!bookingId || !session?.user?.id) return;
@@ -41,7 +49,6 @@ const SubscriptionDashboardPage = ({ session }) => {
             setError('Subscription not found or you do not have access.');
         }
         setLoading(false);
-    // FIX IS HERE: Dependency changed from `session` to the stable `session.user.id`.
     }, [bookingId, session?.user?.id]); 
 
     useEffect(() => {
@@ -56,7 +63,7 @@ const SubscriptionDashboardPage = ({ session }) => {
             setLoading(false);
             alert('Could not leave the plan.');
         } else {
-            navigate('/subscriptions'); // Corrected navigation path
+            navigate('/subscriptions');
         }
     };
 
@@ -77,15 +84,14 @@ const SubscriptionDashboardPage = ({ session }) => {
         listing_id 
     } = bookingDetails;
     
-    // Using a safer fallback for username
-    const username = session?.user?.user_metadata?.username || 'a friend';
+    // We get the user object *from the session* (this fixes the AuthContext error)
+    const { user } = session;
 
     return (
         <>
             <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
                 <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-                        {/* Corrected navigation path */}
                         <Link to="/subscriptions" className="text-purple-500 dark:text-purple-400">
                             <ArrowLeft className="w-6 h-6" />
                         </Link>
@@ -114,20 +120,33 @@ const SubscriptionDashboardPage = ({ session }) => {
                         userPrice={monthly_rate}
                     />
 
-                    <JoiningDetailsViewer bookingId={bookingId} />
+                    {/* --- NEW "CHAT WITH HOST" BUTTON --- */}
+                    <button
+                      onClick={() => setIsChatOpen(true)}
+                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Chat with Host
+                    </button>
 
+                    {/* --- LEGACY COMPONENTS REMOVED --- */}
+                    {/* <JoiningDetailsViewer bookingId={bookingId} /> */}
+
+                    {/* --- RATING COMPONENT (Now imported correctly) --- */}
                     <Rating bookingId={bookingId} initialRating={plan_rating || 0} />
                     
-                    <ActionButtons 
-                        bookingId={bookingId}
-                        listingId={listing_id}
-                        username={username}
-                        serviceName={service_name}
-                        onLeaveClick={() => setShowLeaveModal(true)}
-                    />
+                    {/* --- LEGACY ACTIONBUTTONS REMOVED --- */}
+
+                    {/* --- NEW LEAVE BUTTON (we keep this functionality) --- */}
+                    <button
+                      onClick={() => setShowLeaveModal(true)}
+                      className="w-full text-center py-2 text-sm text-red-600 hover:text-red-800"
+                    >
+                      Leave Plan
+                    </button>
                 </main>
             </div>
 
+            {/* --- LEAVE MODAL (Unchanged) --- */}
             <Modal isOpen={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
                 <div className="text-center">
                     <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
@@ -144,6 +163,19 @@ const SubscriptionDashboardPage = ({ session }) => {
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* --- NEW CHAT MODAL --- */}
+            <Modal
+              isOpen={isChatOpen}
+              onClose={() => setIsChatOpen(false)}
+              title={`Communicating with ${host_name}`}
+            >
+              {/* We pass the *full* booking object and the user object */}
+              {/* We must check that bookingDetails and user are loaded before rendering */}
+              {bookingDetails && user && (
+                <CommunicationManager booking={bookingDetails} user={user} />
+              )}
             </Modal>
         </>
     );
