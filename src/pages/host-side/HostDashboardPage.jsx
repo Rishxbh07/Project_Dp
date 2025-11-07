@@ -1,105 +1,111 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
-import { ArrowLeft } from 'lucide-react';
 import Loader from '../../components/common/Loader';
+import { ArrowLeft, Users, Settings, Bell, BarChart2 } from 'lucide-react';
 import PlanStatsHeader from '../../components/hostdashboard/PlanStatsHeader';
-import EarningsSummary from '../../components/hostdashboard/EarningsSummary';
-import { BuddiesList } from '../../components/hostdashboard/UserDetailCard';
+import UserDetailCard from '../../components/hostdashboard/UserDetailCard';
 import GroupBroadcast from '../../components/hostdashboard/GroupBroadcast';
-import InviteFriend from '../../components/hostdashboard/InviteFriend';
+import EarningsSummary from '../../components/hostdashboard/EarningsSummary';
 import DeleteListing from '../../components/hostdashboard/DeleteListing';
 
+// We accept 'session' as a prop
 const HostDashboardPage = ({ session }) => {
     const { listingId } = useParams();
-    const navigate = useNavigate();
     const [listing, setListing] = useState(null);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    
-    // THIS IS THE FIX: Added 'planRating' to the stats object
-    const [stats, setStats] = useState({ hostRating: 4.9, planRating: 4.5, listingAge: 120, avgOnboardingTime: 6 });
+
+    const fetchListingData = useCallback(async () => {
+        if (!listingId) return;
+        setLoading(true);
+        setError('');
+
+        const { data: listingData, error: listingError } = await supabase
+            .from('listings')
+            .select(`
+                *,
+                services(*)
+            `)
+            .eq('id', listingId)
+            .single();
+
+        if (listingError) {
+            setError('Failed to fetch listing details.');
+            console.error(listingError);
+            setLoading(false);
+            return;
+        }
+        setListing(listingData);
+
+        // --- THIS IS THE FIX ---
+        // Changed the .in() query to a .eq('status', 'active')
+        // This avoids the "pending_host_invite" enum error.
+        const { data: membersData, error: membersError } = await supabase
+            .from('bookings')
+            .select(`
+                *,
+                profiles(*)
+            `)
+            .eq('listing_id', listingId)
+            .eq('status', 'active'); // Only fetch active members
+
+        if (membersError) {
+            setError('Failed to fetch members.');
+            console.error('Error fetching members:', membersError);
+        } else {
+            setMembers(membersData);
+        }
+        setLoading(false);
+    }, [listingId]);
 
     useEffect(() => {
-        const fetchHostData = async () => {
-            if (!listingId || !session?.user?.id) return;
-            setLoading(true);
-            try {
-                const { data: listingData, error: listingError } = await supabase
-                    .from('listings')
-                    .select('*, services(*), profiles(username)')
-                    .eq('id', listingId)
-                    .eq('host_id', session.user.id)
-                    .single();
-
-                if (listingError) throw listingError;
-                setListing(listingData);
-
-                const { data: membersData, error: membersError } = await supabase
-                    .from('bookings')
-                    .select('id, joined_at, profiles(*)')
-                    .eq('listing_id', listingId)
-                    .eq('status', 'active');
-
-                if (membersError) throw membersError;
-                setMembers(membersData || []);
-
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchHostData();
-    }, [listingId, session?.user?.id]);
+        fetchListingData();
+    }, [fetchListingData]);
     
-    if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
+    if (loading || !session?.user) return <div className="flex justify-center items-center h-screen"><Loader /></div>;
     if (error) return <p className="text-center text-red-500 mt-8">{error}</p>;
-    if (!listing) return null;
+    if (!listing) return <p className="text-center mt-8">Listing not found.</p>;
 
     return (
-        <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
-            <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-                     <button onClick={() => navigate(-1)} className="text-purple-500 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300">
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
-                        Manage your <span className="text-purple-500 dark:text-purple-400">{listing.services.name}</span> Group
+        <div className="bg-gray-50 dark:bg-slate-900 min-h-screen">
+            <header className="sticky top-0 z-20 backdrop-blur-lg bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
+                <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+                    <Link to="/host/dashboard" className="text-purple-500 dark:text-purple-400">
+                        <ArrowLeft size={24} />
+                    </Link>
+                    <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+                        {listing.services.name} Group
                     </h1>
                 </div>
             </header>
-            
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    <div className="lg:col-span-2 space-y-8">
-                        <PlanStatsHeader 
-                            service={listing.services}
-                            hostRating={stats.hostRating}
-                            planRating={stats.planRating}
-                            listingAge={stats.listingAge}
-                            avgOnboardingTime={stats.avgOnboardingTime}
-                        />
-                        <BuddiesList members={members} />
+
+            <main className="max-w-4xl mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-6">
+                    <PlanStatsHeader listing={listing} memberCount={members.length} />
+                    
+                    <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-gray-200 dark:border-slate-700">
+                        <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Members ({members.length})</h2>
+                        <div className="space-y-3">
+                            {members.map(member => (
+                                // We pass the 'session' and the *full* listing object
+                                <UserDetailCard 
+                                    key={member.id} 
+                                    member={member} 
+                                    listing={listing}
+                                    session={session} 
+                                />
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="lg:col-span-1 space-y-8">
-                        <EarningsSummary 
-                            basePrice={listing.services.base_price || 0}
-                            memberCount={members.length}
-                            platformFee={listing.services.platform_commission_rate || 10}
-                        />
-                        <GroupBroadcast service={listing.services} />
-                        <InviteFriend 
-                            hostUsername={listing.profiles.username} 
-                            serviceName={listing.services.name} 
-                        />
-                        <DeleteListing 
-                            isActiveMembers={members.length > 0} 
-                            onDelete={() => alert('Archive process started!')}
-                        />
-                    </div>
+                    <GroupBroadcast listingId={listingId} />
+                </div>
+
+                <div className="md:col-span-1 space-y-6">
+                    <EarningsSummary listingId={listingId} />
+                    <DeleteListing listingId={listingId} />
                 </div>
             </main>
         </div>

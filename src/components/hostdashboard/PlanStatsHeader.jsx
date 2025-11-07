@@ -1,47 +1,72 @@
 import React from 'react';
-import { Star, Clock, Zap, ShieldCheck } from 'lucide-react';
+import { Share2, Users, Star } from 'lucide-react';
 
-const StatItem = ({ icon, label, value, className = '' }) => (
-    <div className={`text-center ${className}`}>
-        <div className="flex items-center justify-center gap-1.5 font-bold text-lg text-gray-800 dark:text-white">
-            {icon}
-            {/* SAFETY FIX: Ensure value is a number before calling toFixed */}
-            <span>{(typeof value === 'number' ? value : 0).toFixed(1)}</span>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-slate-400 font-medium tracking-wide">{label}</p>
-    </div>
-);
+const PlanStatsHeader = ({ listing, memberCount }) => {
 
-const PlanStatsHeader = ({ service, hostRating, planRating, listingAge, avgOnboardingTime }) => {
-    const metadata = service.service_metadata || {};
-    const bgColor = metadata.primary_color || '#A855F7';
-    const textColor = metadata.text_color || '#FFFFFF';
+    // --- THIS IS THE FIX ---
+    // Add a safety check. If 'listing' or the nested 'services'
+    // object isn't loaded yet, just render a lightweight placeholder.
+    if (!listing || !listing.services) {
+        return (
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-gray-200 dark:border-slate-700 animate-pulse">
+                <div className="h-6 bg-gray-200 dark:bg-slate-700 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/4 mt-2"></div>
+            </div>
+        );
+    }
+    // --- END OF FIX ---
+
+    // This code is now safe because we've checked for listing.services
+    const { 
+        primary_color = '#6B46C1', 
+        background_color = '#FFFFFF', 
+        text_color = '#000000' 
+    } = listing.services.service_metadata || {};
+
+    // Determine text color for Share button based on background luminance
+    const isDarkBg = (parseInt(background_color.slice(1, 3), 16) * 0.299 + 
+                      parseInt(background_color.slice(3, 5), 16) * 0.587 + 
+                      parseInt(background_color.slice(5, 7), 16) * 0.114) < 186;
+    const shareButtonTextColor = isDarkBg ? 'text-white' : 'text-black';
 
     return (
-        <section className="bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-y-4">
-                <div className="flex items-center justify-between sm:justify-start sm:gap-4">
-                    <div className="flex items-center gap-4">
-                        <div 
-                            className="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-2xl flex-shrink-0"
-                            style={{ backgroundColor: bgColor, color: textColor }}
-                        >
-                            {service.name.charAt(0)}
-                        </div>
-                        <h3 className="font-bold text-gray-800 dark:text-white truncate">{service.name}</h3>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-                        <Clock className="w-4 h-4 text-sky-400"/>
-                        <span>{listingAge}d old</span>
-                    </div>
+        <div 
+            className="p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-slate-700" 
+            style={{ backgroundColor: background_color }}
+        >
+            <div className="flex justify-between items-start">
+                <div>
+                    <h2 className="text-2xl font-bold" style={{ color: text_color }}>
+                        {listing.services.name}
+                    </h2>
+                    <p className="font-semibold" style={{ color: primary_color }}>
+                        {listing.alias_name || 'My Group'}
+                    </p>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <StatItem icon={<Star className="w-4 h-4 text-yellow-400"/>} label="Your Rating" value={hostRating} />
-                    <StatItem icon={<ShieldCheck className="w-4 h-4 text-blue-400"/>} label="Plan Rating" value={planRating} />
-                    <StatItem icon={<Zap className="w-4 h-4 text-green-400"/>} label="Avg. Onboarding" value={avgOnboardingTime} />
+                <button 
+                    className="flex items-center gap-2 px-4 py-2 rounded-full font-semibold transition-transform transform hover:scale-105" 
+                    style={{ backgroundColor: primary_color, color: shareButtonTextColor }}
+                >
+                    <Share2 size={16} />
+                    Share
+                </button>
+            </div>
+            
+            <div className="flex gap-6 mt-6">
+                <div className="flex items-center gap-2">
+                    <Users className="opacity-70" size={20} style={{ color: text_color }} />
+                    <span className="font-bold text-lg" style={{ color: text_color }}>
+                        {memberCount} <span className="text-sm font-normal opacity-80">Members</span>
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Star className="opacity-70" size={20} style={{ color: text_color }} />
+                    <span className="font-bold text-lg" style={{ color: text_color }}>
+                        {listing.avg_rating || 'N/A'} <span className="text-sm font-normal opacity-80">Rating</span>
+                    </span>
                 </div>
             </div>
-        </section>
+        </div>
     );
 };
 

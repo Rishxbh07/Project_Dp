@@ -7,10 +7,9 @@ import Loader from '../common/Loader'
 
 export const CommunicationManager = ({ booking, user }) => {
   
-  // This console log will fire if the component itself is re-rendering
   console.log('CommunicationManager rendering...') 
 
-  // Safety check (from previous fix)
+  // Safety check
   if (!booking || !user || !booking.listings) {
     console.error('CommunicationManager: Missing booking, user, or listings prop.')
     return <Loader />
@@ -28,7 +27,6 @@ export const CommunicationManager = ({ booking, user }) => {
 
   // --- 1. FETCH ALL DATA ON INITIAL LOAD ---
   useEffect(() => {
-    // This log will tell us if the useEffect is re-running
     console.log('CommunicationManager: FetchAllData effect is RUNNING.')
 
     const fetchAllData = async () => {
@@ -71,11 +69,9 @@ export const CommunicationManager = ({ booking, user }) => {
         }
 
       } catch (err) {
-        // If RLS is failing, this will show up in the console
         console.error("CommunicationManager: Error fetching data:", err)
         setError(err.message || 'Failed to load chat history.')
       } finally {
-        // This will tell us when the loading is *supposed* to stop
         console.log('CommunicationManager: Fetch complete. Setting loading to false.')
         setLoading(false)
       }
@@ -83,11 +79,9 @@ export const CommunicationManager = ({ booking, user }) => {
 
     fetchAllData()
 
-  // --- THIS IS THE FIX ---
   // The dependency array ONLY uses stable values (strings)
-  // This stops the infinite re-render loop.
+  // This stops potential infinite re-render loops.
   }, [booking.id, user.id]) 
-  // --- END OF FIX ---
 
 
   // --- 2. SUBSCRIBE TO REAL-TIME UPDATES ---
@@ -134,10 +128,8 @@ export const CommunicationManager = ({ booking, user }) => {
       supabase.removeChannel(bookingChannel)
       supabase.removeChannel(readChannel)
     }
-  // --- FIX ---
   // This dependency array also needs to be stable.
   }, [booking.id, otherParticipantId]) 
-  // --- END OF FIX ---
 
 
   // --- 3. HELPER FUNCTIONS ---

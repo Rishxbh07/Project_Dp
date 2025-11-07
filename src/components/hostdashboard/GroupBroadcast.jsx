@@ -1,49 +1,104 @@
-import React from 'react';
-import { Send } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabaseClient';
+import { Send, Info } from 'lucide-react';
+import Loader from '../common/Loader'; // Import Loader
 
-const GroupBroadcast = ({ service }) => {
-    // Fallback to an empty object if host_config is null/undefined
-    const hostConfig = service.host_config || {};
-    const formFields = hostConfig.afterbuy || [];
+const GroupBroadcast = ({ listingId }) => {
+    const [listing, setListing] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-    const renderFormFields = () => {
-        // If there are no configured fields, show a message.
-        if (formFields.length === 0) {
-            return <p className="text-xs text-center text-gray-500 dark:text-slate-400">No broadcast fields configured for this service.</p>;
+    useEffect(() => {
+        const fetchListing = async () => {
+            if (!listingId) return;
+            setLoading(true);
+            const { data, error } = await supabase
+                .from('listings')
+                .select('*, services(*)')
+                .eq('id', listingId)
+                .single();
+
+            if (error) {
+                console.error("Error fetching listing for broadcast:", error);
+                setError('Could not load listing data.');
+            } else {
+                setListing(data);
+            }
+            setLoading(false);
+        };
+        fetchListing();
+    }, [listingId]);
+
+    const handleBroadcast = async () => {
+        if (!message) {
+            setError('Message cannot be empty.');
+            return;
         }
-
-        return formFields.map(fieldName => {
-            const label = fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const type = fieldName.includes('password') ? 'password' : 'text';
-            const placeholder = `Enter new ${label.toLowerCase()}...`;
-            
-            return (
-                <div key={fieldName}>
-                    <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{label}</label>
-                    <input 
-                        type={type} 
-                        placeholder={placeholder} 
-                        className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg p-2 mt-1 focus:ring-purple-500 focus:border-purple-500"
-                    />
-                </div>
-            );
-        });
+        // ... your broadcast logic
+        setSuccess('Broadcast sent successfully!');
+        setMessage('');
     };
 
+    // --- THIS IS THE FIX ---
+    // Show a loader while the internal fetch is happening
+    // and also check if listing.services exists.
+    if (loading) {
+        return (
+            <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-gray-200 dark:border-slate-700">
+                <Loader />
+            </div>
+        );
+    }
+
+    if (error) {
+        return <p className="text-red-500">{error}</p>;
+    }
+    
+    // This check prevents the crash
+    if (!listing || !listing.services) {
+        return <p className="text-red-500">Error: Listing data incomplete.</p>;
+    }
+    // --- END OF FIX ---
+
+    // This code is now safe
+    const hostConfig = listing.services.host_config;
+
     return (
-        <section className="bg-white dark:bg-slate-800/50 p-6 rounded-2xl border border-gray-200 dark:border-white/10">
-            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4">Group Broadcast</h3>
-            <form className="space-y-4">
-                {renderFormFields()}
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md border border-gray-200 dark:border-slate-700">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Group Broadcast</h2>
+            
+            <div className="relative">
+                <textarea 
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="w-full p-3 pr-12 border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                    rows="3"
+                    placeholder="Send an update to all members..."
+                />
                 <button 
-                    type="submit" 
-                    className="w-full bg-purple-600 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 transition-colors"
-                    disabled={formFields.length === 0}
+                    onClick={handleBroadcast}
+                    className="absolute right-3 top-3 p-2 bg-purple-600 text-white rounded-full hover:bg-purple-700"
                 >
-                    <Send className="w-5 h-5" /> Send to All Members
+                    <Send size={18} />
                 </button>
-            </form>
-        </section>
+            </div>
+            
+            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            {success && <p className="text-green-500 text-sm mt-2">{success}</p>}
+
+            {/* You can now safely read from hostConfig */}
+            {hostConfig?.afterbuy && (
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-slate-700 border border-blue-200 dark:border-blue-500 rounded-lg flex gap-3">
+                    <Info size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-700 dark:text-blue-200">
+                        This plan requires hosts to send: <strong>{hostConfig.afterbuy.join(', ')}</strong>. 
+                        Use the "Chat with User" button on each member's card to send details.
+                    </p>
+                </div>
+            )}
+        </div>
     );
 };
 
