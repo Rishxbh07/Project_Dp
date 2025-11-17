@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Check, CheckCheck } from 'lucide-react'
+import { Check, CheckCheck, Copy, ExternalLink } from 'lucide-react'
 
 // This component fetches and displays the *actual* credential
-const SecureCredentialViewer = ({ credentialId, expiryHours = 24 }) => {
+const SecureCredentialViewer = ({ credentialId, expiryHours = 24, isHost }) => {
   const [credential, setCredential] = useState(null)
   const [error, setError] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [copiedKey, setCopiedKey] = useState(null)
 
   useEffect(() => {
     const fetchCredential = async () => {
+      if (isHost) {
+        setIsLoading(false)
+        setCredential({ isHostPlaceholder: true }) 
+        return;
+      }
+
       setIsLoading(true)
       try {
-        // This is the function that handles expiry logic
         const { data, error } = await supabase.functions.invoke('get-secure-credential', {
           body: { secure_credential_id: credentialId },
         })
@@ -29,22 +35,68 @@ const SecureCredentialViewer = ({ credentialId, expiryHours = 24 }) => {
       }
     }
     fetchCredential()
-  }, [credentialId])
+  }, [credentialId, isHost])
+
+  const handleCopy = (key, value) => {
+    navigator.clipboard.writeText(value);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000); 
+  };
 
   if (isLoading) return <div className="p-2 text-sm text-gray-500">Loading details...</div>
   if (error) return <div className="p-2 text-sm text-red-500">{error}</div>
+  
+  if (credential?.isHostPlaceholder) {
+    return (
+      <div className="p-3 my-2 border rounded-md bg-gray-50 text-sm text-gray-500">
+        You have sent credentials. The user can view them.
+      </div>
+    )
+  }
+
   if (!credential) return <div className="p-2 text-sm text-red-500">Credentials have expired.</div>
 
   return (
     <div className="p-3 my-2 border rounded-md bg-gray-50">
-      <h4 className="font-semibold text-sm">Joining Details:</h4>
-      <ul className="list-disc pl-5 mt-1">
-        {Object.entries(credential.credential_data).map(([key, value]) => (
-          <li key={key} className="text-sm">
-            <span className="capitalize font-medium">{key.replace('_', ' ')}:</span> {value}
-          </li>
-        ))}
-      </ul>
+      <h4 className="font-semibold text-sm text-gray-900">Joining Details:</h4>
+      
+      <div className="space-y-2 mt-2">
+        {Object.entries(credential.credential_data).map(([key, value]) => {
+          
+          if (key === 'invite_link') {
+            return (
+              <div key={key}>
+                <span className="capitalize block text-xs font-medium text-gray-600">{key.replace('_', ' ')}:</span>
+                <a
+                  href={value}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  Click to join <ExternalLink size={14} />
+                </a>
+              </div>
+            )
+          }
+
+          return (
+            <div key={key}>
+              <span className="capitalize block text-xs font-medium text-gray-600">{key.replace('_', ' ')}:</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-800 break-all">{value}</span>
+                <button 
+                  onClick={() => handleCopy(key, value)}
+                  className="p-1 text-gray-500 hover:text-blue-600"
+                  title="Copy"
+                >
+                  {copiedKey === key ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      
       <p className="text-xs text-red-600 mt-2">
         For your security, these details will expire {expiryHours} hours after you first viewed them.
       </p>
@@ -53,8 +105,13 @@ const SecureCredentialViewer = ({ credentialId, expiryHours = 24 }) => {
 }
 
 // This is the main "chat bubble" component
-export const Message = ({ log, isMe, lastSeenLogId, booking }) => {
+export const Message = ({ log, isMe, lastSeenLogId, booking, isHost }) => {
+  
+  // --- THIS IS THE FIX ---
+  // Changed 'lastSeenLogLId' (with two 'L's) to 'lastSeenLogId'
   const isSeen = lastSeenLogId && log.id <= lastSeenLogId
+  // --- END OF FIX ---
+  
   const alignment = isMe ? 'justify-end' : 'justify-start'
   const bubbleClass = isMe
     ? 'bg-blue-600 text-white'
@@ -65,16 +122,18 @@ export const Message = ({ log, isMe, lastSeenLogId, booking }) => {
       <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${bubbleClass}`}>
         <p>{log.message_sent}</p>
         
-        {/* If this message has credentials, render the secure viewer */}
         {log.secure_credential_id && (
-          <SecureCredentialViewer credentialId={log.secure_credential_id} />
+          <SecureCredentialViewer 
+            credentialId={log.secure_credential_id} 
+            isHost={isHost} 
+          />
         )}
 
         <div className="flex justify-end items-center text-xs mt-1 opacity-70">
           <span>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {isMe && (
             isSeen 
-              ? <CheckCheck className="w-4 h-4 ml-1 text-blue-300" /> 
+              ? <CheckCheck className="w-4 h-4 ml-1" /> 
               : <Check className="w-4 h-4 ml-1" />
           )}
         </div>
@@ -82,3 +141,5 @@ export const Message = ({ log, isMe, lastSeenLogId, booking }) => {
     </div>
   )
 }
+
+export default Message

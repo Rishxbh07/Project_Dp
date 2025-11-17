@@ -6,8 +6,6 @@ import { ChevronRight, MessageSquare } from 'lucide-react';
 import Modal from '../common/Modal'; // Import Modal
 import CommunicationManager from '../subscriptiondashboard/CommunicationManager'; // Import our chat component
 
-// --- THIS IS THE FIX ---
-// Accept 'session' and 'listing' as new props
 const UserDetailCard = ({ member, listing, session }) => {
     const [isChatOpen, setIsChatOpen] = useState(false);
     
@@ -22,7 +20,6 @@ const UserDetailCard = ({ member, listing, session }) => {
 
     const avatarUrl = userProfile.pfp_url || `https://api.dicebear.com/8.x/initials/svg?seed=${userProfile.username || '?'}`;
 
-    // This stops the click from navigating when the button is clicked
     const handleChatClick = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -50,7 +47,6 @@ const UserDetailCard = ({ member, listing, session }) => {
                     </div>
                 </div>
 
-                {/* --- THIS IS THE FIX --- */}
                 {/* Buttons (Right Side) */}
                 <div className="flex items-center gap-2">
                     <button
@@ -70,14 +66,13 @@ const UserDetailCard = ({ member, listing, session }) => {
                 onClose={() => setIsChatOpen(false)}
                 title={`Communicating with ${userProfile.username}`}
             >
-                {/* We create a 'booking' object that has the 'listings' nested
-                    so CommunicationManager can use it.
+                {/* --- THIS IS THE FIX ---
+                  We now pass 'booking' and 'listing' as separate, stable props.
+                  This stops the infinite re-render loop.
                 */}
                 <CommunicationManager 
-                    booking={{
-                        ...booking, 
-                        listings: listing // Attach the full listing object
-                    }} 
+                    booking={booking} 
+                    listing={listing}
                     user={hostUser} 
                 />
             </Modal>

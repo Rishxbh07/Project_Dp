@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-console.log('Loaded host-submit-credentials function')
+console.log('Loaded host-submit-credentials function (v2 - with safety check)')
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,8 +45,16 @@ Deno.serve(async (req) => {
       .select('id')
       .single()
 
-    if (credError) throw new Error(`Failed to save credentials: ${credError.message}`)
+    // --- THIS IS THE FIX ---
+    // We add a safety check to make sure 'cred' is not null
+    // before we try to read 'cred.id'.
+    if (credError || !cred) {
+      console.error('Error saving credentials:', credError?.message)
+      throw new Error(`Failed to save credentials. RLS might be blocking the select.`)
+    }
     const secure_credential_id = cred.id
+    // --- END OF FIX ---
+
 
     // 4. Log this action to the chat history
     const { error: logError } = await supabaseAdmin
@@ -61,9 +69,10 @@ Deno.serve(async (req) => {
     if (logError) throw new Error(`Failed to write to log: ${logError.message}`)
 
     // 5. Update the booking state to show the "Thank you" / "Wrong details" buttons
+    // (This is the fix from our previous step)
     const { error: updateError } = await supabaseAdmin
       .from('bookings')
-      .update({ current_flow_node_id: 'USER_CONFIRM_ACCESS' }) // This node is the parent for confirm/deny buttons
+      .update({ current_flow_node_id: 'AWAITING_USER_CONFIRMATION' })
       .eq('id', booking_id)
 
     if (updateError) throw new Error(`Failed to update booking state: ${updateError.message}`)
