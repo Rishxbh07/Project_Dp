@@ -29,8 +29,6 @@ Deno.serve(async (req) => {
     const participant_id = user.id
 
     // Use "UPSERT" to update the row if it exists, or create it if it doesn't.
-    // We also check to make sure the user isn't marking an *older* message as "seen"
-    // (which can happen in a race condition)
     const { error } = await supabaseAdmin
       .rpc('upsert_read_status', {
         b_id: booking_id,
@@ -39,6 +37,19 @@ Deno.serve(async (req) => {
       })
 
     if (error) throw error
+
+    // +++ ADDED THIS SECTION +++
+    // After successful DB write, broadcast the update to the other user.
+    const channel = supabaseAdmin.channel(`comm-read-status:${booking_id}`)
+    await channel.send({
+      type: 'broadcast',
+      event: 'user_read',
+      payload: { 
+        last_seen_log_id: last_seen_log_id,
+        sender_id: participant_id // So the sender can ignore their own broadcast
+      },
+    })
+    // +++ END OF ADDED SECTION +++
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

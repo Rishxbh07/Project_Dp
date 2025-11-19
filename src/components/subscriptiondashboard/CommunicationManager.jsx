@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import { Message } from './Message'
 import { ActionButtons } from './ActionButtons'
 import { DynamicHostForm } from './DynamicHostForm'
 import Loader from '../common/Loader'
-import { Plus } from 'lucide-react' // Import the Plus icon
+import { Plus } from 'lucide-react'
 
 export const CommunicationManager = ({ booking, user, listing }) => {
   
@@ -34,22 +34,39 @@ export const CommunicationManager = ({ booking, user, listing }) => {
   const isHost = user.id === aBooking.listings.host_id
   const otherParticipantId = isHost ? aBooking.buyer_id : aBooking.listings.host_id
 
-  // --- 1. FETCH ALL DATA ON INITIAL LOAD ---
+  // --- State for Pagination (Part 3) ---
+  const scrollRef = useRef(null)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [isPaginating, setIsPaginating] = useState(false)
+  const [prevScrollHeight, setPrevScrollHeight] = useState(0)
+  const PAGE_SIZE = 20 // Load 20 messages at a time
+
+
+  // --- 1. FETCH ALL DATA ON INITIAL LOAD (Updated for Pagination) ---
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setLoading(true)
         setError(null)
 
+        // Fetches the FIRST page of messages (newest first)
         const { data: logData, error: logError } = await supabase
           .from('communication_log')
           .select('*')
           .eq('booking_id', aBooking.id)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: false }) // Get newest first
+          .range(0, PAGE_SIZE - 1) // Get page 0
 
         if (logError) throw logError
-        if (logData) setHistory(logData)
+        if (logData) {
+          setHistory(logData.reverse()) // Reverse to show oldest-to-newest
+          setHasMore(logData.length === PAGE_SIZE) // Check if there are more pages
+          setPage(0)
+        }
 
+        // Fetch the *other* user's read status
         const { data: readData, error: readError } = await supabase
           .from('communication_read_status')
           .select('last_seen_log_id')
@@ -60,10 +77,12 @@ export const CommunicationManager = ({ booking, user, listing }) => {
         if (readError && readError.code !== 'PGRST116') throw readError
         if (readData) setReadStatus(readData)
         
+        // Fetch the actions the current user can take
         await fetchAllowedActions(aBooking.current_flow_node_id, aBooking)
         
+        // Mark the chat as read on load
         if (logData && logData.length > 0) {
-          const lastLogId = logData[logData.length - 1].id
+          const lastLogId = logData[0].id // [0] is correct because we reversed
           await markChatAsRead(lastLogId)
         }
 
@@ -79,13 +98,19 @@ export const CommunicationManager = ({ booking, user, listing }) => {
   }, [aBooking.id, user.id]) 
 
 
-  // --- 2. SUBSCRIBE TO REAL-TIME UPDATES ---
+  // --- 2. SUBSCRIBE TO REAL-TIME UPDATES (Updated for Real-Time Seen) ---
   useEffect(() => {
     const logChannel = supabase
       .channel(`comm-log:${aBooking.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'communication_log', filter: `booking_id=eq.${aBooking.id}`},
         (payload) => {
-          setHistory((currentHistory) => [...currentHistory, payload.new])
+          // Add new message (handles optimistic duplicates)
+          setHistory((currentHistory) => {
+            if (!currentHistory.find(log => log.id === payload.new.id)) {
+              return [...currentHistory, payload.new]
+            }
+            return currentHistory
+          })
           markChatAsRead(payload.new.id)
         }
       )
@@ -102,17 +127,26 @@ export const CommunicationManager = ({ booking, user, listing }) => {
       )
       .subscribe()
       
-    // ... (other subscriptions) ...
+    // --- NEW: Subscribe to the read status broadcast channel ---
+    const readChannel = supabase
+      .channel(`comm-read-status:${aBooking.id}`)
+      .on('broadcast', { event: 'user_read' }, (payload) => {
+        // Check if the broadcast is from the *other* user
+        if (payload.payload.sender_id === otherParticipantId) {
+          setReadStatus({ last_seen_log_id: payload.payload.last_seen_log_id })
+        }
+      })
+      .subscribe()
 
     return () => {
       supabase.removeChannel(logChannel)
       supabase.removeChannel(bookingChannel)
-      // supabase.removeChannel(readChannel)
+      supabase.removeChannel(readChannel) // Remove the new channel
     }
   }, [aBooking.id, otherParticipantId])
 
 
-  // --- 3. HELPER FUNCTIONS ---
+  // --- 3. HELPER FUNCTIONS (Updated with Optimistic UI & Pagination) ---
   
   const fetchAllowedActions = async (nodeId, currentBooking) => {
     const { data, error } = await supabase
@@ -126,10 +160,121 @@ export const CommunicationManager = ({ booking, user, listing }) => {
     if (data) setAllowedActions(data)
   }
 
+  // Calls our Edge Function to mark as read (and broadcast)
   const markChatAsRead = async (lastLogId) => {
-    // ... (rest of the function is correct)
+    if (readStatus && lastLogId <= readStatus.last_seen_log_id) {
+      return
+    }
+    
+    setReadStatus({ last_seen_log_id: lastLogId }) // Optimistic local update
+
+    await supabase.functions.invoke('mark-chat-as-read', {
+      body: { 
+        booking_id: aBooking.id, 
+        last_seen_log_id: lastLogId 
+      },
+    })
   }
 
+  // --- Optimistic UI Functions (Part 2) ---
+  
+  /**
+   * Adds a temporary "sending" message to the UI.
+   */
+  const addOptimisticMessage = (messageText, secureCredentialId = null) => {
+    const tempId = `temp_${Date.now()}`
+    const optimisticLog = {
+      id: tempId,
+      booking_id: aBooking.id,
+      actor_id: user.id,
+      message_sent: messageText,
+      secure_credential_id: secureCredentialId,
+      created_at: new Date().toISOString(),
+      status: 'sending', // Special temporary status
+    }
+
+    setHistory((currentHistory) => [...currentHistory, optimisticLog])
+    return tempId // Return the temp ID
+  }
+
+  /**
+   * Replaces the temporary message with the real one from the DB.
+   */
+  const handleMessageSendSuccess = (tempId, newLog) => {
+    setHistory((currentHistory) =>
+      currentHistory.map((log) => (log.id === tempId ? newLog : log))
+    )
+  }
+
+  /**
+   * Marks the temporary message as "failed".
+   */
+  const handleMessageSendFail = (tempId) => {
+    setHistory((currentHistory) =>
+      currentHistory.map((log) =>
+        log.id === tempId ? { ...log, status: 'failed' } : log
+      )
+    )
+  }
+  
+  // --- Pagination Functions (Part 3) ---
+
+  const handleScroll = () => {
+    // If user scrolls to top, load more
+    if (scrollRef.current.scrollTop === 0 && !loadingMore && hasMore) {
+      setPrevScrollHeight(scrollRef.current.scrollHeight)
+      setIsPaginating(true)
+      loadMoreMessages()
+    }
+  }
+
+  const loadMoreMessages = async () => {
+    setLoadingMore(true)
+    const nextPage = page + 1
+
+    const { data: logData, error: logError } = await supabase
+      .from('communication_log')
+      .select('*')
+      .eq('booking_id', aBooking.id)
+      .order('created_at', { ascending: false })
+      .range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1)
+
+    if (logError) {
+      console.error('Error loading more messages:', logError)
+      setLoadingMore(false)
+      return
+    }
+
+    if (logData) {
+      // Prepend the new (older) messages to the history
+      setHistory((currentHistory) => [...logData.reverse(), ...currentHistory])
+      setPage(nextPage)
+      setHasMore(logData.length === PAGE_SIZE)
+    }
+    
+    // We set loadingMore to false in useLayoutEffect
+  }
+
+  // --- Layout Effects for scrolling (Part 3) ---
+
+  // This effect maintains scroll position during pagination
+  useLayoutEffect(() => {
+    if (isPaginating && scrollRef.current) {
+      const newScrollHeight = scrollRef.current.scrollHeight
+      scrollRef.current.scrollTop = newScrollHeight - prevScrollHeight
+      setIsPaginating(false)
+      setLoadingMore(false)
+    }
+  }, [history, isPaginating, prevScrollHeight])
+
+  // This effect scrolls to bottom for new messages or on initial load
+  useLayoutEffect(() => {
+    if (!isPaginating && !loadingMore && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [history, loading]) // Runs on initial load and when history changes
+
+  
   // --- 4. RENDER THE UI ---
   
   if (loading) {
@@ -140,12 +285,10 @@ export const CommunicationManager = ({ booking, user, listing }) => {
     return <div className="p-4 text-center text-red-500">{error}</div>
   }
   
-  // --- THIS IS THE NEW, SIMPLIFIED RENDER LOGIC ---
   const renderCurrentAction = () => {
     if (isHost) {
-      // --- HOST'S VIEW (YOUR NEW '+' BUTTON) ---
+      // --- HOST'S VIEW ---
       
-      // If the host has chosen a form, show it.
       if (hostFormKey) {
         return (
           <DynamicHostForm 
@@ -154,15 +297,17 @@ export const CommunicationManager = ({ booking, user, listing }) => {
             onSuccess={() => {
               setHostFormKey(null) // Close form on success
               fetchAllowedActions(currentNodeId, aBooking)
-            }} 
+            }}
+            // Pass optimistic UI props
+            addOptimisticMessage={addOptimisticMessage}
+            onMessageSendSuccess={handleMessageSendSuccess}
+            onMessageSendFail={handleMessageSendFail}
           />
         )
       }
 
-      // Otherwise, show the '+' button
       return (
         <div className="relative flex justify-end">
-          {/* Show the menu if the + button is clicked */}
           {showHostMenu && (
             <div className="absolute bottom-14 right-0 w-64 bg-white border rounded-lg shadow-lg z-10">
               <button
@@ -176,7 +321,6 @@ export const CommunicationManager = ({ booking, user, listing }) => {
               </button>
               <button
                 onClick={() => {
-                  // This key will work for *any* service (invite or credential)
                   const key = aBooking.listings.services.sharing_method === 'invite_link' 
                               ? 'RESEND_INVITE' 
                               : 'RECOVERY_PASSWORD';
@@ -189,7 +333,6 @@ export const CommunicationManager = ({ booking, user, listing }) => {
               </button>
             </div>
           )}
-          {/* The '+' button itself */}
           <button
             onClick={() => setShowHostMenu(!showHostMenu)}
             className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700"
@@ -201,13 +344,19 @@ export const CommunicationManager = ({ booking, user, listing }) => {
 
     } else {
       // --- USER'S VIEW ---
-      // This logic is from our previous fix
       return (
         <>
           {currentNodeId === 'NEW_USER_ONBOARDING' && (
              <div className="p-4 text-center text-gray-500">Waiting for host to send details...</div>
           )}
-          <ActionButtons actions={allowedActions} bookingId={aBooking.id} />
+          <ActionButtons 
+            actions={allowedActions} 
+            bookingId={aBooking.id}
+            // Pass optimistic UI props
+            addOptimisticMessage={addOptimisticMessage}
+            onMessageSendSuccess={handleMessageSendSuccess}
+            onMessageSendFail={handleMessageSendFail}
+          />
         </>
       )
     }
@@ -216,7 +365,17 @@ export const CommunicationManager = ({ booking, user, listing }) => {
   return (
     <div className="flex flex-col h-[500px] bg-gray-50 rounded-lg border">
       {/* Message History Window */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={scrollRef} 
+        onScroll={handleScroll} 
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
+        {/* Loader for pagination */}
+        {loadingMore && (
+          <div className="flex justify-center p-2">
+            <Loader size="small" />
+          </div>
+        )}
         {history.map((log) => (
           <Message
             key={log.id}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
-import { Check, CheckCheck, Copy, ExternalLink } from 'lucide-react'
+import { Check, CheckCheck, Copy, ExternalLink, Clock, AlertCircle } from 'lucide-react'
 
 // This component fetches and displays the *actual* credential
 const SecureCredentialViewer = ({ credentialId, expiryHours = 24, isHost }) => {
@@ -107,15 +107,42 @@ const SecureCredentialViewer = ({ credentialId, expiryHours = 24, isHost }) => {
 // This is the main "chat bubble" component
 export const Message = ({ log, isMe, lastSeenLogId, booking, isHost }) => {
   
-  // --- THIS IS THE FIX ---
-  // Changed 'lastSeenLogLId' (with two 'L's) to 'lastSeenLogId'
+  // Check if the other user has seen this message
   const isSeen = lastSeenLogId && log.id <= lastSeenLogId
-  // --- END OF FIX ---
   
   const alignment = isMe ? 'justify-end' : 'justify-start'
   const bubbleClass = isMe
     ? 'bg-blue-600 text-white'
     : 'bg-gray-200 text-gray-800'
+
+  // --- ADDED: Logic to render the status icon (Part 2) ---
+  const renderStatusIcon = () => {
+    if (!isMe) return null // Only show status for *my* messages
+
+    // 1. Show optimistic "sending" state
+    if (log.status === 'sending') {
+      return <Clock className="w-4 h-4 ml-1" title="Sending..." />
+    }
+    
+    // 2. Show optimistic "failed" state
+    if (log.status === 'failed') {
+      return <AlertCircle className="w-4 h-4 ml-1 text-red-300" title="Failed to send" />
+    }
+
+    // 3. Fallback for any other temp state
+    if (log.id.toString().startsWith('temp_')) {
+      return <Clock className="w-4 h-4 ml-1" title="Sending..." />
+    }
+
+    // 4. Show "Seen" status
+    if (isSeen) {
+      return <CheckCheck className="w-4 h-4 ml-1" title="Seen" /> 
+    }
+    
+    // 5. Show "Sent" status
+    return <Check className="w-4 h-4 ml-1" title="Sent" />
+  }
+  // --- END OF ADDED FUNCTION ---
 
   return (
     <div className={`flex ${alignment}`}>
@@ -131,11 +158,9 @@ export const Message = ({ log, isMe, lastSeenLogId, booking, isHost }) => {
 
         <div className="flex justify-end items-center text-xs mt-1 opacity-70">
           <span>{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-          {isMe && (
-            isSeen 
-              ? <CheckCheck className="w-4 h-4 ml-1" /> 
-              : <Check className="w-4 h-4 ml-1" />
-          )}
+          
+          {/* Use the new render function */}
+          {renderStatusIcon()}
         </div>
       </div>
     </div>
