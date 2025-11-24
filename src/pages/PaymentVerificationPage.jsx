@@ -45,13 +45,6 @@ const PaymentVerificationPage = ({ session }) => {
           throw new Error('Payment signature verification failed.');
         }
 
-        // ---- ADD YOUR DATABASE LOGIC HERE ----
-        // At this point, the payment is successful and verified.
-        // You should now save the subscription, transaction, etc. to your database.
-        // For example:
-        // await supabase.from('transactions').insert({...});
-        // await supabase.from('dapbuddy_subscriptions').insert({...});
-        
         setStatus('success');
         setTimeout(() => {
           navigate('/subscription');
@@ -63,8 +56,19 @@ const PaymentVerificationPage = ({ session }) => {
       }
     };
 
+    // --- FIX: Handle case where session is missing ---
     if (session) {
       verifyPayment();
+    } else {
+        // If session is still loading, we wait. If it's null (not logged in), we should fail or redirect.
+        // Assuming session is passed as null when not logged in:
+        const checkSession = setTimeout(() => {
+            if (!session) {
+                setError("You must be logged in to verify payment.");
+                setStatus('failed');
+            }
+        }, 2000); // Wait 2 seconds for session to load
+        return () => clearTimeout(checkSession);
     }
   }, [session, location, navigate]);
 

@@ -13,6 +13,7 @@ import RequestStatusPage from './pages/RequestStatusPage';
 import Auth from './components/Auth';
 import Modal from './components/common/Modal';
 import { NotificationProvider } from './context/NotificationContext';
+import PaymentResultPage from './pages/PaymentResultPage';
 
 // --- Page Imports (using React.lazy) ---
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -166,6 +167,7 @@ function App() {
                 <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
                 <Route path="/pay" element={<PaymentPage session={session} />} />
                 <Route path="/request-status/:bookingId" element={<RequestStatusPage session={session} />} />
+                <Route path="/payment-result" element={<PaymentResultPage />} />
               </Route>
             </Route>
           </Routes>
