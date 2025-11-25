@@ -44,9 +44,34 @@ CREATE TABLE public.bookings (
   adress_shared text,
   paid_until date,
   agent_notes text,
+  current_flow_node_id text DEFAULT 'NEW_USER_ONBOARDING'::text,
   CONSTRAINT bookings_pkey PRIMARY KEY (id),
   CONSTRAINT bookings_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
-  CONSTRAINT bookings_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id)
+  CONSTRAINT bookings_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.profiles(id),
+  CONSTRAINT bookings_current_flow_node_id_fkey FOREIGN KEY (current_flow_node_id) REFERENCES public.flow_nodes(node_id)
+);
+CREATE TABLE public.communication_log (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  booking_id uuid NOT NULL,
+  actor_id uuid NOT NULL,
+  message_sent text NOT NULL,
+  secure_credential_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT communication_log_pkey PRIMARY KEY (id),
+  CONSTRAINT communication_log_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT communication_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.profiles(id),
+  CONSTRAINT communication_log_secure_credential_id_fkey FOREIGN KEY (secure_credential_id) REFERENCES public.secure_credentials(id)
+);
+CREATE TABLE public.communication_read_status (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  booking_id uuid NOT NULL,
+  participant_id uuid NOT NULL,
+  last_seen_log_id bigint,
+  last_seen_at timestamp with time zone,
+  CONSTRAINT communication_read_status_pkey PRIMARY KEY (id),
+  CONSTRAINT communication_read_status_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT communication_read_status_participant_id_fkey FOREIGN KEY (participant_id) REFERENCES public.profiles(id),
+  CONSTRAINT communication_read_status_last_seen_log_id_fkey FOREIGN KEY (last_seen_log_id) REFERENCES public.communication_log(id)
 );
 CREATE TABLE public.connected_accounts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -128,6 +153,19 @@ CREATE TABLE public.disputes (
   CONSTRAINT disputes_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT disputes_resolved_by_admin_id_fkey FOREIGN KEY (resolved_by_admin_id) REFERENCES public.admins(user_id)
 );
+CREATE TABLE public.flow_nodes (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  service_id text,
+  node_id text NOT NULL UNIQUE,
+  parent_node_id text,
+  actor_role text NOT NULL CHECK (actor_role = ANY (ARRAY['user'::text, 'host'::text])),
+  button_label text NOT NULL,
+  message_to_send text NOT NULL,
+  action_on_click text NOT NULL DEFAULT 'SHOW_CHILD_NODES'::text,
+  CONSTRAINT flow_nodes_pkey PRIMARY KEY (id),
+  CONSTRAINT flow_nodes_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT flow_nodes_parent_node_id_fkey FOREIGN KEY (parent_node_id) REFERENCES public.flow_nodes(node_id)
+);
 CREATE TABLE public.friendships (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   requester_id uuid NOT NULL,
@@ -138,6 +176,14 @@ CREATE TABLE public.friendships (
   CONSTRAINT friendships_pkey PRIMARY KEY (id),
   CONSTRAINT friendships_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES public.profiles(id),
   CONSTRAINT friendships_addressee_id_fkey FOREIGN KEY (addressee_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.host_form_definitions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  service_id text NOT NULL,
+  form_key text NOT NULL,
+  form_definition jsonb NOT NULL,
+  CONSTRAINT host_form_definitions_pkey PRIMARY KEY (id),
+  CONSTRAINT host_form_definitions_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
 );
 CREATE TABLE public.host_user_messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -228,6 +274,23 @@ CREATE TABLE public.notifications (
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.partnership_leads (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  organization_name text NOT NULL,
+  organization_type text NOT NULL,
+  location text NOT NULL,
+  contact_person_name text NOT NULL,
+  position text NOT NULL,
+  personal_email text NOT NULL,
+  organization_email text,
+  phone_number text NOT NULL,
+  interested_services ARRAY NOT NULL,
+  other_service_details text,
+  additional_message text,
+  status text DEFAULT 'new'::text,
+  CONSTRAINT partnership_leads_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.popular_plans (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   listing_id uuid NOT NULL,
@@ -293,6 +356,19 @@ CREATE TABLE public.referrals (
   CONSTRAINT referrals_pkey PRIMARY KEY (user_id),
   CONSTRAINT referrals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT referrals_referred_by_id_fkey FOREIGN KEY (referred_by_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.secure_credentials (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  booking_id uuid NOT NULL,
+  host_id uuid NOT NULL,
+  credential_data jsonb NOT NULL,
+  status text NOT NULL DEFAULT 'SENT'::text CHECK (status = ANY (ARRAY['SENT'::text, 'SEEN'::text, 'EXPIRED'::text])),
+  created_at timestamp with time zone DEFAULT now(),
+  seen_at timestamp with time zone,
+  expires_at timestamp with time zone,
+  CONSTRAINT secure_credentials_pkey PRIMARY KEY (id),
+  CONSTRAINT secure_credentials_booking_id_fkey FOREIGN KEY (booking_id) REFERENCES public.bookings(id),
+  CONSTRAINT secure_credentials_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.service_requests (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
