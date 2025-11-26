@@ -57,6 +57,8 @@ const PlanCard = ({ plan }) => {
                          <div className="flex items-center justify-end gap-1 font-semibold text-yellow-500">
                             <Star className="w-4 h-4" fill="currentColor" />
                             <span>{averageRating.toFixed(1)}</span>
+                            {/* ADDED: Display rating count */}
+                            <span className="text-xs text-gray-400 dark:text-slate-500 ml-0.5">({rating_count})</span>
                         </div>
                     </div>
                 </div>
@@ -138,16 +140,13 @@ const MarketplacePage = ({ session }) => {
                     const hostTier = plan.host_profile?.host_tier;
                     let hostUsername;
 
-                    switch (hostTier) {
-                        case 'standard':
-                            hostUsername = plan.host_profile.username;
-                            break;
-                        case 'dapbuddy_featured':
-                            hostUsername = 'DapBuddy';
-                            break;
-                        default:
-                            hostUsername = plan.alias_name || plan.host_profile.username;
-                            break;
+                    // REVISED LOGIC: Prioritize alias_name for all standard hosts.
+                    // Only override for 'dapbuddy_featured'.
+                    if (hostTier === 'dapbuddy_featured') {
+                         hostUsername = 'DapBuddy';
+                    } else {
+                         // Use alias_name if it exists, otherwise fallback to username
+                         hostUsername = plan.alias_name || plan.host_profile.username;
                     }
 
                     return {
@@ -157,7 +156,7 @@ const MarketplacePage = ({ session }) => {
                         rating_count: plan.rating_count,
                         seatsTotal: plan.seats_total,
                         seatsAvailable: plan.seats_available,
-                        seatsOriginallyOffered: plan.seats_originally_offered, // Pass the new prop
+                        seatsOriginallyOffered: plan.seats_originally_offered, 
                         hostUsername: hostUsername,
                         hostRating: plan.host_profile.host_rating,
                         hostPfpUrl: plan.host_profile.pfp_url,

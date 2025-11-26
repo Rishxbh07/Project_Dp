@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, MessageSquare } from 'lucide-react';
-import Modal from '../common/Modal'; // Import Modal
-import CommunicationManager from '../subscriptiondashboard/CommunicationManager'; // Import our chat component
+// REMOVED: import Modal from '../common/Modal'; 
+import CommunicationManager from '../subscriptiondashboard/CommunicationManager'; 
 
 const UserDetailCard = ({ member, listing, session }) => {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -60,22 +60,15 @@ const UserDetailCard = ({ member, listing, session }) => {
                 </div>
             </Link>
 
-            {/* --- NEW CHAT MODAL --- */}
-            <Modal
-                isOpen={isChatOpen}
-                onClose={() => setIsChatOpen(false)}
-                title={`Communicating with ${userProfile.username}`}
-            >
-                {/* --- THIS IS THE FIX ---
-                  We now pass 'booking' and 'listing' as separate, stable props.
-                  This stops the infinite re-render loop.
-                */}
+            {/* --- DIRECTLY RENDER COMMUNICATION MANAGER --- */}
+            {isChatOpen && (
                 <CommunicationManager 
                     booking={booking} 
                     listing={listing}
                     user={hostUser} 
+                    onClose={() => setIsChatOpen(false)}
                 />
-            </Modal>
+            )}
         </>
     );
 };

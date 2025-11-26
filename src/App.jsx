@@ -30,6 +30,9 @@ const SubscriptionDashboardPage = lazy(() => import('./pages/SubscriptionDashboa
 const DapBuddySubDetailsPage = lazy(() => import('./_legacy/DapBuddySubDetailsPage'));
 const HostDashboardPage = lazy(() => import('./pages/host-side/HostDashboardPage'));
 const MemberManagementPage = lazy(() => import('./pages/host-side/MemberManagementPage'));
+// ADDED: Import the MemberDetailPage
+const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage'));
+
 const WalletPage = lazy(() => import('./pages/WalletPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage'));
@@ -149,6 +152,10 @@ function App() {
                 <Route path="/subscription/:bookingId" element={<SubscriptionDashboardPage session={session} />} />
                 <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
                 <Route path="/hosted-plan/:listingId" element={<HostDashboardPage session={session} />} />
+                
+                {/* ADDED: Route for Member Detail Page (This fixes the broken > button) */}
+                <Route path="/host/member/:bookingId" element={<MemberDetailPage session={session} />} />
+                
                 <Route path="/manage-member/:bookingId" element={<MemberManagementPage session={session} />} />
                 <Route path="/wallet" element={<WalletPage session={session} />} />
                 <Route path="/profile" element={<ProfilePage session={session} />} />
