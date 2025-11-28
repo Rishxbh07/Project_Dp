@@ -10,14 +10,12 @@ import SlotMachineAnimation from '../components/common/SlotMachineAnimation';
 import HowItWorks from '../components/HowItWorks';
 import StarBorder from '../components/common/StarBorder';
 import PopularPlansDesktop from '../components/PopularPlansDesktop';
-import PopularPlansMobile from '../components/PopularPlansMobile';
 import FAQSection from '../components/FAQSection';
 import Footer from '../components/layout/Footer';
+import OptionalLoginPopup from '../components/common/OptionalLoginPopup';
+// FIXED IMPORT: Adjusted path to point to src/reviews based on your folder structure
+import PlatformReviews from '../reviews/PlatformReviews'; 
 
-// --- (Step 1: Import the new component) ---
-import OptionalLoginPopup from '../components/common/OptionalLoginPopup'; // Assuming you saved it here
-
-// --- (Step 2: Receive openAuthModal prop) ---
 const HomePage = ({ session, openAuthModal }) => {
   const [popularPlans, setPopularPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,12 +23,9 @@ const HomePage = ({ session, openAuthModal }) => {
   const [allServiceNames, setAllServiceNames] = useState([]);
   const [runAnimation, setRunAnimation] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
-  
-  // --- (Step 3: Add state for the new popup) ---
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   useEffect(() => {
-    // ... (Your existing fetchAllServiceNames and fetchPopularPlans logic) ...
     const fetchAllServiceNames = async () => {
       setLoadingServices(true);
       try {
@@ -61,32 +56,26 @@ const HomePage = ({ session, openAuthModal }) => {
 
     const fetchPopularPlans = async () => {
       try {
-        const cachedPlans = localStorage.getItem('popularPlansCache');
-        const cachedTimestamp = localStorage.getItem('popularPlansTimestamp');
-        const sixHours = 6 * 60 * 60 * 1000;
-
-        if (cachedPlans && cachedTimestamp && Date.now() - cachedTimestamp < sixHours) {
-          setPopularPlans(JSON.parse(cachedPlans));
-          return;
-        }
+        // Change 'idx' to 'id' or whatever your sort column is
         const { data, error } = await supabase
           .from('popular_plans')
           .select('*')
-          .order('average_rating', { ascending: false });
+          .order('id', { ascending: true }); 
 
         if (error) {
           console.error('Error fetching popular plans:', error);
           setPopularPlans([]);
         } else {
           const formattedPlans = data.map(plan => ({
-            id: plan.listing_id,
-            name: plan.service_name,
-            base_price: plan.base_price,
-            description: `Join the best ${plan.service_name} plan!`
+            id: plan.id,
+            service_name: plan.service_name || plan.name, 
+            starting_price: plan.starting_price || plan.base_price, 
+            total_active_members: plan.total_active_members,
+            public_groups: plan.public_groups,
+            total_listings: plan.total_listings,
+            isAggregated: plan.total_listings !== undefined 
           }));
           setPopularPlans(formattedPlans);
-          localStorage.setItem('popularPlansCache', JSON.stringify(formattedPlans));
-          localStorage.setItem('popularPlansTimestamp', Date.now());
         }
       } catch (error) {
         console.error('Unexpected error fetching popular plans:', error);
@@ -104,26 +93,22 @@ const HomePage = ({ session, openAuthModal }) => {
 
   }, [session]);
 
-  // --- (Step 4: Add useEffect to show the popup) ---
+  // Popup Logic
   useEffect(() => {
-    // Only run this logic if the user is a GUEST
     if (!session) {
       const hasSeenPopup = localStorage.getItem('hasSeenOptionalLoginPopup');
-      
-      // Set a timer to show the popup
       const timer = setTimeout(() => {
-        if (!hasSeenPopup) { // Only show if they haven't dismissed it
+        if (!hasSeenPopup) {
           setShowLoginPopup(true);
         }
-      }, 3500); // 3.5-second delay
-
-      return () => clearTimeout(timer); // Cleanup the timer
+      }, 3500);
+      return () => clearTimeout(timer);
     } else {
-      // If user logs in, make sure popup is hidden
       setShowLoginPopup(false);
     }
-  }, [session]); // This effect re-runs when the session changes
+  }, [session]);
 
+  // Carousel Logic
   useEffect(() => {
     if (popularPlans.length > 1) {
       const interval = setInterval(() => {
@@ -145,31 +130,21 @@ const HomePage = ({ session, openAuthModal }) => {
     }
   };
   
-  // --- (Step 5: Add handlers for the popup buttons) ---
   const handleClosePopup = () => {
     setShowLoginPopup(false);
-    // Remember this choice so we don't bother them again
     localStorage.setItem('hasSeenOptionalLoginPopup', 'true');
   };
 
   const handleAuthClickFromPopup = () => {
-    handleClosePopup(); // Close this popup first
-    openAuthModal(); // Open the main login modal from App.jsx
+    handleClosePopup();
+    openAuthModal();
   };
 
-
-  const glowMap = {
-     purple: '#8747d1',
-  };
-
+  const glowMap = { purple: '#8747d1' };
 
   return (
     <div className="pt-[72px] sm:pt-[88px] bg-[hsl(0, 0%, 98%)] dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans text-slate-800 dark:text-white relative">
-
-      {/* --- (Step 6: Pass openAuthModal to TopNavBar) --- */}
       <TopNavBar session={session} openAuthModal={openAuthModal} />
-
-      {/* --- (Step 7: Render the popup component) --- */}
       <OptionalLoginPopup
         isOpen={showLoginPopup}
         onClose={handleClosePopup}
@@ -186,7 +161,7 @@ const HomePage = ({ session, openAuthModal }) => {
                 Share & Save on{' '}
                 {loadingServices ? (
                    <span className="inline-block align-middle min-h-[1.2em] animate-pulse bg-gray-300 dark:bg-gray-700 rounded w-1/2 h-8 lg:h-12"></span>
-                ) : (session && runAnimation) ? ( // Only run animation if logged in
+                ) : (session && runAnimation) ? (
                   <SlotMachineAnimation
                     words={allServiceNames}
                     onAnimationEnd={handleAnimationEnd}
@@ -197,7 +172,7 @@ const HomePage = ({ session, openAuthModal }) => {
                       inline-block align-middle min-h-[1.2em]
                       bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 bg-clip-text text-transparent
                       cursor-pointer hover:scale-105 transition-transform duration-300"
-                    onClick={() => !loadingServices && session && setRunAnimation(true)} // Prevent click if loading or guest
+                    onClick={() => !loadingServices && session && setRunAnimation(true)}
                   >
                     Premium Plans
                   </span>
@@ -208,7 +183,6 @@ const HomePage = ({ session, openAuthModal }) => {
                 Split costs, multiply savings with friends & family
               </p>
 
-              {/* Buttons (Hidden on mobile, flex on large) */}
               <div className="mt-8 hidden lg:flex gap-4 justify-start">
                  <Link
                   to="/explore"
@@ -225,7 +199,6 @@ const HomePage = ({ session, openAuthModal }) => {
               </div>
             </div>
 
-            {/* Stats Section */}
             <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-10 lg:mt-0 lg:w-1/2 lg:gap-4 xl:gap-5">
                {[
                 { value: "2.5K+", label: "Active Users", color: "purple" },
@@ -252,8 +225,6 @@ const HomePage = ({ session, openAuthModal }) => {
           </div>
 
           {/* Popular Plans Section */}
-          {/* ... (rest of your popular plans, howitworks, cta, faq, footer) ... */}
-           {/* Popular Plans Section */}
           <section className="mt-8 sm:mt-10 lg:mt-12">
             <div className="flex items-center justify-between mb-5 sm:mb-6 lg:mb-8">
               <h2 className="text-slate-900 dark:text-white text-2xl sm:text-3xl lg:text-4xl font-bold">
@@ -273,7 +244,7 @@ const HomePage = ({ session, openAuthModal }) => {
               <>
                 {/* --- MOBILE/TABLET CAROUSEL --- */}
                 <div className="relative h-[360px] sm:h-[380px] md:h-[400px] flex items-center justify-center lg:hidden">
-                  {popularPlans.map((service, index) => {
+                  {popularPlans.map((planData, index) => {
                     const totalItems = popularPlans.length;
                     const positiveIndex = (index - currentIndex + totalItems) % totalItems;
                     let position = 'far-prev'; 
@@ -289,8 +260,8 @@ const HomePage = ({ session, openAuthModal }) => {
                     }
 
                     return (
-                      <div key={service.id} className={`plan-card-container ${position}`}>
-                        <PlanCard service={service} />
+                      <div key={planData.id} className={`plan-card-container ${position}`}>
+                        <PlanCard plan={planData} />
                       </div>
                     );
                   })}
@@ -304,17 +275,18 @@ const HomePage = ({ session, openAuthModal }) => {
             )}
           </section>
 
-          {/* How It Works Section */}
           <div id="how-it-works-section">
             <HowItWorks />
           </div>
 
           <HostPlanCTA /> 
           
+          {/* --- NEW: Platform Reviews Section --- */}
+          <PlatformReviews session={session} openAuthModal={openAuthModal} />
+          
           <FAQSection/>
           <Footer />
 
-          {/* Spacer for bottom nav */}
           <div className="h-20 sm:h-24 lg:h-28"></div>
         </div>
       </div>

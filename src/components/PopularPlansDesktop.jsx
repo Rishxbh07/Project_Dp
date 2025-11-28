@@ -12,13 +12,14 @@ const PopularPlansDesktop = ({ popularPlans }) => {
     <div className="relative w-full overflow-hidden py-8">
       {/* This wrapper is what moves */}
       <div className="flex w-max animate-scroll-x hover:[animation-play-state:paused]">
-        {loopedPlans.map((service, index) => (
+        {loopedPlans.map((planData, index) => (
           <div
-            key={`${service.id}-${index}`}
+            key={`${planData.id}-${index}`}
             className="mx-4 flex-shrink-0"
-            style={{ width: "260px" }} // fixes flex collapse bug
+            style={{ width: "260px" }}
           >
-            <PlanCard service={service} />
+            {/* FIXED: Prop name is 'plan' */}
+            <PlanCard plan={planData} />
           </div>
         ))}
       </div>
