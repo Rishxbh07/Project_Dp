@@ -22,6 +22,8 @@ const AuthRedirectPage = lazy(() => import('./pages/AuthRedirectPage'));
 // --- MOVED TO PUBLIC ---
 const ExplorePage = lazy(() => import('./pages/ExplorePage'));
 const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
+const PartnershipLeadsPage = lazy(() => import('./pages/PartnershipLeadsPage')); // NEW
+const VerifyIdentityPage = lazy(() => import('./pages/VerifyIdentityPage')); // NEW
 
 // Protected Pages
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
@@ -144,6 +146,10 @@ function App() {
                 path="/marketplace/:serviceName"
                 element={<MarketplacePage session={session} openAuthModal={openAuthModal} />}
               />
+
+              {/* NEW Public Pages */}
+              <Route path="/partner" element={<PartnershipLeadsPage />} />
+              <Route path="/verify-identity" element={<VerifyIdentityPage />} />
 
               {/* === PROTECTED ROUTES === */}
               <Route element={<AuthRequired session={session} openAuthModal={openAuthModal} />}>

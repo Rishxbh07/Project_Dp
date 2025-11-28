@@ -61,7 +61,7 @@ const PlatformReviews = ({ session, openAuthModal }) => {
                         <span className="text-yellow-600 dark:text-yellow-400 font-bold text-lg">Trusted by Community</span>
                     </div>
                     <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">
-                        What our <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400" style={{ fontFamily: "'Zain', sans-serif", fontWeight: 800, fontSize: '1.2em' }}>βuddies</span> say
+                        What our <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400" style={{ fontFamily: "'Zain', sans-serif", fontWeight: 800, fontSize: '1.2em' }}>Buddies</span> say
                     </h2>
                 </div>
                 

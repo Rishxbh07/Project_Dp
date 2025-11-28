@@ -3,232 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DapBuddy - Loading...</title>
+    <title>Loading...</title>
     
+    <!-- Preload fonts to match the React App (Added Zain) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zain:wght@800&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
     <style>
-        /* Basic Setup & Font */
-        * {
+        body, html {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f7;
-            color: #1d1d1f;
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        /* Preloader Container */
-        #preloader {
-            position: fixed;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
-            z-index: 9999;
-            background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            font-family: 'Poppins', sans-serif; /* Fallback for body */
+            overflow: hidden;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body, html {
+                background-color: #0f172a; /* Slate-900 */
+            }
+        }
+
+        .loader-wrapper {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Logo Container */
-        .logo-container {
-            display: flex;
             justify-content: center;
-            align-items: center;
-            margin-bottom: 32px;
+            position: relative;
+            text-align: center;
         }
 
-        /* Logo Styling */
-        #preloader .logo {
-            width: 180px;
-            height: auto;
-            max-width: 60vw;
-            opacity: 0;
-            transform: scale(0.8) translateY(20px);
-            animation: logoPopIn 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            animation-delay: 0.3s;
-            filter: drop-shadow(0 8px 32px rgba(0,0,0,0.08));
-        }
-
-        /* Brand Name */
-        #preloader .brand-name {
-            font-size: clamp(28px, 8vw, 36px);
-            font-weight: 800;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        /* Exact Logo Font & Gradient Styles with Zain */
+        .brand-logo {
+            font-family: 'Zain', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+            font-weight: 600;
+            font-size: clamp(3rem, 1rem + 5vw, 5rem);
+            line-height: 1.1;
+            
+            /* The Purple Gradient */
+            background: linear-gradient(90deg, #A855F7 0%, #7C3AED 100%);
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
             background-clip: text;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            animation-delay: 1.2s;
-            letter-spacing: -1px;
-            text-align: center;
-            margin-bottom: 12px;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            
+            letter-spacing: -0.02em;
+            margin: 0;
+            padding: 0;
+            user-select: none;
         }
 
-        /* Motto */
-        #preloader .motto {
-            font-size: clamp(14px, 4vw, 16px);
-            font-weight: 500;
-            color: #8e8e93;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            animation-delay: 2s;
-            letter-spacing: 0.5px;
-            text-align: center;
-            max-width: 80%;
+        /* Motto with Animated Gradient */
+        .brand-motto {
+            margin-top: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 300; /* Increased weight */
+            font-size: clamp(0.9rem, 0.5rem + 1.5vw, 1.25rem);
+            letter-spacing: 0.25em; /* Spread out */
+            text-transform: uppercase;
+            
+            /* Moving Gradient Animation (similar to 'Premium Plans') */
+            background: linear-gradient(
+                to right, 
+                #A855F7 0%, 
+                #EC4899 25%, 
+                #8B5CF6 50%, 
+                #EC4899 75%, 
+                #A855F7 100%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            
+            animation: shine 4s linear infinite;
         }
 
-        /* Loading Dots */
-        .loading-dots {
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        /* 3 Dots Loader */
+        .dots-loader {
             display: flex;
-            gap: 8px;
-            margin-top: 40px;
-            opacity: 0;
-            animation: textSlideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-            animation-delay: 2.6s;
+            justify-content: center;
+            align-items: center;
+            gap: 8px; /* Spacing between dots */
+            margin-top: 35px;
         }
 
         .dot {
-            width: 8px;
-            height: 8px;
+            width: 12px;
+            height: 12px;
+            background-color: #A855F7; /* Matches brand purple */
             border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            animation: dotPulse 1.5s infinite ease-in-out;
+            animation: bounce 1.4s infinite ease-in-out both;
         }
 
+        .dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
         .dot:nth-child(2) {
-            animation-delay: 0.2s;
+            animation-delay: -0.16s;
         }
 
-        .dot:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        /* Animation Keyframes */
-        @keyframes logoPopIn {
-            0% {
-                opacity: 0;
-                transform: scale(0.6) translateY(30px);
-            }
-            60% {
-                transform: scale(1.05) translateY(-5px);
-            }
-            100% {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
-        }
-
-        @keyframes textSlideIn {
-            0% {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes dotPulse {
-            0%, 80%, 100% {
-                transform: scale(0.8);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1.2);
-                opacity: 1;
-            }
-        }
-
-        @keyframes fadeOut {
-            0% {
-                opacity: 1;
+        @keyframes bounce {
+            0%, 80%, 100% { 
+                transform: scale(0);
+            } 40% { 
                 transform: scale(1);
             }
-            100% {
-                opacity: 0;
-                transform: scale(1.05);
-            }
-        }
-
-        /* Hidden state */
-        #preloader.hidden {
-            animation: fadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
     </style>
 </head>
 <body>
-
-    <div id="preloader">
-        <div class="logo-container">
-            <img src="public\assets\icons\loadingscreen.png" alt= "DapBuddy Logo" class="logo">
-        </div>
-        <h1 class="brand-name">DapBuddy</h1>
-        <p class="motto">Never Pay the full price</p>
-        <div class="loading-dots">
+    <div class="loader-wrapper">
+        <h1 class="brand-logo">dapBuddy</h1>
+        <div class="brand-motto">The Saving Funda</div>
+        
+        <div class="dots-loader">
             <div class="dot"></div>
             <div class="dot"></div>
             <div class="dot"></div>
         </div>
     </div>
 
+    <!-- Redirect Script -->
     <script>
-        // Preload the logo image to ensure it's ready
-        const logoImg = new Image();
-        // !!! IMPORTANT: This path must be correct relative to the HTML file !!!
-        logoImg.src = "assets/icons/loadingscreen.png";
-
-        // Function to redirect to the homepage
-        function redirectToHome() {
-            const preloader = document.getElementById('preloader');
-
-            // Start fade out animation on the preloader
-            preloader.classList.add('hidden');
-
-            // Wait for the fade out to complete, then change the page location
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 600); // This duration should match your fadeOut animation time
-        }
-
-        window.addEventListener('load', function() {
-            const minLoadingTime = 3000; // Minimum 3 seconds
-            const startTime = performance.now();
-            
-            // This function checks the elapsed time and calls the redirect function
-            function attemptRedirect() {
-                const elapsedTime = performance.now() - startTime;
-                const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
-                
-                setTimeout(redirectToHome, remainingTime);
-            }
-            
-            // Wait for the image to be fully loaded before attempting redirect
-            logoImg.onload = attemptRedirect;
-            
-            // Fallback if image load takes too long or fails
-            setTimeout(attemptRedirect, 5000); 
-        });
-
-        logoImg.onerror = function() {
-            console.warn('Logo image failed to load, continuing without it.');
-            const logoElement = document.querySelector('.logo');
-            if (logoElement) {
-                logoElement.style.display = 'none';
-            }
-        };
+        setTimeout(function() {
+            window.location.href = "/";
+        }, 4000);
     </script>
-
 </body>
 </html>

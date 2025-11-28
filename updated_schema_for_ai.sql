@@ -258,6 +258,8 @@ CREATE TABLE public.listings (
   alias_name text,
   seats_originally_offered integer CHECK (seats_originally_offered > 0),
   instant_share boolean NOT NULL DEFAULT false,
+  emails_for_verification jsonb,
+  location_data jsonb,
   CONSTRAINT listings_pkey PRIMARY KEY (id),
   CONSTRAINT listings_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id),
   CONSTRAINT listings_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
@@ -291,20 +293,38 @@ CREATE TABLE public.partnership_leads (
   status text DEFAULT 'new'::text,
   CONSTRAINT partnership_leads_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.platform_reviews (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  rating_ui integer CHECK (rating_ui >= 1 AND rating_ui <= 5),
+  rating_cx integer CHECK (rating_cx >= 1 AND rating_cx <= 5),
+  rating_reliability integer CHECK (rating_reliability >= 1 AND rating_reliability <= 5),
+  rating_pricing integer CHECK (rating_pricing >= 1 AND rating_pricing <= 5),
+  rating_safety integer CHECK (rating_safety >= 1 AND rating_safety <= 5),
+  average_rating numeric DEFAULT round(((((((rating_ui + rating_cx) + rating_reliability) + rating_pricing) + rating_safety))::numeric / 5.0), 1),
+  comment text CHECK (char_length(comment) <= 500),
+  approval_status USER-DEFINED DEFAULT 'under_review'::review_approval_status,
+  is_featured boolean DEFAULT false,
+  admin_notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT platform_reviews_pkey PRIMARY KEY (id),
+  CONSTRAINT platform_reviews_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.popular_plans (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  listing_id uuid NOT NULL,
-  service_id text NOT NULL,
-  host_id uuid NOT NULL,
+  service_id text NOT NULL UNIQUE,
   service_name text NOT NULL,
-  base_price numeric,
-  average_rating numeric,
-  host_rating numeric,
-  created_at timestamp with time zone DEFAULT now(),
+  total_listings integer DEFAULT 0,
+  full_listings integer DEFAULT 0,
+  total_active_members integer DEFAULT 0,
+  private_groups integer DEFAULT 0,
+  public_groups integer DEFAULT 0,
+  available_spots integer DEFAULT 0,
+  starting_price numeric DEFAULT 0,
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT popular_plans_pkey PRIMARY KEY (id),
-  CONSTRAINT popular_plans_listing_id_fkey FOREIGN KEY (listing_id) REFERENCES public.listings(id),
-  CONSTRAINT popular_plans_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
-  CONSTRAINT popular_plans_host_id_fkey FOREIGN KEY (host_id) REFERENCES public.profiles(id)
+  CONSTRAINT popular_plans_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id)
 );
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
@@ -357,6 +377,16 @@ CREATE TABLE public.referrals (
   CONSTRAINT referrals_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT referrals_referred_by_id_fkey FOREIGN KEY (referred_by_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.review_reactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  review_id uuid,
+  user_id uuid,
+  reaction_type USER-DEFINED NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT review_reactions_pkey PRIMARY KEY (id),
+  CONSTRAINT review_reactions_review_id_fkey FOREIGN KEY (review_id) REFERENCES public.platform_reviews(id),
+  CONSTRAINT review_reactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.secure_credentials (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL,
@@ -405,6 +435,7 @@ CREATE TABLE public.services (
   internal_notes text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   warnings jsonb,
+  razorpay_plan_id text,
   CONSTRAINT services_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.transactions (

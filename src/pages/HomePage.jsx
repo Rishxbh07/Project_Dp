@@ -194,7 +194,7 @@ const HomePage = ({ session, openAuthModal }) => {
                   onClick={scrollToHowItWorks}
                   className="px-6 py-3 rounded-full text-sm font-semibold border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-[1.02]"
                 >
-                  How ItWorks
+                  How It Works
                 </button>
               </div>
             </div>
