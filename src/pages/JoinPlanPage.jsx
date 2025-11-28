@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { IndianRupee } from 'lucide-react';
+import { IndianRupee, AlertCircle } from 'lucide-react';
 
 // New Components
 import PlanHeader from './join-plan/components/PlanHeader';
@@ -16,7 +16,6 @@ const getFallbackConfig = (serviceName) => {
     const name = serviceName || 'Service';
     const lowerName = name.toLowerCase();
 
-    // 1. Email-based services
     if (lowerName.includes('youtube') || lowerName.includes('google') || lowerName.includes('family link')) {
         return { 
             label: `${name} Email Address`, 
@@ -27,7 +26,6 @@ const getFallbackConfig = (serviceName) => {
         };
     }
 
-    // 2. Spotify specific
     if (lowerName.includes('spotify')) {
         return { 
             label: 'Spotify Profile URL', 
@@ -38,7 +36,6 @@ const getFallbackConfig = (serviceName) => {
         };
     }
 
-    // 3. Dynamic Default
     return { 
         label: `${name} Profile URL`, 
         placeholder: `Paste your ${name} profile link here`,
@@ -48,11 +45,15 @@ const getFallbackConfig = (serviceName) => {
     };
 };
 
-const JoinPlanPage = ({ session }) => {
-    const { listingId } = useParams();
+const JoinPlanPage = ({ session: propSession }) => {
+    // FIXED: Accept 'id' (standard) OR 'listingId' to prevent mismatch bugs
+    const params = useParams();
+    const listingId = params.id || params.listingId;
+    
     const navigate = useNavigate();
 
     // Data State
+    const [session, setSession] = useState(propSession);
     const [listing, setListing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -72,7 +73,68 @@ const JoinPlanPage = ({ session }) => {
     // Pricing Hook
     const priceDetails = usePlanPricing(listing, paymentOption, useCoins, walletBalance);
 
-    // 1. Load Razorpay SDK
+    // 1. Initialize & Fetch Data
+    useEffect(() => {
+        const initPage = async () => {
+            setLoading(true);
+            try {
+                // A. Ensure Session Exists (Fix for infinite load if prop is missing)
+                let currentSession = propSession;
+                if (!currentSession) {
+                    const { data } = await supabase.auth.getSession();
+                    currentSession = data.session;
+                    if (!currentSession) {
+                        // Redirect to login if absolutely no session found
+                        navigate('/auth'); 
+                        return;
+                    }
+                    setSession(currentSession);
+                }
+
+                // B. Validate ID
+                if (!listingId) {
+                    throw new Error("Invalid Plan ID. Please return to the marketplace.");
+                }
+
+                // C. Fetch Data
+                const [listingRes, walletRes] = await Promise.all([
+                    supabase.from('listings').select(`*, service:services(*), host:profiles(*), bookings(buyer_id)`).eq('id', listingId).single(),
+                    supabase.from('credit_wallets').select('credit_balance').eq('user_id', currentSession.user.id).single()
+                ]);
+
+                if (listingRes.error) throw listingRes.error;
+                
+                const data = listingRes.data;
+                setListing(data);
+
+                // D. Configure Form based on Service
+                if (data?.service?.name && data.service.sharing_method === 'invite_link') {
+                    const fallback = getFallbackConfig(data.service.name);
+                    const dbConfig = data.service.user_config || {};
+                    const finalConfig = { ...fallback, ...dbConfig };
+                    if (!finalConfig.label) finalConfig.label = fallback.label;
+                    setInputConfig(finalConfig);
+                }
+
+                // E. Check if already joined
+                if (data.bookings) {
+                    setIsAlreadyJoined(data.bookings.some(b => b.buyer_id === currentSession.user.id));
+                }
+                
+                if (walletRes.data) setWalletBalance(walletRes.data.credit_balance);
+
+            } catch (err) {
+                console.error("Page Load Error:", err);
+                setError(err.message || 'Could not load plan details.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initPage();
+    }, [listingId, propSession, navigate]);
+
+    // 2. Load Razorpay SDK
     useEffect(() => {
         const scriptId = 'razorpay-checkout-js';
         if (!document.getElementById(scriptId)) {
@@ -84,55 +146,11 @@ const JoinPlanPage = ({ session }) => {
         }
     }, []);
 
-    // 2. Fetch Data
-    useEffect(() => {
-        const fetchAllDetails = async () => {
-            if (!listingId || !session?.user?.id) {
-                setError("Missing info to load plan.");
-                setLoading(false);
-                return;
-            }
-            setLoading(true);
-            try {
-                const [listingRes, walletRes] = await Promise.all([
-                    supabase.from('listings').select(`*, service:services(*), host:profiles(*), bookings(buyer_id)`).eq('id', listingId).single(),
-                    supabase.from('credit_wallets').select('credit_balance').eq('user_id', session.user.id).single()
-                ]);
-
-                if (listingRes.error) throw listingRes.error;
-                const data = listingRes.data;
-                setListing(data);
-
-                // Config Merging Logic
-                if (data?.service?.name && data.service.sharing_method === 'invite_link') {
-                    const fallback = getFallbackConfig(data.service.name);
-                    const dbConfig = data.service.user_config || {};
-                    const finalConfig = { ...fallback, ...dbConfig };
-                    
-                    // Ensure label is never empty
-                    if (!finalConfig.label) finalConfig.label = fallback.label;
-                    
-                    setInputConfig(finalConfig);
-                }
-
-                setIsAlreadyJoined(data.bookings.some(b => b.buyer_id === session.user.id));
-                if (walletRes.data) setWalletBalance(walletRes.data.credit_balance);
-            } catch (error) {
-                console.error(error);
-                setError('Could not find the requested plan.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchAllDetails();
-    }, [listingId, session]);
-
-    // 3. Handle Payment (SECURE FLOW)
+    // 3. Handle Payment
     const handleJoinPlan = async () => {
         if (!session || !listing) return;
         
-        // Client-side Input Validation
-        if (listing.service.sharing_method === 'invite_link' && !extractedValue) {
+        if (listing.service?.sharing_method === 'invite_link' && !extractedValue) {
             setInputError(inputConfig?.errorMessage || 'Please check your input.');
             return;
         }
@@ -141,7 +159,6 @@ const JoinPlanPage = ({ session }) => {
         setError('');
 
         try {
-            // A. Create Order (SECURE: Send Intent, NOT Amount)
             const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
                 body: { 
                     listing_id: listing.id,
@@ -154,25 +171,20 @@ const JoinPlanPage = ({ session }) => {
             if (orderError) throw orderError;
             if (!orderData || !orderData.id) throw new Error("Payment initialization failed.");
 
-            // B. Razorpay Flow
             const options = {
-                key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                amount: orderData.amount, // Trust the server's amount
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID, 
+                amount: orderData.amount, 
                 currency: orderData.currency,
                 name: "DapBuddy",
-                description: `Join ${listing.service.name}`,
+                description: `Join ${listing.service?.name || 'Plan'}`,
                 order_id: orderData.id,
                 prefill: { email: session.user.email },
                 theme: { color: "#8b5cf6" },
                 modal: { 
-                    ondismiss: () => {
-                        setIsProcessingPayment(false);
-                        // Optionally handle manual close by user here if needed
-                    }
+                    ondismiss: () => setIsProcessingPayment(false)
                 },
                 handler: async function (response) {
                     try {
-                        // C. Verify Signature
                         const { error: verifyError } = await supabase.functions.invoke('verify-payment', {
                             body: {
                                 razorpay_order_id: response.razorpay_order_id,
@@ -182,31 +194,19 @@ const JoinPlanPage = ({ session }) => {
                         });
                         
                         if (verifyError) throw new Error("Verification failed.");
-                        
-                        // D. Commit to Database
                         await finalizeBooking(response.razorpay_payment_id);
                         
                     } catch (innerError) {
-                        // Navigate to failure page instead of just showing alert
                         navigate('/payment-result', { 
-                            state: { 
-                                status: 'failed', 
-                                planName: listing.service.name
-                            } 
+                            state: { status: 'failed', planName: listing.service?.name || 'Plan' } 
                         });
                     }
                 }
             };
 
             const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', (resp) => {
-                // Navigate to failure page on Razorpay failure event
-                navigate('/payment-result', { 
-                    state: { 
-                        status: 'failed',
-                        planName: listing.service.name 
-                    } 
-                });
+            rzp.on('payment.failed', () => {
+                navigate('/payment-result', { state: { status: 'failed', planName: listing.service?.name || 'Plan' } });
             });
             rzp.open();
 
@@ -219,17 +219,14 @@ const JoinPlanPage = ({ session }) => {
 
     const finalizeBooking = async (gatewayTxId) => {
         try {
-            // 1. Create Booking Record
             const { data: bookingData, error: bookingError } = await supabase.rpc('create_booking_atomic', {
                 p_listing_id: listing.id,
                 p_buyer_id: session.user.id
             });
             
             if (bookingError || !bookingData?.[0]?.success) throw new Error('Booking failed.');
-            
             const newBookingId = bookingData[0].booking_id;
             
-            // 2. Record Transaction
             const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
 
             const { error: transactionError } = await supabase.from('transactions').insert({
@@ -247,9 +244,8 @@ const JoinPlanPage = ({ session }) => {
 
             if (transactionError) throw transactionError;
 
-            // 3. Save Account Connection Details
-            if (listing.service.sharing_method === 'invite_link') {
-                const { error: connectError } = await supabase.from('connected_accounts').insert({
+            if (listing.service?.sharing_method === 'invite_link') {
+                await supabase.from('connected_accounts').insert({
                     booking_id: newBookingId,
                     buyer_id: session.user.id,
                     host_id: listing.host_id,
@@ -259,55 +255,47 @@ const JoinPlanPage = ({ session }) => {
                     joined_email: inputConfig.type === 'email' ? inputValue : null,
                     account_confirmation: 'confirmed'
                 });
-                if (connectError) throw connectError;
             }
             
-            // SUCCESS REDIRECT -> To Payment Result Page
             navigate('/payment-result', { 
-                state: { 
-                    status: 'success', 
-                    transactionId: gatewayTxId, 
-                    amount: priceDetails.total,
-                    planName: listing.service.name
-                } 
+                state: { status: 'success', transactionId: gatewayTxId, amount: priceDetails.total, planName: listing.service?.name || 'Plan' } 
             });
 
         } catch (err) {
-            console.error("Finalize Error:", err);
-            // Even if finalize fails after payment, send to failure page (or dedicated support page)
-            navigate('/payment-result', { 
-                state: { 
-                    status: 'failed', 
-                    planName: listing.service.name 
-                } 
-            });
+            navigate('/payment-result', { state: { status: 'failed', planName: listing.service?.name || 'Plan' } });
         }
     };
     
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
-    if (error || !listing) return <p className="text-center text-red-500 mt-8">{error || 'Plan not found.'}</p>;
     
-    // --- DERIVED DATA ---
-    const { service, host, seats_total, seats_available, host_id, total_rating, rating_count } = listing;
+    // Safety check for Service Mismatch
+    if (!listing || !listing.service) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-gray-50 dark:bg-slate-900">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Plan Unavailable</h2>
+                <p className="text-gray-600 dark:text-slate-400 mt-2 max-w-md">{error || 'This plan could not be found.'}</p>
+                <button onClick={() => navigate('/explore')} className="mt-6 px-6 py-3 bg-purple-600 text-white rounded-full font-bold hover:bg-purple-700">Back to Explore</button>
+            </div>
+        );
+    }
+    
+    const { service, host, seats_available, host_id, total_rating, rating_count } = listing;
     const isHost = session.user.id === host_id;
-    
-    // Correct Plan Rating Calculation: Total / Count
     const planRating = rating_count > 0 ? (total_rating / rating_count) : 0;
-    
     const isPayButtonDisabled = seats_available <= 0 || loading || isHost || isAlreadyJoined || (inputConfig && !extractedValue) || isProcessingPayment;
 
     return (
         <div className="bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:to-slate-900 min-h-screen font-sans">
             <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
                 <div className="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <Link to={`/marketplace/${service?.name?.toLowerCase() ?? 'explore'}`} className="text-purple-500 hover:text-purple-600 transition-colors text-sm font-medium">← Back</Link>
+                    <Link to={`/marketplace/${service.name.toLowerCase()}`} className="text-purple-500 hover:text-purple-600 transition-colors text-sm font-medium">← Back</Link>
                     <h1 className="text-lg font-bold text-gray-900 dark:text-white">Review & Pay</h1>
                     <div className="w-12"></div>
                 </div>
             </header>
 
             <main className="max-w-3xl mx-auto px-4 py-8 pb-48">
-                {/* Passed the calculated planRating here */}
                 <PlanHeader service={service} host={host} planRating={planRating} />
                 <PlanStats listing={listing} />
                 

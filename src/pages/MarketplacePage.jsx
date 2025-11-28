@@ -3,28 +3,32 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import AgeBadge from '../components/common/AgeBadge';
-import { Crown, Star, Users, Zap, ZapOff, ArrowDownUp, ShieldCheck, TrendingUp, TrendingDown, Tag, SlidersHorizontal, BadgePercent } from 'lucide-react';
+import { Crown, Star, Users, Zap, ShieldCheck, TrendingUp, TrendingDown, Tag, SlidersHorizontal, BadgePercent, ArrowDownUp } from 'lucide-react';
 import ExplanationGuide from '../components/common/ExplanationGuide';
 
-// --- Reusable Plan Card Component ---
+// --- Reusable Plan Card Component (Defined Locally) ---
 const PlanCard = ({ plan }) => {
     const {
-        id, isDapBuddyPlan, total_rating, rating_count, seatsTotal, seatsAvailable,
+        id, isDapBuddyPlan, total_rating, rating_count, seatsAvailable,
         hostUsername, hostPfpUrl, basePrice, soloPrice, createdAt, instant_share,
-        seatsOriginallyOffered // Receive the new prop
+        seatsOriginallyOffered
     } = plan;
+    
+    // Fallback logic for rating
     const averageRating = rating_count > 0 ? (total_rating / rating_count) : (isDapBuddyPlan ? 5 : 0);
     
-    // CORRECTED LOGIC: Calculate filled slots based on what was offered for sale
+    // Calculate filled slots
     const slotsFilled = seatsOriginallyOffered - seatsAvailable;
     
     const savings = soloPrice && basePrice > 0 ? Math.round(((soloPrice - basePrice) / soloPrice) * 100) : 0;
 
     return (
-        <Link to={isDapBuddyPlan ? `/join-dapbuddy-plan/${id}` : `/join-plan/${id}`} className="block group">
+        // FIXED: Universal Link to /join-plan for ALL plans
+        <Link to={`/join-plan/${id}`} className="block group">
             <div className="relative bg-white dark:bg-slate-800/50 p-4 rounded-2xl border border-gray-200 dark:border-white/10 space-y-4 transition-all duration-300 hover:border-purple-400/50 hover:shadow-lg group-hover:scale-[1.02] pt-6 overflow-visible">
-                {/* ... (rest of the card is unchanged) ... */}
                  {!isDapBuddyPlan && <AgeBadge createdAt={createdAt} />}
+                
+                {/* Badges */}
                 {isDapBuddyPlan ? (
                     <div className="absolute top-0 -translate-y-1/2 right-4 z-20 flex items-center gap-1.5 text-xs font-bold text-purple-800 dark:text-purple-200 bg-purple-400/20 dark:bg-purple-400/30 py-1.5 px-3 rounded-full border border-purple-500/50">
                         <ShieldCheck className="w-4 h-4" />
@@ -38,18 +42,23 @@ const PlanCard = ({ plan }) => {
                         </div>
                     )
                 )}
+
+                {/* Header: Host Info & Rating */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        {/* Avatar Logic: Show User PFP or Initials */}
                         {hostPfpUrl ? (
                             <img src={hostPfpUrl} alt={hostUsername} className="w-10 h-10 rounded-full object-cover" />
                         ) : (
-                            <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${isDapBuddyPlan ? 'from-yellow-400 to-amber-500' : 'from-purple-500 to-indigo-600'} flex items-center justify-center text-white font-bold text-lg`}>
-                                {isDapBuddyPlan ? <Crown className="w-6 h-6" /> : (hostUsername ? hostUsername.charAt(0).toUpperCase() : '?')}
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+                                {hostUsername ? hostUsername.charAt(0).toUpperCase() : '?'}
                             </div>
                         )}
+                        
                         <div>
                             <p className="text-sm text-gray-500 dark:text-slate-400">Hosted by</p>
-                            <p className="font-bold text-lg text-gray-800 dark:text-white">{hostUsername || 'Community Member'}</p>
+                            {/* FIXED: Show the actual Alias or Username */}
+                            <p className="font-bold text-lg text-gray-800 dark:text-white">{hostUsername || 'Community Host'}</p>
                         </div>
                     </div>
                     <div className="text-right">
@@ -57,16 +66,18 @@ const PlanCard = ({ plan }) => {
                          <div className="flex items-center justify-end gap-1 font-semibold text-yellow-500">
                             <Star className="w-4 h-4" fill="currentColor" />
                             <span>{averageRating.toFixed(1)}</span>
-                            {/* ADDED: Display rating count */}
                             <span className="text-xs text-gray-400 dark:text-slate-500 ml-0.5">({rating_count})</span>
                         </div>
                     </div>
                 </div>
+
+                {/* Slot Info */}
                 <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-purple-500" />
-                    {/* Display the corrected "slots filled" and "originally offered" counts */}
                     <span className="text-sm font-medium text-gray-600 dark:text-slate-300">{slotsFilled} of {seatsOriginallyOffered} slots filled</span>
                 </div>
+
+                {/* Footer: Price & CTA */}
                 <div className="pt-4 border-t border-gray-100 dark:border-white/10 flex items-end justify-between">
                     <div>
                          <div className="flex items-baseline gap-2">
@@ -79,6 +90,8 @@ const PlanCard = ({ plan }) => {
                         Join Now
                     </div>
                 </div>
+
+                {/* Savings Badge */}
                 {savings > 0 && (
                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-green-600 dark:text-green-400 bg-green-500/10 py-1.5 px-3 rounded-full">
                         <BadgePercent className="w-4 h-4" />
@@ -138,16 +151,9 @@ const MarketplacePage = ({ session }) => {
 
                 const formattedPlans = (allListings || []).map(plan => {
                     const hostTier = plan.host_profile?.host_tier;
-                    let hostUsername;
-
-                    // REVISED LOGIC: Prioritize alias_name for all standard hosts.
-                    // Only override for 'dapbuddy_featured'.
-                    if (hostTier === 'dapbuddy_featured') {
-                         hostUsername = 'DapBuddy';
-                    } else {
-                         // Use alias_name if it exists, otherwise fallback to username
-                         hostUsername = plan.alias_name || plan.host_profile.username;
-                    }
+                    
+                    // FIXED: Always use Alias or Username. Never force "DapBuddy".
+                    const hostUsername = plan.alias_name || plan.host_profile?.username || 'Community Host';
 
                     return {
                         id: plan.id,
@@ -158,8 +164,8 @@ const MarketplacePage = ({ session }) => {
                         seatsAvailable: plan.seats_available,
                         seatsOriginallyOffered: plan.seats_originally_offered, 
                         hostUsername: hostUsername,
-                        hostRating: plan.host_profile.host_rating,
-                        hostPfpUrl: plan.host_profile.pfp_url,
+                        hostRating: plan.host_profile?.host_rating,
+                        hostPfpUrl: plan.host_profile?.pfp_url,
                         basePrice: serviceBasePrice,
                         soloPrice: soloPrice,
                         createdAt: plan.created_at,
@@ -178,7 +184,7 @@ const MarketplacePage = ({ session }) => {
         fetchAllPlans();
     }, [serviceName, session]);
     
-    // ... (rest of the component is unchanged) ...
+    // ... (rest of the component logic remains unchanged)
     const handleRatingSort = () => {
         setPriceSort('none');
         setRatingSort(prev => (prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none'));

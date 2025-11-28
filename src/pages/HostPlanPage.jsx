@@ -13,8 +13,7 @@ const HostPlanPage = ({ session }) => {
     // Form States
     const [availableSlots, setAvailableSlots] = useState(1);
     const [verificationEmail, setVerificationEmail] = useState('');
-    const [hostAddress, setHostAddress] = useState('');
-    const [isAddressFocused, setIsAddressFocused] = useState(false);
+    // Removed hostAddress state
     const [agreeToTerms, setAgreeToTerms] = useState(false);
     const [planPurchaseDate, setPlanPurchaseDate] = useState('');
     const [isPublic, setIsPublic] = useState(true);
@@ -157,10 +156,15 @@ const HostPlanPage = ({ session }) => {
     const isFormValid = () => {
         if (!selectedService || !agreeToTerms || !planPurchaseDate || !selectedServiceData) return false;
         if (showDateWarning && !understandsDateWarning) return false;
-        if (['credentials', 'invite_link'].includes(selectedServiceData.sharing_method)) {
+        
+        // BUG FIX: Email is mandatory for ALL services EXCEPT 'mobile_login'
+        // This now matches the UI logic, preventing the "hidden field" bug.
+        if (selectedServiceData.sharing_method !== 'mobile_login') {
              if (!verificationEmail || !isValidEmail(verificationEmail)) return false;
         }
-        if (selectedServiceData.sharing_policy === 'restricted' && !hostAddress) return false;
+
+        // Removed address validation completely
+        
         if (aliasName.length > 15) return false;
         return true;
     };
@@ -193,20 +197,16 @@ const HostPlanPage = ({ session }) => {
         const newListingId = data;
 
         // 2. Update the newly created listing with the Verification Email
-        // (Since plan_credentials table is deprecated, we store this directly on the listing)
         if (newListingId && verificationEmail) {
             const { error: updateError } = await supabase
                 .from('listings')
                 .update({ 
-                    emails_for_verification: verificationEmail,
-                    // If you added a host_address column to listings, uncomment the line below:
-                    // host_address: hostAddress 
+                    emails_for_verification: verificationEmail
                 })
                 .eq('id', newListingId);
 
             if (updateError) {
                 console.error("Failed to save verification email:", updateError);
-                // We don't block the success flow here, but we log it.
             }
         }
 
@@ -419,55 +419,36 @@ const HostPlanPage = ({ session }) => {
                                             )}
 
                                             {/* 5. Verification Details */}
-                                            {!selectedServiceData.invite_link_expiration && (
-                                                <div>
-                                                    <h3 className="font-semibold text-lg mb-2">5. Verification Details</h3>
-                                                    <div className="space-y-4">
-                                                        {(selectedServiceData.sharing_method === 'credentials' || selectedServiceData.sharing_method === 'invite_link') && (
-                                                            <div className="animate-in fade-in space-y-3">
-                                                                <div className="flex items-start gap-2 p-3 bg-purple-500/10 text-purple-600 dark:text-purple-300 text-xs rounded-lg">
-                                                                    <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                                                    <p>This email will be used to resolve disputes or verify proofs, please enter valid details.</p>
-                                                                </div>
-                                                                <div>
-                                                                    <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">Registered Account Email <span className="text-red-500">*</span></label>
-                                                                    <input 
-                                                                        type="email" 
-                                                                        placeholder="e.g. yourname@gmail.com" 
-                                                                        value={verificationEmail} 
-                                                                        onChange={e => setVerificationEmail(e.target.value)} 
-                                                                        className={`w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${!isValidEmail(verificationEmail) && verificationEmail ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
-                                                                        required
-                                                                    />
-                                                                    {verificationEmail && !isValidEmail(verificationEmail) && (
-                                                                        <p className="text-xs text-red-500 mt-1">Please enter a valid email address.</p>
-                                                                    )}
-                                                                </div>
+                                            {/* BUG FIX: Removed the wrapper `!selectedServiceData.invite_link_expiration` check so fields are always visible when required */}
+                                            <div>
+                                                <h3 className="font-semibold text-lg mb-2">5. Verification Details</h3>
+                                                <div className="space-y-4">
+                                                    {/* MODIFIED: Show email for everything EXCEPT mobile_login */}
+                                                    {(selectedServiceData.sharing_method !== 'mobile_login') && (
+                                                        <div className="animate-in fade-in space-y-3">
+                                                            <div className="flex items-start gap-2 p-3 bg-purple-500/10 text-purple-600 dark:text-purple-300 text-xs rounded-lg">
+                                                                <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                                                <p>This email will be used to resolve disputes or verify proofs, please enter valid details.</p>
                                                             </div>
-                                                        )}
-
-                                                        {selectedServiceData.sharing_policy === 'restricted' && (
-                                                            <>
-                                                                {isAddressFocused && (
-                                                                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-xs rounded-lg animate-in fade-in">
-                                                                        <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                                                        <p>Please ensure this address matches the one on your {selectedServiceData.name} account to avoid issues.</p>
-                                                                    </div>
-                                                                )}
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="Enter the address used on your account"
-                                                                    value={hostAddress}
-                                                                    onChange={e => setHostAddress(e.target.value)}
-                                                                    onFocus={() => setIsAddressFocused(true)}
-                                                                    onBlur={() => setIsAddressFocused(false)}
-                                                                    className="w-full mt-1 p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border border-gray-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                            <div>
+                                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 block">Registered Account Email <span className="text-red-500">*</span></label>
+                                                                <input 
+                                                                    type="email" 
+                                                                    placeholder="e.g. yourname@gmail.com" 
+                                                                    value={verificationEmail} 
+                                                                    onChange={e => setVerificationEmail(e.target.value)} 
+                                                                    className={`w-full p-3 bg-gray-100 dark:bg-slate-800/50 rounded-lg border focus:outline-none focus:ring-2 focus:ring-purple-500 ${!isValidEmail(verificationEmail) && verificationEmail ? 'border-red-500' : 'border-gray-300 dark:border-slate-600'}`}
+                                                                    required
                                                                 />
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                                {verificationEmail && !isValidEmail(verificationEmail) && (
+                                                                    <p className="text-xs text-red-500 mt-1">Please enter a valid email address.</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {/* Removed Address Input Block completely */}
                                                 </div>
-                                            )}
+                                            </div>
                                             
                                             {/* 6. Privacy */}
                                             <div>

@@ -1,114 +1,85 @@
 import React from 'react';
+import { Users, Shield, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const PlanCard = ({ service }) => {
-  const { name, base_price, description } = service;
-  const initial = name ? name.charAt(0).toUpperCase() : '?';
+const PlanCard = ({ plan }) => {
+    // Safety check: if plan is undefined, return null or a placeholder
+    if (!plan) return null;
 
-  // --- REVISED & IMPROVED COLOR LOGIC ---
-  const getServiceColors = (serviceName) => {
-    const colors = {
-      spotify: { // Green: Made less dark, more vibrant in dark mode
-        from: 'from-green-400 dark:from-green-500',
-        to: 'to-emerald-500 dark:to-emerald-800',
-        accent: 'green',
-        shadow: 'shadow-green-500/40 dark:shadow-green-400/30'
-      },
-      youtube: { // Red: Kept vibrant, with a deeper gradient
-        from: 'from-red-500 dark:from-red-500',
-        to: 'to-rose-600 dark:to-rose-800',
-        accent: 'red',
-        shadow: 'shadow-red-500/40 dark:shadow-red-400/40'
-      },
-      netflix: { // Netflix: Fixed the "pink" issue by fading to a deep red
-        from: 'from-red-600 dark:from-red-600',
-        to: 'to-black dark:to-red-950', // THIS IS THE FIX
-        accent: 'red',
-        shadow: 'shadow-red-500/40 dark:shadow-red-500/40'
-      },
-      prime: { // Blue: Enhanced for dark mode
-        from: 'from-sky-400 dark:from-sky-500',
-        to: 'to-blue-600 dark:to-blue-800',
-        accent: 'blue',
-        shadow: 'shadow-blue-500/40 dark:shadow-blue-400/30'
-      },
-      disney: { // Indigo: Enhanced for dark mode
-        from: 'from-indigo-400 dark:from-indigo-500',
-        to: 'to-purple-600 dark:to-purple-800',
-        accent: 'indigo',
-        shadow: 'shadow-indigo-500/40 dark:shadow-indigo-400/30'
-      },
-      crunchyroll: { // Orange: Preserved intensity in dark mode
-        from: 'from-orange-400 dark:from-orange-500',
-        to: 'to-amber-500 dark:to-amber-700',
-        accent: 'orange',
-        shadow: 'shadow-orange-500/40 dark:shadow-orange-400/30'
-      },
-      nordvpn: { // Cyan: Enhanced for dark mode
-        from: 'from-cyan-400 dark:from-cyan-500',
-        to: 'to-blue-500 dark:to-blue-700',
-        accent: 'cyan',
-        shadow: 'shadow-cyan-500/40 dark:shadow-cyan-400/30'
-      },
-      default: { // Purple: Preserved intensity in dark mode
-        from: 'from-purple-500 dark:from-purple-500',
-        to: 'to-indigo-600 dark:to-indigo-800',
-        accent: 'purple',
-        shadow: 'shadow-purple-500/40 dark:shadow-purple-400/40'
-      }
-    };
-    const key = serviceName?.toLowerCase().split(' ')[0];
-    return colors[key] || colors.default;
-  };
+    // Normalize data (Handle both Marketplace and Home Page data structures)
+    // 1. Try to get data from nested objects (Marketplace style)
+    // 2. Fallback to top-level properties (Legacy/Home style)
+    
+    const hostName = plan.alias_name || plan.host?.full_name || "Top Rated Host";
+    const serviceName = plan.service?.name || plan.name || "Service";
+    const price = plan.service?.base_price || plan.base_price || 0;
+    const logoUrl = plan.service?.logo_url || "/assets/icons/Logo.png";
+    const slots = plan.available_slots || plan.seats_to_sell || 0;
 
-  const { from, to, accent, shadow } = getServiceColors(name);
+    // Determine location text
+    let locationText = null;
+    if (plan.location_data) {
+        if (plan.location_data.type === 'manual') locationText = plan.location_data.address;
+        else if (plan.location_data.type === 'gps') locationText = "Near you (GPS)";
+    }
 
-  return (
-    <Link
-      to={`/marketplace/${name.toLowerCase()}`}
-      className="group block w-[250px] h-[340px]"
-    >
-      <div className={`
-        relative w-full h-full p-6 flex flex-col items-center text-center 
-        rounded-3xl bg-gradient-to-b ${from} ${to} text-white
-        shadow-lg hover:${shadow} transition-all duration-500 
-        hover:-translate-y-2 hover:scale-[1.03]
-      `}>
-        {/* Glow ring accent */}
-        <div
-          className={`absolute inset-0 rounded-3xl bg-gradient-to-b ${from} ${to} opacity-0 
-          group-hover:opacity-30 transition-opacity duration-500`}
-        ></div>
-        {/* Icon */}
-        <div
-          className={`relative z-10 w-20 h-20 rounded-2xl bg-white/10 border border-white/20 
-          flex items-center justify-center mb-5 shadow-inner`}
-        >
-          <span className="text-4xl font-bold text-white">{initial}</span>
-        </div>
-        {/* Title */}
-        <h3 className="relative z-10 text-xl font-extrabold mb-2 tracking-wide">
-          {name}
-        </h3>
-        {/* Price */}
-        <p className="text-3xl font-black bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
-          from ₹{base_price}
-        </p>
-        <p className="text-sm text-gray-100/80 mb-4">per month</p>
-        {/* CTA */}
-        <button
-          className={`mt-auto w-full py-3 bg-white text-${accent}-600 font-semibold 
-          rounded-full shadow-md hover:shadow-lg hover:scale-[1.03] transition-all duration-300`}
-        >
-          Join Now →
-        </button>
-        {/* Description */}
-        <p className="mt-3 text-sm text-white/80 line-clamp-2">
-          {description}
-        </p>
-      </div>
-    </Link>
-  );
+    return (
+        <Link to={`/join-plan/${plan.id}`} className="block group h-full">
+            <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-3xl p-5 hover:border-purple-500/50 dark:hover:border-purple-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/10 relative overflow-hidden h-full flex flex-col">
+                
+                {/* Service Icon & Price Header */}
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-white/10 p-2 flex items-center justify-center flex-shrink-0">
+                            <img 
+                                src={logoUrl} 
+                                alt={serviceName} 
+                                className="w-full h-full object-contain"
+                                onError={(e) => e.target.src = '/assets/icons/Logo.png'} 
+                            />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white leading-tight line-clamp-1">{serviceName}</h3>
+                            <p className="text-xs text-green-600 dark:text-green-400 font-semibold bg-green-500/10 px-2 py-0.5 rounded-full inline-block mt-1">
+                                ₹{price}/mo
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Slots & Location */}
+                <div className="space-y-2 mb-4 flex-grow">
+                    <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
+                        <Users className="w-4 h-4 mr-2 text-purple-500" />
+                        <span>{slots} spots left</span>
+                    </div>
+                    
+                    {locationText && (
+                        <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
+                            <MapPin className="w-4 h-4 mr-2 text-blue-500" />
+                            <span className="truncate max-w-[150px]">{locationText}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Host Info Footer */}
+                <div className="border-t border-gray-100 dark:border-white/5 pt-3 mt-auto flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        {/* Avatar */}
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-400 to-indigo-400 flex items-center justify-center text-[10px] text-white font-bold flex-shrink-0">
+                            {hostName.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs text-gray-600 dark:text-slate-400 truncate max-w-[120px]">
+                            Hosted by <span className="font-medium text-gray-900 dark:text-slate-200">{hostName}</span>
+                        </span>
+                    </div>
+                    {plan.is_verified && (
+                        <Shield className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    )}
+                </div>
+            </div>
+        </Link>
+    );
 };
 
 export default PlanCard;
