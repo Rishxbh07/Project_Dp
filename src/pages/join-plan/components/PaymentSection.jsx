@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCircle2, ChevronDown, ChevronUp, IndianRupee } from 'lucide-react';
+import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import JoiningFeeInfo from './JoiningFeeInfo'; // Import the new component
 
 const PaymentSection = ({ 
     paymentOption, 
@@ -16,6 +17,7 @@ const PaymentSection = ({
             <section className="mb-6">
                 <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-3 px-1">Payment Option</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Auto Pay Option */}
                     <button 
                         onClick={() => setPaymentOption('autoPay')}
                         className={`p-5 rounded-2xl border-2 text-left transition-all duration-200 relative group ${paymentOption === 'autoPay' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10 shadow-md' : 'border-transparent bg-white dark:bg-slate-800/50 hover:bg-gray-50 dark:hover:bg-white/5'}`}
@@ -25,6 +27,7 @@ const PaymentSection = ({
                         <div className="text-sm text-gray-500 mt-1">Best value, renews automatically.</div>
                     </button>
 
+                    {/* One Time Option */}
                     <button 
                         onClick={() => setPaymentOption('oneTime')}
                         className={`p-5 rounded-2xl border-2 text-left transition-all duration-200 relative group ${paymentOption === 'oneTime' ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10 shadow-md' : 'border-transparent bg-white dark:bg-slate-800/50 hover:bg-gray-50 dark:hover:bg-white/5'}`}
@@ -34,9 +37,15 @@ const PaymentSection = ({
                         <div className="text-sm text-gray-500 mt-1">Pay for one month only.</div>
                     </button>
                 </div>
+
+                {/* Joining Fee Info - Only visible for Auto Pay */}
+                {paymentOption === 'autoPay' && (
+                    <JoiningFeeInfo amount={priceDetails.platformFee} />
+                )}
             </section>
 
             <section className="mb-6 space-y-3">
+                {/* Promo Coins Toggle */}
                 <div className={`flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 rounded-2xl border transition-colors ${useCoins ? 'border-green-500/50 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-white/10'}`}>
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => walletBalance >= 10 && setUseCoins(!useCoins)}>
                         <div className={`w-6 h-6 rounded-md flex items-center justify-center border transition-colors ${useCoins ? 'bg-green-500 border-green-500' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700'}`}>
@@ -52,6 +61,7 @@ const PaymentSection = ({
                     <span className="text-sm font-bold text-green-600 dark:text-green-400">-₹10.00</span>
                 </div>
 
+                {/* Price Breakdown Accordion */}
                 <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden">
                     <button 
                         onClick={() => setIsBreakdownVisible(!isBreakdownVisible)}

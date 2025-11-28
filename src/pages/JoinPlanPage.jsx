@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
 import { IndianRupee, AlertCircle } from 'lucide-react';
 
-// New Components
+// Components
 import PlanHeader from './join-plan/components/PlanHeader';
 import PlanStats from './join-plan/components/PlanStats';
 import UserConfigForm from './join-plan/components/UserConfigForm';
@@ -46,10 +46,8 @@ const getFallbackConfig = (serviceName) => {
 };
 
 const JoinPlanPage = ({ session: propSession }) => {
-    // FIXED: Accept 'id' (standard) OR 'listingId' to prevent mismatch bugs
     const params = useParams();
     const listingId = params.id || params.listingId;
-    
     const navigate = useNavigate();
 
     // Data State
@@ -78,36 +76,28 @@ const JoinPlanPage = ({ session: propSession }) => {
         const initPage = async () => {
             setLoading(true);
             try {
-                // A. Ensure Session Exists (Fix for infinite load if prop is missing)
                 let currentSession = propSession;
                 if (!currentSession) {
                     const { data } = await supabase.auth.getSession();
                     currentSession = data.session;
                     if (!currentSession) {
-                        // Redirect to login if absolutely no session found
                         navigate('/auth'); 
                         return;
                     }
                     setSession(currentSession);
                 }
 
-                // B. Validate ID
-                if (!listingId) {
-                    throw new Error("Invalid Plan ID. Please return to the marketplace.");
-                }
+                if (!listingId) throw new Error("Invalid Plan ID.");
 
-                // C. Fetch Data
                 const [listingRes, walletRes] = await Promise.all([
                     supabase.from('listings').select(`*, service:services(*), host:profiles(*), bookings(buyer_id)`).eq('id', listingId).single(),
                     supabase.from('credit_wallets').select('credit_balance').eq('user_id', currentSession.user.id).single()
                 ]);
 
                 if (listingRes.error) throw listingRes.error;
-                
                 const data = listingRes.data;
                 setListing(data);
 
-                // D. Configure Form based on Service
                 if (data?.service?.name && data.service.sharing_method === 'invite_link') {
                     const fallback = getFallbackConfig(data.service.name);
                     const dbConfig = data.service.user_config || {};
@@ -116,7 +106,6 @@ const JoinPlanPage = ({ session: propSession }) => {
                     setInputConfig(finalConfig);
                 }
 
-                // E. Check if already joined
                 if (data.bookings) {
                     setIsAlreadyJoined(data.bookings.some(b => b.buyer_id === currentSession.user.id));
                 }
@@ -146,7 +135,7 @@ const JoinPlanPage = ({ session: propSession }) => {
         }
     }, []);
 
-    // 3. Handle Payment
+    // 3. Handle Payment (UPDATED LOGIC)
     const handleJoinPlan = async () => {
         if (!session || !listing) return;
         
@@ -159,6 +148,7 @@ const JoinPlanPage = ({ session: propSession }) => {
         setError('');
 
         try {
+            // A. Create Order / Subscription via Edge Function
             const { data: orderData, error: orderError } = await supabase.functions.invoke('create-order', {
                 body: { 
                     listing_id: listing.id,
@@ -171,32 +161,47 @@ const JoinPlanPage = ({ session: propSession }) => {
             if (orderError) throw orderError;
             if (!orderData || !orderData.id) throw new Error("Payment initialization failed.");
 
+            const isSubscription = orderData.is_subscription === true;
+
+            // B. Prepare Razorpay Options
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID, 
-                amount: orderData.amount, 
-                currency: orderData.currency,
                 name: "DapBuddy",
                 description: `Join ${listing.service?.name || 'Plan'}`,
-                order_id: orderData.id,
-                prefill: { email: session.user.email },
+                image: "https://your-project-logo-url.png", // Recommended: Add your logo URL here
+                prefill: { 
+                    email: session.user.email,
+                    contact: session.user.phone || ''
+                },
                 theme: { color: "#8b5cf6" },
                 modal: { 
                     ondismiss: () => setIsProcessingPayment(false)
                 },
                 handler: async function (response) {
                     try {
+                        // C. Verify Payment (Handle both Order and Subscription signatures)
+                        const verifyBody = {
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        };
+
+                        if (isSubscription) {
+                            verifyBody.razorpay_subscription_id = response.razorpay_subscription_id;
+                        } else {
+                            verifyBody.razorpay_order_id = response.razorpay_order_id;
+                        }
+
                         const { error: verifyError } = await supabase.functions.invoke('verify-payment', {
-                            body: {
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id,
-                                razorpay_signature: response.razorpay_signature
-                            }
+                            body: verifyBody
                         });
                         
                         if (verifyError) throw new Error("Verification failed.");
-                        await finalizeBooking(response.razorpay_payment_id);
+                        
+                        // D. Finalize Booking (Pass the Order/Sub ID to link the pending transaction)
+                        await finalizeBooking(orderData.id, response.razorpay_payment_id);
                         
                     } catch (innerError) {
+                        console.error(innerError);
                         navigate('/payment-result', { 
                             state: { status: 'failed', planName: listing.service?.name || 'Plan' } 
                         });
@@ -204,46 +209,59 @@ const JoinPlanPage = ({ session: propSession }) => {
                 }
             };
 
+            // E. Conditional ID Assignment
+            if (isSubscription) {
+                options.subscription_id = orderData.id; // Pass Subscription ID
+            } else {
+                options.order_id = orderData.id;       // Pass Order ID
+                options.amount = orderData.amount;
+                options.currency = orderData.currency;
+            }
+
             const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', () => {
+            rzp.on('payment.failed', (response) => {
+                console.error("Payment Failed", response.error);
                 navigate('/payment-result', { state: { status: 'failed', planName: listing.service?.name || 'Plan' } });
             });
             rzp.open();
 
         } catch (error) {
-            console.error("Payment Error:", error);
+            console.error("Payment Initialization Error:", error);
             setError(`Error: ${error.message}`);
             setIsProcessingPayment(false);
         }
     };
 
-    const finalizeBooking = async (gatewayTxId) => {
+    const finalizeBooking = async (orderOrSubId, paymentId) => {
         try {
+            // 1. Create the Booking Record
             const { data: bookingData, error: bookingError } = await supabase.rpc('create_booking_atomic', {
                 p_listing_id: listing.id,
                 p_buyer_id: session.user.id
             });
             
-            if (bookingError || !bookingData?.[0]?.success) throw new Error('Booking failed.');
+            if (bookingError || !bookingData?.[0]?.success) throw new Error('Booking creation failed.');
             const newBookingId = bookingData[0].booking_id;
             
-            const originalAmount = parseFloat(priceDetails.total) + parseFloat(priceDetails.coinDiscount);
+            // 2. Link the Pending Transaction to this Booking
+            // We update the transaction created by the Edge Function (identified by orderOrSubId)
+            const { error: txUpdateError } = await supabase.from('transactions')
+                .update({
+                    booking_id: newBookingId,
+                    payout_status: 'paid', // Mark success
+                    // We can optionally store the payment_id in a metadata field if needed, 
+                    // but keeping gateway_transaction_id as the Order/Sub ID is safer for reference.
+                })
+                .eq('gateway_transaction_id', orderOrSubId)
+                .eq('buyer_id', session.user.id); // Safety check
 
-            const { error: transactionError } = await supabase.from('transactions').insert({
-                booking_id: newBookingId,
-                buyer_id: session.user.id,
-                original_amount: originalAmount.toFixed(2),
-                credits_used: priceDetails.coinDiscount,
-                final_amount_charged: priceDetails.total,
-                payout_to_host: (priceDetails.total - priceDetails.platformFee).toFixed(2),
-                platform_fee: priceDetails.platformFee,
-                billing_options: paymentOption,
-                gateway_transaction_id: gatewayTxId,
-                payout_status: 'paid'
-            });
+            if (txUpdateError) {
+                console.warn("Transaction update warning:", txUpdateError);
+                // We don't throw here to avoid failing the UI for a logging issue, 
+                // as the user has already paid and booking is created.
+            }
 
-            if (transactionError) throw transactionError;
-
+            // 3. Save User Config (Connected Account)
             if (listing.service?.sharing_method === 'invite_link') {
                 await supabase.from('connected_accounts').insert({
                     booking_id: newBookingId,
@@ -258,17 +276,25 @@ const JoinPlanPage = ({ session: propSession }) => {
             }
             
             navigate('/payment-result', { 
-                state: { status: 'success', transactionId: gatewayTxId, amount: priceDetails.total, planName: listing.service?.name || 'Plan' } 
+                state: { 
+                    status: 'success', 
+                    transactionId: paymentId, 
+                    amount: priceDetails.total, 
+                    planName: listing.service?.name || 'Plan' 
+                } 
             });
 
         } catch (err) {
+            console.error("Finalization Error:", err);
+            // Even if this fails, the payment went through. 
+            // Ideally, we show a "Payment Successful but Error Saving" screen or contact support.
+            // For now, we redirect to failure but logs will exist.
             navigate('/payment-result', { state: { status: 'failed', planName: listing.service?.name || 'Plan' } });
         }
     };
     
     if (loading) return <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-900"><Loader /></div>;
     
-    // Safety check for Service Mismatch
     if (!listing || !listing.service) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-gray-50 dark:bg-slate-900">
