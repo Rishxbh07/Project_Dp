@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom'; // Added Navigate
 import { CheckCircle2, XCircle, Loader2, Copy, Calendar, IndianRupee, ShieldAlert } from 'lucide-react';
 
 const PaymentResultPage = () => {
@@ -7,25 +7,26 @@ const PaymentResultPage = () => {
     const navigate = useNavigate();
     const [timeLeft, setTimeLeft] = useState(10);
 
+    // 1. Industry Standard: Handle "missing state" redirect declaratively
+    // If state is missing, return <Navigate /> immediately. 
+    // This prevents the component from mounting invalidly and handles the redirect cleanly.
+    if (!location.state) {
+        return <Navigate to="/" replace />;
+    }
+
     // Extract data passed from navigation state
-    const { status, transactionId, amount, planName } = location.state || { status: 'failed' };
+    const { status, transactionId, amount, planName } = location.state;
     
     const isSuccess = status === 'success';
     const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 30); // Calculate valid until date
+    validUntil.setDate(validUntil.getDate() + 30);
 
     useEffect(() => {
-        if (!location.state) {
-            // If accessed directly without state, redirect home
-            navigate('/', { replace: true });
-            return;
-        }
-
+        // 2. Timer logic remains in useEffect as it is a side effect
         const timer = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timer);
-                    // Redirect based on status
                     if (isSuccess) {
                         navigate('/subscription', { replace: true });
                     } else {
@@ -41,7 +42,7 @@ const PaymentResultPage = () => {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [navigate, isSuccess, location.state]);
+    }, [navigate, isSuccess]); // Removed location.state from deps as it's handled above
 
     // Copy Transaction ID to clipboard
     const copyToClipboard = () => {
@@ -49,8 +50,6 @@ const PaymentResultPage = () => {
             navigator.clipboard.writeText(transactionId);
         }
     };
-
-    if (!location.state) return null;
 
     return (
         <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${isSuccess ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>

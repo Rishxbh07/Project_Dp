@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import Loader from '../components/common/Loader';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, MessageCircle, AlertOctagon } from 'lucide-react'; 
 import Modal from '../components/common/Modal';
 
 // Import all the modular components
@@ -11,7 +11,8 @@ import PlanPricing from '../components/subscriptiondashboard/PlanPricing';
 import SavingsSummary from '../components/subscriptiondashboard/SavingsSummary';
 import Rating from '../components/subscriptiondashboard/Rating';
 
-// --- NEW COMPONENT IMPORTED ---
+// Note: ReportIssueModal is removed as we now navigate to the dedicated page
+
 import { CommunicationManager } from '../components/subscriptiondashboard/CommunicationManager';
 
 const SubscriptionDashboardPage = ({ session }) => {
@@ -41,7 +42,6 @@ const SubscriptionDashboardPage = ({ session }) => {
         setError('');
 
         try {
-            // 1. Get the "details" for page display (from RPC)
             const { data: details, error: detailsError } = await supabase.rpc('get_subscription_details', {
                 p_booking_id: bookingId,
                 p_buyer_id: session.user.id
@@ -55,7 +55,6 @@ const SubscriptionDashboardPage = ({ session }) => {
                 throw new Error('Subscription not found or you do not have access.');
             }
 
-            // 2. Get the *full* booking object for the chat component
             const { data: bookingData, error: bookingError } = await supabase
                 .from('bookings')
                 .select('*, listings(*)') 
@@ -83,9 +82,6 @@ const SubscriptionDashboardPage = ({ session }) => {
     const handleConfirmLeave = async () => {
         setIsLeaving(true);
         try {
-            // 1. Mark booking as 'left'
-            // 'cancelled' is not a valid enum value in your database. 
-            // Based on your schema triggers, 'left' is the correct status for a user leaving.
             const { error: updateError } = await supabase
                 .from('bookings')
                 .update({ 
@@ -97,8 +93,6 @@ const SubscriptionDashboardPage = ({ session }) => {
                 .eq('buyer_id', session.user.id);
 
             if (updateError) throw updateError;
-
-            // 2. Navigate back to list
             navigate('/subscription'); 
             
         } catch (err) {
@@ -130,18 +124,26 @@ const SubscriptionDashboardPage = ({ session }) => {
     return (
         <>
             <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans">
-                {/* --- Header --- */}
-                <header className="sticky top-0 z-20 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-gray-200 dark:border-white/10">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-                        <Link to="/subscription" className="text-purple-500 dark:text-purple-400">
-                            <ArrowLeft className="w-6 h-6" />
-                        </Link>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Your Subscription</h1>
+                {/* --- FIXED HEADER --- */}
+                <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/90 dark:bg-slate-900/90 border-b border-gray-200 dark:border-white/10 shadow-sm transition-all duration-300">
+                    <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                        <button 
+                            onClick={() => navigate(-1)} 
+                            className="p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
+                            aria-label="Go back"
+                        >
+                            <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        
+                        <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900 dark:text-white truncate max-w-[60%]">
+                            {service_name} Family
+                        </h1>
+                        <div className="w-10"></div>
                     </div>
                 </header>
 
                 {/* --- Main Content --- */}
-                <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12 space-y-8">
                     <PlanHeader 
                         serviceName={service_name}
                         serviceMetadata={service_metadata}
@@ -162,12 +164,26 @@ const SubscriptionDashboardPage = ({ session }) => {
                         userPrice={monthly_rate}
                     />
 
-                    <button
-                      onClick={() => setIsChatOpen(true)}
-                      className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-[1.02]"
-                    >
-                      Chat with Host
-                    </button>
+                    {/* --- ACTION BUTTONS --- */}
+                    <div className="flex flex-col md:flex-row gap-4 w-full">
+                        {/* Chat Button (Primary) */}
+                        <button
+                            onClick={() => setIsChatOpen(true)}
+                            className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition-all duration-200"
+                        >
+                            <MessageCircle className="w-5 h-5" />
+                            <span className="font-bold">Chat with Host</span>
+                        </button>
+
+                        {/* Report Problem Button (Secondary) - Navigates to Dispute Page */}
+                        <button
+                            onClick={() => navigate(`/dispute/${bookingId}`)}
+                            className="flex-1 md:flex-none md:w-auto flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-[0.98] transition-all duration-200"
+                        >
+                            <AlertOctagon className="w-5 h-5 text-red-500" />
+                            <span>Report Problem</span>
+                        </button>
+                    </div>
 
                     <Rating bookingId={bookingId} initialRating={plan_rating || 0} />
                     
@@ -184,7 +200,7 @@ const SubscriptionDashboardPage = ({ session }) => {
 
             {/* --- LEAVE MODAL --- */}
             <Modal isOpen={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
-                <div className="p-1">
+                 <div className="p-1">
                     <div className="flex items-center gap-3 mb-4 text-red-600 bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800/50">
                         <AlertTriangle className="w-6 h-6 shrink-0" />
                         <h3 className="text-lg font-bold">Leave Group?</h3>

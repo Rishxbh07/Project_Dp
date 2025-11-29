@@ -2,7 +2,7 @@
 import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
-import { ChevronRight, Sun, Moon, ShieldAlert, CreditCard, Gift, LogOut } from 'lucide-react';
+import { ShieldAlert, CreditCard, Gift, LogOut, FileWarning, Moon, Sun, ChevronRight } from 'lucide-react'; 
 import { ThemeContext } from '../../../context/ThemeContext';
 
 const ProfileDropdownMenu = ({ session, profile, onClose }) => {
@@ -18,6 +18,8 @@ const ProfileDropdownMenu = ({ session, profile, onClose }) => {
   const menuItems = [
     { icon: CreditCard, title: "Payment Methods", path: "/wallet" },
     { icon: ShieldAlert, title: "Dispute Status", path: "/dispute-status" },
+    // Points to the selection view of DisputePage
+    { icon: FileWarning, title: "Raise a Dispute", path: "/dispute" },
     { icon: Gift, title: "Invite & Earn", path: "/invite" },
   ];
 
@@ -26,7 +28,7 @@ const ProfileDropdownMenu = ({ session, profile, onClose }) => {
   return (
     <div
       className="absolute top-full mt-3 w-72 max-w-[80vw]
-                 left-0 md:right-0 md:left-auto  /* ✅ THIS IS THE FIX */
+                 left-0 md:right-0 md:left-auto
                  bg-white dark:bg-slate-900
                  border border-gray-200 dark:border-slate-700 rounded-xl shadow-2xl
                  z-50 animate-in fade-in slide-in-from-top-4 duration-200"

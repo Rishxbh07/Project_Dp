@@ -7,7 +7,7 @@ import MainLayout from './components/layout/MainLayout';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminRequired from './components/AdminRequired';
 import Loader from './components/common/Loader';
-import RequestStatusPage from './pages/RequestStatusPage';
+// import RequestStatusPage from './pages/RequestStatusPage'; // <--- REMOVED OLD STATIC IMPORT IF PRESENT
 
 // --- Core Components ---
 import Auth from './components/Auth';
@@ -22,17 +22,15 @@ const AuthRedirectPage = lazy(() => import('./pages/AuthRedirectPage'));
 // --- MOVED TO PUBLIC ---
 const ExplorePage = lazy(() => import('./pages/ExplorePage'));
 const MarketplacePage = lazy(() => import('./pages/MarketplacePage'));
-const PartnershipLeadsPage = lazy(() => import('./pages/PartnershipLeadsPage')); // NEW
-const VerifyIdentityPage = lazy(() => import('./pages/VerifyIdentityPage')); // NEW
+const PartnershipLeadsPage = lazy(() => import('./pages/PartnershipLeadsPage'));
+const VerifyIdentityPage = lazy(() => import('./pages/VerifyIdentityPage'));
 
 // Protected Pages
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
-// The old page is replaced with the new one
 const SubscriptionDashboardPage = lazy(() => import('./pages/SubscriptionDashboardPage'));
 const DapBuddySubDetailsPage = lazy(() => import('./_legacy/DapBuddySubDetailsPage'));
 const HostDashboardPage = lazy(() => import('./pages/host-side/HostDashboardPage'));
 const MemberManagementPage = lazy(() => import('./pages/host-side/MemberManagementPage'));
-// ADDED: Import the MemberDetailPage
 const MemberDetailPage = lazy(() => import('./pages/MemberDetailPage'));
 
 const WalletPage = lazy(() => import('./pages/WalletPage'));
@@ -52,6 +50,8 @@ const DisputeStatusPage = lazy(() => import('./pages/DisputeStatusPage'));
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 
+// // --- FIXED: Import from the renamed file ---
+// const RequestStatusPage = lazy(() => import('./pages/RequestStatusPageOld')); 
 
 // Admin Pages
 const GroupManagementPage = lazy(() => import('./pages/admin/GroupManagementPage'));
@@ -154,32 +154,34 @@ function App() {
               {/* === PROTECTED ROUTES === */}
               <Route element={<AuthRequired session={session} openAuthModal={openAuthModal} />}>
                 <Route path="/subscription" element={<SubscriptionPage session={session} />} />
-                {/* The route now points to the new dashboard page */}
                 <Route path="/subscription/:bookingId" element={<SubscriptionDashboardPage session={session} />} />
                 <Route path="/dapbuddy-subscription/:id" element={<DapBuddySubDetailsPage session={session} />} />
                 <Route path="/hosted-plan/:listingId" element={<HostDashboardPage session={session} />} />
                 
-                {/* ADDED: Route for Member Detail Page (This fixes the broken > button) */}
                 <Route path="/host/member/:bookingId" element={<MemberDetailPage session={session} />} />
-                
                 <Route path="/manage-member/:bookingId" element={<MemberManagementPage session={session} />} />
+                
                 <Route path="/wallet" element={<WalletPage session={session} />} />
                 <Route path="/profile" element={<ProfilePage session={session} />} />
                 <Route path="/edit-profile" element={<EditProfilePage session={session} />} />
                 <Route path="/profile/connected-accounts" element={<ConnectedAccountsPage session={session} />} />
                 <Route path="/friends" element={<FriendsPage session={session} />} />
                 <Route path="/notifications" element={<NotificationsPage session={session} />} />
+                
                 <Route path="/join-plan/:listingId" element={<JoinPlanPage session={session} />} />
                 <Route path="/join-dapbuddy-plan/:planId" element={<JoinDapBuddyPlanPage session={session} />} />
                 <Route path="/host-plan" element={<HostPlanPage session={session} />} />
                 <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
                 <Route path="/invite" element={<InvitePage session={session} />} />
                 <Route path="/achievements" element={<AchievementsPage session={session} />} />
+                <Route path="/dispute" element={<DisputePage session={session} />} />
                 <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
-                <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
                 <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
                 <Route path="/pay" element={<PaymentPage session={session} />} />
-                <Route path="/request-status/:bookingId" element={<RequestStatusPage session={session} />} />
+                
+                {/* Points to RequestStatusPageOld.jsx now, effectively a legacy route
+                <Route path="/request-status/:bookingId" element={<RequestStatusPage session={session} />} /> */}
+                
                 <Route path="/payment-result" element={<PaymentResultPage />} />
               </Route>
             </Route>
