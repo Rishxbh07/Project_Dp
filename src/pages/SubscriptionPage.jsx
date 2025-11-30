@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { supabase } from '../lib/supabaseClient';
 import SubscriptionCard from '../components/SubscriptionCard';
 import HostedPlanCard from '../components/HostedPlanCard';
 import Loader from '../components/common/Loader';
+import PageHeader from '../components/common/PageHeader'; // IMPORT REUSABLE HEADER
 import { Filter, Plus, RefreshCw, LayoutGrid, List } from 'lucide-react';
 
 const SubscriptionPage = ({ session }) => {
+    const navigate = useNavigate(); // Hook for navigation
+
     // UI State
     const [activeTab, setActiveTab] = useState('subscribed'); // 'subscribed' | 'hosted'
     
@@ -170,10 +173,21 @@ const SubscriptionPage = ({ session }) => {
     return (
         <div className="bg-gray-50 dark:bg-slate-900 min-h-screen font-sans pb-24">
             
-            {/* --- Sticky Header & Toggle --- */}
-            <div className="sticky top-0 z-10 bg-gray-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
+            {/* --- REUSABLE HEADER (REPLACED MANUAL HEADER) --- */}
+            <PageHeader 
+                title="My Plans" 
+                rightAction={
+                    // Only show "Add" button if we are NOT on the hosted tab (since that button is below)
+                    // Or keep it empty if you prefer the large button below.
+                    // For consistency with other pages, maybe a search icon or empty space.
+                    <div className="w-10" /> 
+                }
+            />
+
+            {/* --- Sticky Toggle & Filter (Moved down slightly to account for fixed header) --- */}
+            {/* Added top-[64px] because the PageHeader is 64px (h-16) fixed */}
+            <div className="sticky top-[64px] z-10 bg-gray-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-white/5 transition-all">
                 <div className="max-w-7xl mx-auto px-4 py-4 space-y-4">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Plans</h1>
                     
                     {/* Fixed Pill Toggle */}
                     <div className="relative mx-auto max-w-md bg-gray-200 dark:bg-slate-800 rounded-full p-1.5 flex h-14 shadow-inner">
@@ -241,7 +255,8 @@ const SubscriptionPage = ({ session }) => {
             </div>
 
             {/* --- Content List --- */}
-            <main className="max-w-7xl mx-auto px-4 py-6">
+            {/* Added pt-28 to account for the double sticky headers (PageHeader + FilterBar) */}
+            <main className="max-w-7xl mx-auto px-4 py-6 pt-28">
                 {loading ? (
                     <div className="flex justify-center pt-20">
                         <Loader />

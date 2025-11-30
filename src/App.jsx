@@ -7,7 +7,6 @@ import MainLayout from './components/layout/MainLayout';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminRequired from './components/AdminRequired';
 import Loader from './components/common/Loader';
-// import RequestStatusPage from './pages/RequestStatusPage'; // <--- REMOVED OLD STATIC IMPORT IF PRESENT
 
 // --- Core Components ---
 import Auth from './components/Auth';
@@ -49,9 +48,6 @@ const DisputePage = lazy(() => import('./pages/DisputePage'));
 const DisputeStatusPage = lazy(() => import('./pages/DisputeStatusPage'));
 const PaymentVerificationPage = lazy(() => import('./pages/PaymentVerificationPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
-
-// // --- FIXED: Import from the renamed file ---
-// const RequestStatusPage = lazy(() => import('./pages/RequestStatusPageOld')); 
 
 // Admin Pages
 const GroupManagementPage = lazy(() => import('./pages/admin/GroupManagementPage'));
@@ -174,13 +170,15 @@ function App() {
                 <Route path="/request-service" element={<ServiceRequestPage session={session} />} />
                 <Route path="/invite" element={<InvitePage session={session} />} />
                 <Route path="/achievements" element={<AchievementsPage session={session} />} />
+                
+                {/* --- DISPUTE ROUTES --- */}
                 <Route path="/dispute" element={<DisputePage session={session} />} />
                 <Route path="/dispute/:bookingId" element={<DisputePage session={session} />} />
+                {/* --- ADDED MISSING ROUTE --- */}
+                <Route path="/dispute-status" element={<DisputeStatusPage session={session} />} />
+
                 <Route path="/payment-verification" element={<PaymentVerificationPage session={session} />} />
                 <Route path="/pay" element={<PaymentPage session={session} />} />
-                
-                {/* Points to RequestStatusPageOld.jsx now, effectively a legacy route
-                <Route path="/request-status/:bookingId" element={<RequestStatusPage session={session} />} /> */}
                 
                 <Route path="/payment-result" element={<PaymentResultPage />} />
               </Route>

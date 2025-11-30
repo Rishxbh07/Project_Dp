@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
 import PlanCard from './PlanCard'; // Make sure the path to PlanCard is correct
 
-// Dummy data for example purposes - replace with your actual data fetching
-const exampleServices = [
-  { id: 1, name: 'NordVPN', base_price: '99', description: 'Join the best NordVPN plan!' },
-  { id: 2, name: 'Spotify', base_price: '49', description: 'Music for everyone.' },
-  { id: 3, name: 'Netflix', base_price: '149', description: 'Unlimited movies, TV shows, and more.' },
-  { id: 4, name: 'YouTube', base_price: '69', description: 'Enjoy premium content ad-free.' },
-  { id: 5, name: 'Disney+', base_price: '129', description: 'The best stories in the world.' },
-];
 
 
 const PopularPlansMobile = ({ services = exampleServices }) => {
